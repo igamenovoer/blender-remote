@@ -81,3 +81,12 @@ When implementing features:
 ## Development Conventions
 
 - `tmp` dir is for everything not intended to be uploaded to git
+
+## Reusable Project Guides
+
+This repository contains two guides that are not directly related to the blender-remote project but are kept for reuse in similar projects:
+
+- **context-dir-guide.md**: Specification for standardized AI-assisted development context directory structure
+- **project-init-guide.md**: Guide for creating professional Python library projects with modern development practices
+
+These guides should be updated when improved patterns or practices are discovered, making them available for future projects.

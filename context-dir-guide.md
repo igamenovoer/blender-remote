@@ -35,6 +35,8 @@ This directory typically contains design documents that outline how systems shou
 **Recommended Usage**:
 This directory commonly holds planning documents that organize development work over time. Projects often store feature development plans with task breakdowns, sprint planning and milestone definitions, resource allocation estimates, risk assessments, and release planning schedules. Teams might use this space for coordination workflows, timeline tracking, and scope management. The planning approach and documentation style can vary based on project methodology, team size, and organizational preferences.
 
+**Status Tracking**: Since plans function as extended TODO items, each document should include a status section clearly stating when the plan was created and the current progress (completed, in-progress, or pending, with a brief summary of what has been accomplished).
+
 ### hints/
 **Purpose**: Provide programming tutorials, development guides, and best practice documentation.
 
@@ -52,6 +54,8 @@ This directory captures accumulated project wisdom and experience. Teams often d
 
 **Recommended Usage**:
 This directory facilitates communication between human developers and AI assistants about specific work items. Common content includes development task specifications, feature requirements, bug reports, enhancement requests, research assignments, and maintenance tasks. Projects might structure these with acceptance criteria, priority levels, and links to related documentation. The organization could range from simple task lists to detailed specifications, depending on project complexity and collaboration needs.
+
+**Status Tracking**: Since tasks are essentially TODO items, each document should include a status section clearly stating when the task was created and the current progress (completed, in-progress, or pending, with a brief summary of what has been accomplished).
 
 ### logs/
 **Purpose**: Maintain development history and session continuity for AI assistants.

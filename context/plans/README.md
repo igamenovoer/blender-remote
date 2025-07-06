@@ -51,3 +51,12 @@ Before starting new development cycles:
 5. Update plans as work progresses
 
 Plans should be living documents that evolve as the project progresses and requirements change.
+
+## Status Tracking
+
+Each plan document should include a status section that clearly states:
+- **Created**: When the plan was originally created (date)
+- **Status**: Current state (pending, in-progress, completed)
+- **Progress Summary**: Brief description of what has been accomplished
+
+This enables easy tracking of plan execution and helps maintain context across development phases and team changes.

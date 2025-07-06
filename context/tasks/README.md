@@ -30,6 +30,15 @@ tasks/
 3. **Implementation**: Track progress and decisions
 4. **Completion**: Summarize solution and learnings
 
+## Status Tracking
+
+Each task document should include a status section that clearly states:
+- **Created**: When the task was originally created (date)
+- **Status**: Current state (pending, in-progress, completed)
+- **Progress Summary**: Brief description of what has been accomplished
+
+This enables easy tracking of task progress and helps maintain context across development sessions.
+
 ## Naming Convention
 
 - Use sequential numbering: task_XXX_description
