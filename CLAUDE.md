@@ -57,8 +57,16 @@ When implementing features:
 
 - This is a new project in initial development phase
 - The project structure and core modules need to be created
-- Development tools (linting, testing, formatting) need to be configured
-- PyPI packaging configuration needs to be set up in pyproject.toml
+- Development tools (linting, testing, formatting) are configured
+- PyPI packaging configuration is set up in pyproject.toml
+- Documentation is built with MkDocs Material and deployed to GitHub Pages
+
+## Documentation
+
+- **Documentation Site**: https://igamenovoer.github.io/blender-remote/
+- **Local Development**: `pixi run docs-serve` - Serve docs locally with live reload
+- **Building**: `pixi run docs` - Build static documentation
+- **Deployment**: Automatic via GitHub Actions on main branch updates
 
 ## Development Conventions
 

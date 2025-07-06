@@ -49,16 +49,19 @@ dev = [
 ]
 
 docs = [
-    "sphinx>=5.0.0",
-    "sphinx-rtd-theme>=1.0.0",
-    "sphinx-autodoc-typehints>=1.0.0",
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.0.0",
+    "mkdocs-git-revision-date-localized-plugin",
+    "mkdocs-git-committers-plugin-2",
+    "mkdocs-minify-plugin",
+    "pymdown-extensions",
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/blender-remote"
-Documentation = "https://github.com/yourusername/blender-remote/wiki"
-Repository = "https://github.com/yourusername/blender-remote.git"
-"Bug Tracker" = "https://github.com/yourusername/blender-remote/issues"
+Homepage = "https://github.com/igamenovoer/blender-remote"
+Documentation = "https://igamenovoer.github.io/blender-remote/"
+Repository = "https://github.com/igamenovoer/blender-remote.git"
+"Bug Tracker" = "https://github.com/igamenovoer/blender-remote/issues"
 
 [project.scripts]
 blender-remote = "scripts.cli:main"

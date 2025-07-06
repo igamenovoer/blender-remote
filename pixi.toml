@@ -20,8 +20,9 @@ build = "python -m build"
 clean = "rm -rf build dist *.egg-info"
 
 # Documentation tasks
-docs = "sphinx-build -b html docs docs/_build/html"
-docs-serve = "python -m http.server --directory docs/_build/html"
+docs = "mkdocs build"
+docs-serve = "mkdocs serve"
+docs-deploy = "mkdocs gh-deploy --force"
 
 [dependencies]
 python = ">=3.8,<3.13"
@@ -38,9 +39,12 @@ mypy = ">=1.0.0"
 pre-commit = ">=3.0.0"
 
 # Documentation dependencies
-sphinx = ">=5.0.0"
-sphinx-rtd-theme = ">=1.0.0"
-sphinx-autodoc-typehints = ">=1.0.0"
+mkdocs = ">=1.5.0"
+mkdocs-material = ">=9.0.0"
+mkdocs-git-revision-date-localized-plugin = "*"
+mkdocs-git-committers-plugin-2 = "*"
+mkdocs-minify-plugin = "*"
+pymdown-extensions = "*"
 
 [feature.dev.dependencies]
 ipython = "*"

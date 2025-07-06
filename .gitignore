@@ -161,3 +161,8 @@ ehthumbs.db
 /context/refcode/*/
 
 tmp/
+
+# Documentation build
+site/
+htmltest-output/
+htmltest.log

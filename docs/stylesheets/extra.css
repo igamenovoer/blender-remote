@@ -1,0 +1,159 @@
+/* Extra CSS for Blender Remote documentation */
+
+/* Custom styling for code blocks */
+.highlight {
+    margin: 1em 0;
+}
+
+/* Styling for API documentation */
+.api-method {
+    background-color: var(--md-code-bg-color);
+    border-left: 4px solid var(--md-primary-fg-color);
+    padding: 0.5em 1em;
+    margin: 1em 0;
+    border-radius: 0 4px 4px 0;
+}
+
+.api-method h5 {
+    margin: 0 0 0.5em 0;
+    color: var(--md-primary-fg-color);
+    font-family: var(--md-code-font);
+}
+
+/* Styling for command examples */
+.command-example {
+    background-color: var(--md-default-bg-color);
+    border: 1px solid var(--md-default-fg-color--lighter);
+    border-radius: 4px;
+    padding: 1em;
+    margin: 1em 0;
+}
+
+.command-example h6 {
+    margin: 0 0 0.5em 0;
+    color: var(--md-accent-fg-color);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Styling for parameter tables */
+.parameter-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+}
+
+.parameter-table th,
+.parameter-table td {
+    border: 1px solid var(--md-default-fg-color--lightest);
+    padding: 0.5em;
+    text-align: left;
+}
+
+.parameter-table th {
+    background-color: var(--md-default-fg-color--lightest);
+    font-weight: 600;
+}
+
+/* Custom styling for feature boxes */
+.feature-box {
+    background: linear-gradient(135deg, var(--md-primary-fg-color--light), var(--md-primary-fg-color));
+    color: white;
+    padding: 1.5em;
+    border-radius: 8px;
+    margin: 1em 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.feature-box h3 {
+    margin: 0 0 0.5em 0;
+    color: white;
+}
+
+.feature-box p {
+    margin: 0;
+    opacity: 0.9;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 768px) {
+    .api-method,
+    .command-example {
+        margin: 1em -1em;
+        border-radius: 0;
+    }
+    
+    .parameter-table {
+        font-size: 0.9rem;
+    }
+}
+
+/* Dark mode adjustments */
+[data-md-color-scheme="slate"] {
+    --md-code-bg-color: #2d3748;
+}
+
+[data-md-color-scheme="slate"] .api-method {
+    background-color: #2d3748;
+}
+
+[data-md-color-scheme="slate"] .command-example {
+    background-color: #1a202c;
+    border-color: #4a5568;
+}
+
+/* Print styles */
+@media print {
+    .md-header,
+    .md-sidebar,
+    .md-footer {
+        display: none !important;
+    }
+    
+    .md-content {
+        margin: 0 !important;
+    }
+    
+    .api-method,
+    .command-example {
+        border: 1px solid #000;
+        background: #f8f9fa !important;
+        break-inside: avoid;
+    }
+}
+
+/* Custom animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.feature-box {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+/* Accessibility improvements */
+.api-method:focus-within,
+.command-example:focus-within {
+    outline: 2px solid var(--md-accent-fg-color);
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .api-method {
+        border-left-width: 6px;
+    }
+    
+    .feature-box {
+        background: var(--md-primary-fg-color);
+        border: 2px solid var(--md-default-fg-color);
+    }
+}

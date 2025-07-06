@@ -22,7 +22,7 @@ pip install blender-remote
 ### From Source
 
 ```bash
-git clone https://github.com/yourusername/blender-remote.git
+git clone https://github.com/igamenovoer/blender-remote.git
 cd blender-remote
 pip install -e .
 ```
@@ -109,6 +109,6 @@ Contributions are welcome! Please read our contributing guidelines and submit pu
 
 ## Support
 
-- [Documentation](https://github.com/yourusername/blender-remote/wiki)
-- [Issue Tracker](https://github.com/yourusername/blender-remote/issues)
-- [Discussions](https://github.com/yourusername/blender-remote/discussions)
+- [Documentation](https://igamenovoer.github.io/blender-remote/)
+- [Issue Tracker](https://github.com/igamenovoer/blender-remote/issues)
+- [Discussions](https://github.com/igamenovoer/blender-remote/discussions)

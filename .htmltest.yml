@@ -1,0 +1,18 @@
+# htmltest configuration for link checking
+DirectoryPath: "site"
+CheckDoctype: false
+CheckAnchors: true
+CheckLinks: true
+CheckImages: true
+CheckScripts: false
+CheckFavicon: false
+CheckMetaRefresh: false
+IgnoreDirectoryMissingTrailingSlash: true
+IgnoreURLsMatching:
+  - "^https://github.com/igamenovoer/blender-remote" # Skip external GitHub links during CI
+  - "^https://pypi.org/" # Skip PyPI links
+  - "^mailto:" # Skip email links
+  - "^tel:" # Skip phone links
+LogLevel: 2
+OutputDir: "htmltest-output"
+OutputLogFile: "htmltest.log"
