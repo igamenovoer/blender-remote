@@ -21,6 +21,16 @@ blender-remote/
 │   └── blender_remote/ # Python package for remote control from outside Blender
 ├── scripts/            # CLI tools for command-line interaction
 ├── tests/              # Test suite
+├── docs/               # Documentation source
+├── context/            # AI assistant workspace
+│   ├── design/         # API and technical design docs
+│   ├── plans/          # Implementation roadmaps
+│   ├── hints/          # Programming guides and tutorials
+│   ├── summaries/      # Project knowledge base
+│   ├── tasks/          # Human-defined task requests
+│   ├── logs/           # Development history logs
+│   ├── refcode/        # Reference implementations
+│   └── tools/          # Custom development utilities
 ├── pyproject.toml      # Python package configuration
 └── README.md           # Project documentation
 ```

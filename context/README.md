@@ -12,6 +12,8 @@ Provides organized reference materials to help AI assistants:
 
 ## Subdirectories
 
+- **design/** - API and technical design documentation
+- **plans/** - Implementation plans and project roadmaps
 - **hints/** - Programming tutorials and guides
 - **summaries/** - Project experience and knowledge summaries
 - **tasks/** - Task definitions and prompts from humans
