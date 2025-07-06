@@ -1,19 +1,41 @@
 # Blender Remote
 
-Welcome to **Blender Remote** - the ultimate solution for controlling Blender remotely through Python and MCP server integration.
+Remote control Blender with Python and MCP server.
 
-![Blender Remote Logo](img/logo.png){ align=right width=300 }
+## Overview
 
-## What is Blender Remote?
+blender-remote enables you to control Blender remotely through a Python API and command-line tools. The project consists of:
 
-Blender Remote enables you to control Blender from any Python environment, providing:
+- **Blender Add-ons**: Install these in Blender to enable remote control capabilities
+- **Python Library**: Control Blender from any Python script or application  
+- **CLI Tools**: Command-line interface for quick Blender operations
+- **MCP Server**: Model Context Protocol integration for AI-assisted workflows
 
-- **🔌 Remote Control**: Connect to Blender from external Python scripts
-- **🤖 MCP Integration**: Model Context Protocol for AI-assisted workflows
-- **⌨️ CLI Tools**: Command-line interface for quick operations
-- **🔧 Extensible**: Easy to add custom commands and operations
+## Installation
+
+### From PyPI (Coming Soon)
+
+```bash
+pip install blender-remote
+```
+
+### From Source
+
+```bash
+git clone https://github.com/igamenovoer/blender-remote.git
+cd blender-remote
+pip install -e .
+```
 
 ## Quick Start
+
+### 1. Install Blender Add-on
+
+1. Download the add-on from the `blender_addon/` directory
+2. In Blender: Edit → Preferences → Add-ons → Install
+3. Select the add-on file and enable it
+
+### 2. Connect from Python
 
 ```python
 import blender_remote
@@ -28,61 +50,65 @@ client.create_primitive("cube", location=(0, 0, 0))
 client.render("output.png")
 ```
 
-## Key Features
+### 3. Use CLI Tools
 
-### 🎯 Real-time Control
-Send commands and receive responses instantly from your running Blender instance.
+```bash
+# Check connection
+blender-remote status
 
-### 🐍 Python API
-Full-featured Python library for complex automation and integration with existing workflows.
+# Execute Blender Python code
+blender-remote exec "bpy.ops.mesh.primitive_cube_add()"
 
-### 🖥️ CLI Tools
-Quick command-line access to common Blender operations without writing code.
-
-### 🔗 MCP Server
-Built-in Model Context Protocol server for seamless AI assistant integration.
-
-### 📦 Easy Installation
-Available on PyPI with simple `pip install blender-remote`.
-
-## Architecture Overview
-
-```mermaid
-graph TB
-    A[Your Python Script] --> B[blender-remote Library]
-    B --> C[MCP Protocol]
-    C --> D[Blender Add-on]
-    D --> E[Blender Python API]
-    E --> F[Blender Operations]
-    
-    G[CLI Tools] --> B
-    H[AI Assistant] --> C
+# Render current scene
+blender-remote render --output render.png
 ```
 
-## Use Cases
+## Features
 
-- **Automation**: Batch processing of 3D models and scenes
-- **CI/CD**: Automated rendering in continuous integration pipelines
-- **AI Workflows**: LLM-assisted 3D content creation and modification
-- **Remote Rendering**: Control Blender instances on powerful remote machines
-- **Integration**: Embed Blender operations in larger Python applications
+- **Real-time Control**: Send commands and receive responses instantly
+- **Python API**: Full-featured Python library for complex automations
+- **CLI Tools**: Quick command-line access to common operations
+- **MCP Integration**: Compatible with AI coding assistants
+- **Extensible**: Easy to add custom commands and operations
 
-## Getting Started
+## Development
 
-Ready to get started? Check out our comprehensive guides:
+This project uses [pixi](https://pixi.sh) for environment management:
 
-- [Installation](installation.md) - Set up Blender Remote in your environment
-- [Getting Started](getting-started.md) - Your first remote Blender session
-- [API Reference](api-reference.md) - Complete Python API documentation
-- [CLI Tools](cli.md) - Command-line interface guide
-- [Development](development.md) - Contributing and extending Blender Remote
+```bash
+# Install pixi (if not already installed)
+curl -fsSL https://pixi.sh/install.sh | bash
 
-## Community
+# Create development environment
+pixi install
+
+# Run tests
+pixi run pytest
+```
+
+## Project Structure
+
+```
+blender-remote/
+├── blender_addon/     # Blender add-ons
+├── src/               # Source code (src layout)
+│   └── blender_remote/    # Python library
+├── scripts/          # CLI tools
+├── tests/           # Test suite
+├── context/         # AI assistant resources
+└── docs/            # Documentation
+```
+
+## Contributing
+
+Contributions are welcome! Please read our contributing guidelines and submit pull requests to our repository.
+
+## License
+
+[MIT License](LICENSE)
+
+## Links
 
 - **GitHub**: [igamenovoer/blender-remote](https://github.com/igamenovoer/blender-remote)
-- **Issues**: Report bugs and request features
-- **Discussions**: Community support and ideas
-
----
-
-**Get started today and unlock the power of remote Blender control!**
+- **Issues**: [Report bugs and request features](https://github.com/igamenovoer/blender-remote/issues)
+- **Discussions**: [Community support](https://github.com/igamenovoer/blender-remote/discussions)
