@@ -159,6 +159,7 @@ ehthumbs.db
 # Project specific
 /context/logs/*.log
 /context/refcode/*/
+!/context/refcode/blender-mcp
 
 tmp/
 
