@@ -45,6 +45,43 @@ blender-remote/
   - `pixi run format` - Format code
   - `pixi run build` - Build package
 
+## Available MCP Servers
+
+- **tavily**: `bunx -y tavily-mcp@latest` - Web search and content extraction
+- **fetch**: `uvx mcp-server-fetch` - URL fetching capabilities
+- **blender-mcp**: `uvx blender-mcp` - Blender integration tools
+- **context7**: `bunx -y @upstash/context7-mcp` - Context and documentation management
+
+## MCP Protocol Reference
+
+For MCP protocol details and implementation guidance:
+1. **First check**: `context/summaries/mcp-implementation-guide.md` for essential implementation details
+2. **Query context7**: Use `mcp__context7__resolve-library-id` + `mcp__context7__get-library-docs` for latest protocol specs
+3. **Reference code**: Check `context/refcode/modelcontextprotocol/` for complete protocol documentation
+
+## Blender MCP Reference Implementations
+
+For Blender addon patterns and MCP integration examples:
+
+### Primary Reference: blender_auto_mcp
+- **Location**: `context/refcode/blender_auto_mcp/`
+- **Description**: Production-ready modular Blender MCP addon with auto-start capabilities
+- **Key Features**:
+  - Environment variable configuration (`BLENDER_AUTO_MCP_SERVICE_PORT`, `BLENDER_AUTO_MCP_START_NOW`)
+  - Background mode support with asyncio event loop
+  - Modular architecture (server.py, ui_panel.py, utils.py, asset_providers.py)
+  - Cross-platform socket handling
+  - Multi-threaded server with proper cleanup
+  - GUI integration with scene properties
+- **Analysis**: See `context/summaries/blender-auto-mcp-analysis.md` for detailed implementation patterns
+- **Usage**: For MCP integration via `uvx blender-mcp` (interfaces with this implementation)
+- **Installation Status**: 
+  - blender_auto_mcp is already installed
+
+### Secondary References
+- **blender-echo-plugin**: `context/refcode/blender-echo-plugin/` - Simple TCP server pattern for background services
+- **blender-mcp**: `context/refcode/blender-mcp/` - Original monolithic implementation (deprecated in favor of blender_auto_mcp)
+
 ## Architecture Overview
 
 1. **Blender Add-ons** (`blender_addon/`): Multiple add-ons that create non-stop services inside Blender. These services listen for commands and execute them using Blender's Python API.
@@ -82,6 +119,42 @@ When implementing features:
 
 - `tmp` dir is for everything not intended to be uploaded to git
 
+## Blender Process Management
+
+**Blender Path**: `/home/igamenovoer/apps/blender-4.4.3-linux-x64/blender`
+
+### Starting Blender with Auto MCP
+```bash
+# Kill any existing Blender processes
+pkill -f blender
+
+# Start with auto-start MCP (GUI mode recommended)
+export BLENDER_AUTO_MCP_SERVICE_PORT=9876
+export BLENDER_AUTO_MCP_START_NOW=1
+/home/igamenovoer/apps/blender-4.4.3-linux-x64/blender &
+
+# Wait ~10 seconds for startup (not 2 minutes!)
+sleep 10
+```
+
+### Testing MCP Connection
+```python
+import socket, json
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.connect(('127.0.0.1', 9876))
+command = {"type": "get_scene_info", "params": {}}
+sock.sendall(json.dumps(command).encode('utf-8'))
+response = json.loads(sock.recv(4096).decode('utf-8'))
+sock.close()
+```
+
+### Process Management
+- **GUI Mode**: Blender stays running until killed - use this for testing
+- **Background Mode**: Exits immediately without blocking operation (needs asyncio loop)
+- **Check Running**: `ps aux | grep blender | grep -v grep`
+- **Check Port**: `netstat -tlnp | grep 9876`
+- **Kill Process**: `kill <PID>` or `pkill -f blender`
+
 ## Reusable Project Guides
 
 This repository contains two guides that are not directly related to the blender-remote project but are kept for reuse in similar projects:
@@ -90,3 +163,15 @@ This repository contains two guides that are not directly related to the blender
 - **project-init-guide.md**: Guide for creating professional Python library projects with modern development practices
 
 These guides should be updated when improved patterns or practices are discovered, making them available for future projects.
+
+## Blender Configuration
+
+- Blender path is `/home/igamenovoer/apps/blender-4.4.3-linux-x64/blender`, you can start it yourself
+
+## Implementation Hints
+
+- blender will not exit in GUI mode unless you kill it, so DO NOT wait for it to finish, just read its console output on-the-fly
+
+## Blender Development Notes
+
+- blender is not very good at cleaning up its internal states, so if anything goes weird, consider restart blender and re-install the plugin under development

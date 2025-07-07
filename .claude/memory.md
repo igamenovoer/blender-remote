@@ -3,8 +3,19 @@
 ## Current Status
 blender-remote is in initial development phase with basic project structure set up but core functionality pending implementation.
 
-## Reference Implementation Added
+## Reference Materials Added
+
+### blender-mcp Implementation
 **blender-mcp** has been added to `context/refcode/blender-mcp/` as reference code:
+
+### MCP Protocol Specification
+**Model Context Protocol specification** has been added to `context/refcode/modelcontextprotocol/` with complete documentation:
+- **Latest Spec**: 2025-06-18 version with security best practices
+- **Schema Files**: JSON schemas for all protocol versions
+- **Documentation**: Complete API reference, architecture guides, tutorials
+- **Client/Server Implementation**: Detailed specs for both sides
+- **Transport Layer**: Various transport mechanisms (stdio, SSE, WebSocket)
+- **Core Concepts**: Tools, resources, prompts, sampling, roots
 
 ### Key Components
 - **Blender Addon** (`addon.py`): Creates socket server inside Blender (port 12345) to receive and execute commands
@@ -40,4 +51,4 @@ blender-remote is in initial development phase with basic project structure set 
 - PyPI packaging configuration ready
 
 ## Next Steps
-Use blender-mcp as architectural reference to implement blender-remote's core functionality while maintaining the planned API design from README.md.
+Use blender-mcp as architectural reference and MCP specification for implementing blender-remote's core functionality while maintaining the planned API design from README.md. The full MCP spec provides authoritative guidance for protocol implementation.
