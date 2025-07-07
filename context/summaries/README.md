@@ -29,6 +29,18 @@ This directory contains summaries of project experience and accumulated knowledg
 - Python packaging experiences
 - Testing framework insights
 
+## Current Summaries
+
+### Blender MCP Implementation
+- **`bld-remote-mcp-implementation-complete.md`** - Complete implementation journey of BLD Remote MCP service
+- **`blender-background-mode-patterns-comparison.md`** - Definitive comparison of background mode service patterns
+- **`blender-auto-mcp-analysis.md`** - Analysis of the blender_auto_mcp reference implementation
+- **`blender-background-service-patterns.md`** - Background service patterns and approaches
+
+### Development Guides  
+- **`howto-implement-blender-mcp-service.md`** - Step-by-step guide for implementing Blender MCP services
+- **`mcp-implementation-guide.md`** - Model Context Protocol implementation details
+
 ## File Organization
 
 Name files descriptively:
