@@ -9,6 +9,18 @@ This directory contains reference code repositories included as git submodules.
 - Maintain local copies of important dependencies
 - Enable offline code analysis and learning
 
+## Current References
+
+### blender-mcp/
+Complete implementation of Blender MCP server with socket-based communication:
+- **Blender Addon** (`addon.py`): Socket server running inside Blender to receive commands
+- **MCP Server** (`src/blender_mcp/server.py`): Model Context Protocol implementation
+- **Features**: Object manipulation, material control, scene inspection, code execution
+- **Integration**: Works with Claude Desktop and Cursor
+- **Assets**: Poly Haven integration, Hyper3D model generation, Sketchfab downloads
+
+This serves as the primary reference for implementing blender-remote's MCP integration and Blender addon architecture.
+
 ## Submodules
 
 Reference repositories might include:

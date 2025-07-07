@@ -158,8 +158,6 @@ ehthumbs.db
 
 # Project specific
 /context/logs/*.log
-/context/refcode/*/
-!/context/refcode/blender-mcp
 
 tmp/
 
@@ -167,3 +165,6 @@ tmp/
 site/
 htmltest-output/
 htmltest.log
+
+# pixi lock
+pixi.lock
