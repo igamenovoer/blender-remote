@@ -1,6 +1,3 @@
-[submodule "refcode/blender-mcp"]
-	path = context/refcode/blender-mcp
-	url = https://github.com/ahujasid/blender-mcp.git
 [submodule "context/refcode/blender-mcp"]
 	path = context/refcode/blender-mcp
 	url = https://github.com/ahujasid/blender-mcp.git
