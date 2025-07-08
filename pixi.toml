@@ -41,6 +41,10 @@ pre-commit = ">=3.0.0"
 # Documentation dependencies
 mkdocs = ">=1.5.0"
 mkdocs-material = ">=9.0.0"
+scipy = ">=1.16.0,<2"
+rich = ">=14.0.0,<15"
+attrs = ">=25.3.0,<26"
+omegaconf = ">=2.3.0,<3"
 
 [feature.dev.dependencies]
 ipython = "*"
