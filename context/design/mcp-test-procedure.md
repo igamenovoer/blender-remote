@@ -1289,3 +1289,531 @@ Test Client ──► BLD Remote MCP (port 6688) ──► Blender --background
 - Validate protocol compliance with proven implementation
 
 This dual-service approach provides comprehensive testing coverage while maintaining the flexibility to test in both development and production scenarios.
+
+## Plugin Development and Update Procedures
+
+### Overview
+
+During development, we need efficient ways to update the BLD Remote MCP plugin without manually restarting Blender every time. This section outlines proven approaches for hot reload, programmatic updates, and development workflow optimization.
+
+### Development Workflow Integration
+
+#### **VS Code + Blender Development Extension (Recommended)**
+
+For active development, use Jacques Lucke's Blender Development extension:
+
+**Setup Steps:**
+1. Install extension: `JacquesLucke.blender-development`
+2. Configure settings:
+   ```json
+   {
+     "blender.addon.reloadOnSave": true,
+     "blender.addon.justMyCode": false,
+     "BLENDER_USER_RESOURCES": "./blender_vscode_development"
+   }
+   ```
+3. Start Blender from VS Code: `Ctrl+Shift+P` → "Blender: Start"
+4. Auto-reload on file save or manual reload: "Blender: Reload Addons"
+
+**Benefits:**
+- Automatic reloading when files are saved
+- Full debugging capabilities with breakpoints
+- Symlink creation for permanent workspace links
+- Works with both legacy addons and Blender 4.2+ Extensions
+
+#### **Manual Plugin Update Methods**
+
+**Method 1: Hot Reload with Service Cleanup**
+```python
+def reload_bld_remote_mcp_with_cleanup():
+    """Hot reload BLD Remote MCP with proper service cleanup"""
+    import sys
+    import importlib
+    
+    print("🔄 Starting BLD Remote MCP hot reload...")
+    
+    # Step 1: Stop all addon services first
+    print("   Stopping services...")
+    try:
+        import bld_remote
+        if bld_remote.is_mcp_service_up():
+            bld_remote.stop_mcp_service()
+            print("   ✅ BLD Remote MCP service stopped")
+        else:
+            print("   ℹ️  Service was not running")
+    except Exception as e:
+        print(f"   ⚠️  Error stopping service: {e}")
+    
+    # Step 2: Clean sys.modules for complete reload
+    print("   Cleaning module cache...")
+    addon_name = "bld_remote_mcp"
+    modules_to_remove = [name for name in sys.modules.keys() 
+                        if name.startswith(addon_name)]
+    
+    for module_name in modules_to_remove:
+        del sys.modules[module_name]
+        print(f"   🗑️  Removed module: {module_name}")
+    
+    # Step 3: Disable and re-enable addon
+    print("   Reloading addon...")
+    try:
+        bpy.ops.preferences.addon_disable(module=addon_name)
+        bpy.ops.preferences.addon_enable(module=addon_name)
+        print("   ✅ Addon reloaded successfully")
+        
+        # Step 4: Restart service if needed
+        import bld_remote
+        if should_auto_start():  # Check environment variable
+            bld_remote.start_mcp_service()
+            print("   ✅ Service restarted")
+        
+        return True
+    except Exception as e:
+        print(f"   ❌ Reload failed: {e}")
+        return False
+
+# Usage in Blender console
+reload_bld_remote_mcp_with_cleanup()
+```
+
+**Method 2: Programmatic Source Update**
+```python
+def update_plugin_from_source():
+    """Update BLD Remote MCP plugin from source directory"""
+    import shutil
+    import os
+    from pathlib import Path
+    from datetime import datetime
+    
+    print("🔄 Updating BLD Remote MCP from source...")
+    
+    # Paths
+    source_dir = Path("/workspace/code/blender-remote/blender_addon/bld_remote_mcp")
+    target_dir = Path("/home/igamenovoer/.config/blender/4.4/scripts/addons/bld_remote_mcp")
+    backup_dir = target_dir.parent / f"bld_remote_mcp_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    
+    try:
+        # Step 1: Stop service
+        import bld_remote
+        if bld_remote.is_mcp_service_up():
+            bld_remote.stop_mcp_service()
+            print("   ✅ Service stopped")
+        
+        # Step 2: Create backup
+        if target_dir.exists():
+            shutil.copytree(target_dir, backup_dir)
+            print(f"   ✅ Backup created: {backup_dir}")
+        
+        # Step 3: Update files
+        if target_dir.exists():
+            shutil.rmtree(target_dir)
+        
+        shutil.copytree(source_dir, target_dir)
+        print(f"   ✅ Files updated from {source_dir}")
+        
+        # Step 4: Reload addon
+        reload_result = reload_bld_remote_mcp_with_cleanup()
+        
+        if reload_result:
+            print("   🎉 Plugin update completed successfully!")
+            return True
+        else:
+            print("   ❌ Plugin update failed during reload")
+            return False
+            
+    except Exception as e:
+        print(f"   ❌ Plugin update failed: {e}")
+        
+        # Rollback if possible
+        if backup_dir.exists() and not target_dir.exists():
+            shutil.copytree(backup_dir, target_dir)
+            print(f"   🔄 Rolled back to backup")
+        
+        return False
+
+# Usage
+update_plugin_from_source()
+```
+
+**Method 3: Blender Restart with Session Recovery**
+```python
+def restart_blender_with_plugin_update():
+    """Restart Blender with automatic session recovery and plugin update"""
+    import subprocess
+    
+    print("🔄 Restarting Blender with plugin update...")
+    
+    # Update plugin first
+    if update_plugin_from_source():
+        print("   ✅ Plugin updated, restarting Blender...")
+        
+        # Get Blender executable path
+        blender_exe = bpy.app.binary_path
+        
+        # Restart with session recovery
+        restart_cmd = [
+            blender_exe,
+            "--python-expr",
+            "import bpy; bpy.ops.wm.recover_last_session()"
+        ]
+        
+        subprocess.Popen(restart_cmd)
+        bpy.ops.wm.quit_blender()
+    else:
+        print("   ❌ Plugin update failed, not restarting")
+
+# Usage for major changes
+restart_blender_with_plugin_update()
+```
+
+### Testing Plugin Update Mechanisms
+
+#### **Test 1: Hot Reload Functionality**
+```python
+def test_hot_reload_capability():
+    """Test hot reload without losing service state"""
+    print("🔍 Testing hot reload capability...")
+    
+    # Get initial state
+    initial_port = None
+    initial_running = False
+    
+    try:
+        import bld_remote
+        initial_port = bld_remote.get_mcp_service_port()
+        initial_running = bld_remote.is_mcp_service_up()
+        print(f"   Initial state: port={initial_port}, running={initial_running}")
+    except Exception as e:
+        print(f"   ⚠️  Could not get initial state: {e}")
+    
+    # Perform hot reload
+    reload_success = reload_bld_remote_mcp_with_cleanup()
+    
+    if reload_success:
+        try:
+            import bld_remote
+            final_port = bld_remote.get_mcp_service_port()
+            final_running = bld_remote.is_mcp_service_up()
+            print(f"   Final state: port={final_port}, running={final_running}")
+            
+            # Verify state preservation
+            if final_port == initial_port:
+                print("   ✅ Port configuration preserved")
+            else:
+                print(f"   ⚠️  Port changed: {initial_port} → {final_port}")
+            
+            # Test service functionality
+            if final_running or not initial_running:
+                from auto_mcp_remote import BlenderMCPClient
+                client = BlenderMCPClient(host="localhost", port=final_port, timeout=30.0)
+                if client.test_connection():
+                    print("   ✅ Service functional after reload")
+                    return True
+                else:
+                    print("   ❌ Service not responding after reload")
+                    return False
+            else:
+                print("   ✅ Hot reload successful (service was not running)")
+                return True
+                
+        except Exception as e:
+            print(f"   ❌ Post-reload verification failed: {e}")
+            return False
+    else:
+        print("   ❌ Hot reload failed")
+        return False
+
+# Usage
+test_hot_reload_capability()
+```
+
+#### **Test 2: Source Update Functionality**
+```python
+def test_source_update_workflow():
+    """Test programmatic source update workflow"""
+    print("🔍 Testing source update workflow...")
+    
+    try:
+        # Step 1: Verify source directory exists
+        source_dir = Path("/workspace/code/blender-remote/blender_addon/bld_remote_mcp")
+        if not source_dir.exists():
+            print(f"   ❌ Source directory not found: {source_dir}")
+            return False
+        
+        print(f"   ✅ Source directory found: {source_dir}")
+        
+        # Step 2: Check file differences
+        target_dir = Path("/home/igamenovoer/.config/blender/4.4/scripts/addons/bld_remote_mcp")
+        if target_dir.exists():
+            source_files = set(f.name for f in source_dir.rglob("*.py"))
+            target_files = set(f.name for f in target_dir.rglob("*.py"))
+            
+            print(f"   Source files: {len(source_files)}")
+            print(f"   Target files: {len(target_files)}")
+            
+            if source_files != target_files:
+                print("   ⚠️  File differences detected")
+                new_files = source_files - target_files
+                missing_files = target_files - source_files
+                if new_files:
+                    print(f"      New files: {new_files}")
+                if missing_files:
+                    print(f"      Missing files: {missing_files}")
+            else:
+                print("   ✅ File sets match")
+        
+        # Step 3: Test update process
+        update_success = update_plugin_from_source()
+        
+        if update_success:
+            print("   ✅ Source update workflow successful")
+            return True
+        else:
+            print("   ❌ Source update workflow failed")
+            return False
+            
+    except Exception as e:
+        print(f"   ❌ Source update test failed: {e}")
+        return False
+
+# Usage
+test_source_update_workflow()
+```
+
+#### **Test 3: Development Iteration Speed**
+```python
+def test_development_iteration_speed():
+    """Test how quickly we can iterate during development"""
+    import time
+    
+    print("🔍 Testing development iteration speed...")
+    
+    iterations = 3
+    times = []
+    
+    for i in range(iterations):
+        print(f"   Iteration {i+1}/{iterations}...")
+        
+        start_time = time.time()
+        
+        # Simulate development cycle
+        success = reload_bld_remote_mcp_with_cleanup()
+        
+        end_time = time.time()
+        iteration_time = end_time - start_time
+        times.append(iteration_time)
+        
+        print(f"      Time: {iteration_time:.2f}s, Success: {success}")
+        
+        if not success:
+            print(f"   ❌ Iteration {i+1} failed")
+            return False
+        
+        # Small delay between iterations
+        time.sleep(1)
+    
+    avg_time = sum(times) / len(times)
+    print(f"   ✅ Average iteration time: {avg_time:.2f}s")
+    
+    if avg_time < 5.0:
+        print("   🚀 Fast iteration (< 5s) - Good for development")
+    elif avg_time < 10.0:
+        print("   ⚠️  Moderate iteration (5-10s) - Acceptable")
+    else:
+        print("   🐌 Slow iteration (> 10s) - Consider optimization")
+    
+    return True
+
+# Usage
+test_development_iteration_speed()
+```
+
+### Background Mode Development Considerations
+
+#### **Key Issues in Background Mode:**
+1. **Context Access Restrictions**: `'_RestrictContext' object has no attribute 'view_layer'`
+2. **Service State Persistence**: Ensure services survive module reloads
+3. **Signal Handler Integration**: Proper cleanup on process termination
+4. **External Script Triggers**: Allow updates from outside Blender process
+
+#### **Background-Safe Reload Pattern:**
+```python
+def background_safe_reload():
+    """Reload that works in background mode"""
+    if bpy.app.background:
+        print("   🔧 Background mode - using context-safe reload")
+        # Background mode - no UI updates, careful context handling
+        reload_logic_only()
+    else:
+        print("   🖥️  GUI mode - using full reload with UI")
+        # Interactive mode - full reload with UI
+        full_reload_with_ui()
+
+def reload_logic_only():
+    """Reload addon logic without UI dependencies"""
+    try:
+        # Stop services without accessing scene properties
+        cleanup_server_background_safe()
+        
+        # Clean modules
+        clean_sys_modules()
+        
+        # Re-enable addon
+        bpy.ops.preferences.addon_disable(module="bld_remote_mcp")
+        bpy.ops.preferences.addon_enable(module="bld_remote_mcp")
+        
+    except Exception as e:
+        print(f"   ❌ Background reload failed: {e}")
+
+def cleanup_server_background_safe():
+    """Cleanup server without accessing restricted context"""
+    global tcp_server, server_task, server_port
+    
+    # Close TCP server
+    if tcp_server:
+        tcp_server.close()
+        tcp_server = None
+    
+    # Cancel asyncio tasks
+    if server_task:
+        server_task.cancel()
+        server_task = None
+    
+    # Reset port
+    server_port = 0
+    
+    # Skip scene property updates in background mode
+    if not bpy.app.background:
+        try:
+            bpy.data.scenes[0].bld_remote_server_running = False
+        except (AttributeError, TypeError):
+            pass  # Context restrictions
+```
+
+### Integration with Test Suite
+
+#### **Enhanced Test Runner with Plugin Update Support**
+```python
+class BLDRemoteMCPTesterWithUpdates(BLDRemoteMCPTester):
+    def __init__(self):
+        super().__init__()
+        self.update_methods = {}
+    
+    def test_plugin_update_capabilities(self):
+        """Test all plugin update methods"""
+        print("🔍 Testing plugin update capabilities...")
+        
+        tests = [
+            ("Hot Reload", self.test_hot_reload_method),
+            ("Source Update", self.test_source_update_method),
+            ("Development Iteration", self.test_iteration_speed),
+        ]
+        
+        for test_name, test_func in tests:
+            success = self.run_test(f"Plugin Update - {test_name}", test_func)
+            self.update_methods[test_name] = success
+        
+        return all(self.update_methods.values())
+    
+    def test_hot_reload_method(self):
+        """Test hot reload capability"""
+        return test_hot_reload_capability()
+    
+    def test_source_update_method(self):
+        """Test source update workflow"""
+        return test_source_update_workflow()
+    
+    def test_iteration_speed(self):
+        """Test development iteration speed"""
+        return test_development_iteration_speed()
+    
+    def run_development_workflow_tests(self):
+        """Run comprehensive development workflow tests"""
+        print("🚀 Starting Development Workflow Test Suite")
+        print("=" * 60)
+        
+        # Standard tests
+        if not self.run_all_tests('gui'):
+            return False
+        
+        # Plugin update tests
+        if not self.test_plugin_update_capabilities():
+            return False
+        
+        print("\n🎯 Development Workflow Summary:")
+        for method, success in self.update_methods.items():
+            status = "✅ Available" if success else "❌ Failed"
+            print(f"   {status} {method}")
+        
+        return True
+
+# Usage for development
+if __name__ == "__main__":
+    dev_tester = BLDRemoteMCPTesterWithUpdates()
+    dev_tester.run_development_workflow_tests()
+```
+
+### Quick Reference Commands
+
+#### **Essential Development Commands**
+```python
+# Quick hot reload in Blender console
+exec(open('/workspace/code/blender-remote/scripts/dev_reload.py').read())
+
+# Update from source and reload
+exec(open('/workspace/code/blender-remote/scripts/dev_update.py').read())
+
+# Test current plugin state
+import bld_remote; print(f"Service: {bld_remote.get_status()}")
+
+# Manual service restart
+import bld_remote; bld_remote.stop_mcp_service(); bld_remote.start_mcp_service()
+```
+
+#### **File System Commands**
+```bash
+# Copy updated plugin to Blender addons directory
+cp -r /workspace/code/blender-remote/blender_addon/bld_remote_mcp/ \
+      /home/igamenovoer/.config/blender/4.4/scripts/addons/
+
+# Backup current plugin
+cp -r /home/igamenovoer/.config/blender/4.4/scripts/addons/bld_remote_mcp/ \
+      /home/igamenovoer/.config/blender/4.4/scripts/addons/bld_remote_mcp_backup_$(date +%Y%m%d_%H%M%S)/
+
+# Check plugin differences
+diff -r /workspace/code/blender-remote/blender_addon/bld_remote_mcp/ \
+        /home/igamenovoer/.config/blender/4.4/scripts/addons/bld_remote_mcp/
+```
+
+### Development Best Practices
+
+#### **Workflow Recommendations**
+1. **Use VS Code Integration**: Fastest development cycle with auto-reload
+2. **Test Hot Reload First**: Attempt hot reload before full restart
+3. **Cleanup Services**: Always stop services before module updates
+4. **Backup Before Updates**: Create timestamped backups for rollback
+5. **Verify After Updates**: Test service functionality after each update
+
+#### **Common Pitfalls**
+1. **Port Conflicts**: Service fails to restart on same port after reload
+2. **Module Import Errors**: Incomplete sys.modules cleanup
+3. **Context Restrictions**: Background mode limitations
+4. **State Persistence**: Global variables not properly reset
+5. **Timer/Handler Leaks**: Background timers persist after reload
+
+#### **Troubleshooting Quick Fixes**
+```python
+# Fix port conflicts
+import bld_remote; bld_remote.stop_mcp_service(); time.sleep(2); bld_remote.start_mcp_service()
+
+# Force module cleanup
+import sys; [sys.modules.pop(k) for k in list(sys.modules.keys()) if k.startswith('bld_remote')]
+
+# Reset global state
+import bld_remote_mcp; bld_remote_mcp.tcp_server = None; bld_remote_mcp.server_task = None
+
+# Check background mode
+print(f"Background mode: {bpy.app.background}")
+```
+
+This enhanced development workflow provides efficient plugin iteration while maintaining comprehensive testing coverage. The dual-service testing strategy combined with these update mechanisms enables rapid development and validation of the BLD Remote MCP service.

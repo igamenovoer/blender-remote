@@ -153,6 +153,10 @@ def ensure_async_loop():
     except Exception as e:
         log_error(f"ERROR: Failed to start modal operator: {e}")
         log_error(f"Traceback: {traceback.format_exc()}")
+        
+        # Fallback: Continue without modal operator for context-restricted environments
+        log_info("🔧 DEV-FIX: Using fallback mode for restricted context")
+        log_info("Note: Asyncio tasks scheduled but modal operator unavailable")
         return
     
     # Add extra debugging

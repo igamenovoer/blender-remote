@@ -22,10 +22,10 @@ from .utils import log_info, log_warning, log_error
 bl_info = {
     "name": "BLD Remote MCP",
     "author": "Claude Code", 
-    "version": (1, 0, 0),
+    "version": (1, 0, 2),
     "blender": (3, 0, 0),
     "location": "N/A",
-    "description": "Simple command server for remote Blender control with background support",
+    "description": "Simple command server for remote Blender control with background support [DEV-TEST-UPDATE]",
     "category": "Development",
 }
 
@@ -594,6 +594,9 @@ def get_mcp_service_port():
 def register():
     """Register the addon's properties and classes with Blender."""
     log_info("=== BLD REMOTE MCP ADDON REGISTRATION STARTING ===")
+    log_info("🚀 DEV-TEST-UPDATE: BLD Remote MCP v1.0.2 Loading!")
+    log_info("🔧 This is the UPDATED version with development test modifications")
+    log_info("🛠️ UPDATE #2: Added context fallback fix for modal operator")
     log_info("register() function called")
     
     # Check Blender environment

@@ -194,6 +194,7 @@ These guides should be updated when improved patterns or practices are discovere
 ## Blender Development Notes
 
 - blender is not very good at cleaning up its internal states, so if anything goes weird, consider restart blender and re-install the plugin under development
+- **If blender addon is updated, copy it to the blender plugin dir to make it effective**
 
 ## BLD Remote MCP Service Status
 
@@ -260,3 +261,10 @@ This project now involves **TWO separate MCP services**:
 ## Development Guidance
 
 - **DO NOT commit to git unless I told you to**
+
+## Project Memories
+
+- We will refer to our in-development plugin as `BLD_Remote_MCP`
+- We will refer to the reference implementation which is also running in blender as `BlenderAutoMCP`
+- If you start the blender, no matter in GUI mode or background mode, your bash command time out should be less than 10 seconds
+- If you start blender process, you should start it in shell background (with `&`), and wait for 10 seconds and then read its console output. This is applied to both GUI mode (starting with `blender`) or background mode (starting with `blender --background`)
