@@ -142,21 +142,35 @@ def kick_async_loop(*args) -> bool:
 
 
 def ensure_async_loop():
+    """Ensure the asyncio loop is running, starting it if necessary.
+    
+    This function will first attempt to start a modal operator to drive the
+    asyncio loop. If this fails due to a restrictive context (e.g., during
+    addon startup or in headless mode), it will fall back to using app timers.
+    """
     log_info("=== ENSURING ASYNC LOOP ===")
     log_info("ensure_async_loop() called")
     log_info(f"Current loop kicking operator status: {_loop_kicking_operator_running}")
     
     log_info("Starting modal operator for asyncio loop...")
     try:
-        result = bpy.ops.bld_remote.async_loop()
-        log_info(f"Modal operator start result: {result!r}")
-    except Exception as e:
-        log_error(f"ERROR: Failed to start modal operator: {e}")
-        log_error(f"Traceback: {traceback.format_exc()}")
+        # Check for a valid context to run the modal operator
+        if hasattr(bpy.context, 'window_manager') and bpy.context.window_manager and hasattr(bpy.context, 'window') and bpy.context.window:
+            result = bpy.ops.bld_remote.async_loop()
+            log_info(f"✅ Modal operator started successfully: {result!r}")
+        else:
+            log_info("No valid window context, falling back to app timer")
+            raise RuntimeError("No valid window context for modal operator")
+    except (RuntimeError, AttributeError) as e:
+        log_warning(f"Could not start modal operator: {e}. Falling back to app timer.")
         
-        # Fallback: Continue without modal operator for context-restricted environments
-        log_info("🔧 DEV-FIX: Using fallback mode for restricted context")
-        log_info("Note: Asyncio tasks scheduled but modal operator unavailable")
+        # Fallback for headless or context-restricted environments
+        if not bpy.app.timers.is_registered(kick_async_loop):
+            # The timer will automatically stop when kick_async_loop returns False
+            bpy.app.timers.register(kick_async_loop, first_interval=0.01)
+            log_info("✅ Registered app timer for asyncio loop (fallback mode)")
+        else:
+            log_info("App timer for asyncio loop is already registered")
         return
     
     # Add extra debugging
