@@ -256,3 +256,7 @@ This project now involves **TWO separate MCP services**:
 - **Build BLD Remote MCP** with same client interaction patterns
 - **Focus on minimal essential functions** for background mode compatibility
 - **Test both services** to ensure they don't conflict (different ports)
+
+## Development Guidance
+
+- **DO NOT commit to git unless I told you to**

@@ -23,8 +23,25 @@ We test our BLD Remote MCP service using the same client interface (`@context/re
   - `BLD_REMOTE_MCP_START_NOW` - Auto-start service on Blender launch
 
 ### Service Modes
-- **GUI Mode**: Full functionality testing
-- **Background Mode**: Headless compatibility testing
+
+#### **GUI Mode - Dual Service Testing**
+- **Primary**: Test our BLD Remote MCP service (port 6688)
+- **Backup Channel**: BlenderAutoMCP as reference/validation service (port 9876)
+- **Strategy**: Both services can run simultaneously in GUI mode
+- **Benefits**: 
+  - Cross-validate results between services
+  - Use BlenderAutoMCP to verify Blender state when our service fails
+  - Debug our service by comparing behavior with proven reference
+  - Fallback communication channel if our service becomes unresponsive
+
+#### **Background Mode - Single Service Testing**
+- **Primary**: Only our BLD Remote MCP service (port 6688)
+- **Limitation**: BlenderAutoMCP cannot run in background mode
+- **Strategy**: Pure test of our implementation without fallback
+- **Benefits**: 
+  - Validates true headless compatibility
+  - Tests our service's background mode robustness
+  - Simulates production headless deployment scenarios
 
 ## Test Procedures
 
@@ -86,49 +103,152 @@ if __name__ == "__main__":
 
 **Objective**: Start BLD Remote MCP service and verify it's running
 
+#### **2A. GUI Mode - Dual Service Startup**
+
+**Objective**: Start both services for comprehensive testing with backup channel
+
 **Test Script**:
 ```python
 import subprocess
 import time
 import os
 
-def start_bld_remote_service(port, mode='gui'):
-    """Start BLD Remote MCP service in specified mode"""
-    print(f"🚀 Starting BLD Remote MCP on port {port} in {mode} mode...")
+def start_dual_services_gui(our_port):
+    """Start both BLD Remote MCP and BlenderAutoMCP services in GUI mode"""
+    print(f"🚀 Starting DUAL services in GUI mode...")
+    print(f"   - BLD Remote MCP on port {our_port}")
+    print(f"   - BlenderAutoMCP on port 9876 (reference)")
+    
+    # Setup environment for both services
+    env = os.environ.copy()
+    
+    # Configure our service
+    env['BLD_REMOTE_MCP_PORT'] = str(our_port)
+    env['BLD_REMOTE_MCP_START_NOW'] = '1'
+    
+    # Configure BlenderAutoMCP reference service  
+    env['BLENDER_AUTO_MCP_SERVICE_PORT'] = '9876'
+    env['BLENDER_AUTO_MCP_START_NOW'] = '1'
+    
+    # Start Blender in GUI mode with both services
+    cmd = ['/apps/blender-4.4.3-linux-x64/blender']
+    print(f"   Command: {' '.join(cmd)}")
+    print(f"   Environment: BLD_REMOTE_MCP_PORT={our_port}, BLENDER_AUTO_MCP_START_NOW=1")
+    
+    process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    
+    # Wait for both services to start (longer wait for dual startup)
+    print("   Waiting 15 seconds for dual service startup...")
+    time.sleep(15)
+    
+    # Verify both services are running
+    services_status = verify_dual_services(our_port, 9876)
+    
+    if services_status['our_service'] and services_status['reference_service']:
+        print("✅ DUAL SERVICES started successfully!")
+        print(f"   ✅ BLD Remote MCP: port {our_port}")
+        print(f"   ✅ BlenderAutoMCP: port 9876")
+        return True, process
+    elif services_status['our_service']:
+        print("⚠️  Partial success: Our service running, BlenderAutoMCP failed")
+        print(f"   ✅ BLD Remote MCP: port {our_port}")
+        print(f"   ❌ BlenderAutoMCP: port 9876")
+        return True, process  # Continue with single service
+    else:
+        print("❌ DUAL SERVICE startup failed")
+        print(f"   ❌ BLD Remote MCP: port {our_port}")
+        print(f"   ❌ BlenderAutoMCP: port 9876")
+        return False, process
+
+def verify_dual_services(our_port, reference_port):
+    """Verify both services are responding"""
+    import socket
+    
+    def check_port(port):
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            result = sock.connect_ex(('127.0.0.1', port))
+            sock.close()
+            return result == 0
+        except:
+            return False
+    
+    return {
+        'our_service': check_port(our_port),
+        'reference_service': check_port(reference_port)
+    }
+
+# Usage for GUI mode
+port = find_available_port()
+if port:
+    success, process = start_dual_services_gui(port)
+```
+
+#### **2B. Background Mode - Single Service Startup**
+
+**Objective**: Start only our service in background mode (BlenderAutoMCP cannot run in background)
+
+**Test Script**:
+```python
+def start_background_service(port):
+    """Start BLD Remote MCP service in background mode"""
+    print(f"🚀 Starting BLD Remote MCP on port {port} in BACKGROUND mode...")
+    print("   Note: BlenderAutoMCP cannot run in background mode")
     
     env = os.environ.copy()
     env['BLD_REMOTE_MCP_PORT'] = str(port)
     env['BLD_REMOTE_MCP_START_NOW'] = '1'
     
-    if mode == 'background':
-        cmd = ['/apps/blender-4.4.3-linux-x64/blender', '--background']
-    else:
-        cmd = ['/apps/blender-4.4.3-linux-x64/blender']
+    cmd = ['/apps/blender-4.4.3-linux-x64/blender', '--background']
+    print(f"   Command: {' '.join(cmd)}")
     
-    # Start Blender (don't wait for completion in GUI mode)
     process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     
     # Wait for startup
+    print("   Waiting 10 seconds for background startup...")
     time.sleep(10)
     
-    # Check if process is running
-    if process.poll() is None or mode == 'gui':
-        print(f"✅ Blender started successfully")
-        return True
-    else:
+    # Check if process completed (background mode exits after startup)
+    if process.poll() is not None:
         stdout, stderr = process.communicate()
-        print(f"❌ Blender failed to start:")
+        print(f"✅ Background process completed")
         print(f"   stdout: {stdout.decode('utf-8')[:200]}...")
-        print(f"   stderr: {stderr.decode('utf-8')[:200]}...")
+        if stderr:
+            print(f"   stderr: {stderr.decode('utf-8')[:200]}...")
+        
+        # Verify service is actually running by testing connection
+        if verify_service_connection(port):
+            print(f"✅ Background service verified on port {port}")
+            return True
+        else:
+            print(f"❌ Background service not responding on port {port}")
+            return False
+    else:
+        print(f"⚠️  Background process still running (unexpected)")
         return False
 
-# Usage in test
+def verify_service_connection(port):
+    """Test if service is actually responding"""
+    try:
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5)
+        result = sock.connect_ex(('127.0.0.1', port))
+        sock.close()
+        return result == 0
+    except:
+        return False
+
+# Usage for background mode
 port = find_available_port()
 if port:
-    start_bld_remote_service(port, 'gui')
+    start_background_service(port)
 ```
 
-**Expected Result**: Service starts and port becomes available
+**Expected Results**: 
+- **GUI Mode**: Both services start and respond on their respective ports
+- **Background Mode**: Our service starts and responds, process exits normally
 
 ### 3. BlenderMCPClient Connection Test
 
@@ -405,56 +525,209 @@ if client:
 
 **Expected Result**: Complex operations execute successfully
 
-### 9. Comparison with BlenderAutoMCP
+### 9. Dual Service Validation and Cross-Verification
 
-**Objective**: Compare our service with BlenderAutoMCP reference implementation
+**Objective**: Use both services to cross-validate Blender state and test service compatibility
+
+#### **9A. GUI Mode - Dual Service Cross-Validation**
 
 **Test Script**:
 ```python
-def compare_with_blender_auto_mcp(our_port):
-    """Compare BLD Remote MCP with BlenderAutoMCP"""
-    print("🔍 Comparing with BlenderAutoMCP reference...")
+def dual_service_cross_validation(our_port):
+    """Use BlenderAutoMCP as backup channel to validate our service results"""
+    print("🔍 DUAL SERVICE Cross-Validation Testing...")
+    print("   Strategy: Use BlenderAutoMCP as reference/backup to verify our service")
     
     try:
-        # Test BlenderAutoMCP (reference on port 9876)
-        print("   Testing BlenderAutoMCP (reference)...")
-        auto_mcp_client = BlenderMCPClient(host="localhost", port=9876, timeout=30.0)
-        
-        if auto_mcp_client.test_connection():
-            auto_scene = auto_mcp_client.get_scene_info()
-            print(f"   ✅ BlenderAutoMCP: Scene={auto_scene.get('name')}, Objects={auto_scene.get('object_count')}")
-        else:
-            print("   ❌ BlenderAutoMCP not available")
-            return False
-        
-        # Test our BLD Remote MCP
-        print("   Testing BLD Remote MCP (our implementation)...")
+        # Connect to both services
+        print("   Connecting to both services...")
         our_client = BlenderMCPClient(host="localhost", port=our_port, timeout=30.0)
+        ref_client = BlenderMCPClient(host="localhost", port=9876, timeout=30.0)
         
-        if our_client.test_connection():
-            our_scene = our_client.get_scene_info()
-            print(f"   ✅ BLD Remote MCP: Scene={our_scene.get('name')}, Objects={our_scene.get('object_count')}")
-        else:
-            print("   ❌ BLD Remote MCP not responding")
+        # Test connections
+        our_connected = our_client.test_connection()
+        ref_connected = ref_client.test_connection()
+        
+        print(f"   BLD Remote MCP (port {our_port}): {'✅ Connected' if our_connected else '❌ Failed'}")
+        print(f"   BlenderAutoMCP (port 9876): {'✅ Connected' if ref_connected else '❌ Failed'}")
+        
+        if not our_connected:
+            print("   ❌ Our service not available - cannot perform cross-validation")
             return False
         
-        # Compare functionality
-        print("   📊 Functionality comparison:")
-        print(f"     Both services respond to BlenderMCPClient interface: ✅")
-        print(f"     BlenderAutoMCP: Full-featured with asset providers")
-        print(f"     BLD Remote MCP: Minimal essential functions only")
+        if not ref_connected:
+            print("   ⚠️  Reference service not available - testing our service only")
+            return validate_single_service(our_client)
         
-        return True
+        # Cross-validation tests
+        print("\n   🔍 Cross-Validation Tests:")
+        
+        # Test 1: Scene info consistency
+        print("   Test 1: Scene information consistency...")
+        our_scene = our_client.get_scene_info()
+        ref_scene = ref_client.get_scene_info()
+        
+        scene_consistent = (
+            our_scene.get('name') == ref_scene.get('name') and
+            our_scene.get('object_count') == ref_scene.get('object_count')
+        )
+        
+        print(f"      Our service: Scene='{our_scene.get('name')}', Objects={our_scene.get('object_count')}")
+        print(f"      Reference:   Scene='{ref_scene.get('name')}', Objects={ref_scene.get('object_count')}")
+        print(f"      Consistency: {'✅ Match' if scene_consistent else '❌ Mismatch'}")
+        
+        # Test 2: Create object via our service, verify via reference
+        print("   Test 2: Object creation cross-verification...")
+        test_code = """
+import bpy
+bpy.ops.mesh.primitive_cube_add(location=(5, 5, 5))
+cube = bpy.context.active_object
+cube.name = "CrossValidationTestCube"
+print(f"Created cube: {cube.name}")
+"""
+        
+        # Create via our service
+        our_result = our_client.execute_python(test_code)
+        print(f"      Our service created object: {our_result.strip()}")
+        
+        # Verify via reference service
+        verify_code = """
+import bpy
+test_cube = bpy.data.objects.get("CrossValidationTestCube")
+if test_cube:
+    location = test_cube.location
+    print(f"Found test cube at location: ({location.x:.1f}, {location.y:.1f}, {location.z:.1f})")
+else:
+    print("Test cube not found!")
+"""
+        
+        ref_result = ref_client.execute_python(verify_code)
+        print(f"      Reference verified: {ref_result.strip()}")
+        
+        # Test 3: Cleanup via reference, verify via our service
+        print("   Test 3: Cleanup cross-verification...")
+        cleanup_code = """
+import bpy
+test_cube = bpy.data.objects.get("CrossValidationTestCube")
+if test_cube:
+    bpy.data.objects.remove(test_cube, do_unlink=True)
+    print("Test cube removed")
+else:
+    print("Test cube already gone")
+"""
+        
+        # Cleanup via reference
+        ref_cleanup = ref_client.execute_python(cleanup_code)
+        print(f"      Reference cleanup: {ref_cleanup.strip()}")
+        
+        # Verify cleanup via our service
+        our_verify = our_client.execute_python(verify_code)
+        print(f"      Our service verified: {our_verify.strip()}")
+        
+        # Test 4: Service isolation test
+        print("   Test 4: Service isolation verification...")
+        isolation_code = f"""
+import bpy
+# Add marker to identify which service created this
+bpy.ops.mesh.primitive_uv_sphere_add(location=(10, 0, 0))
+sphere = bpy.context.active_object
+sphere.name = "ServiceIsolationTest_Port{our_port if 'our_client' in locals() else '9876'}"
+print(f"Created isolation test sphere: {{sphere.name}}")
+"""
+        
+        # Execute same code via both services
+        our_isolation = our_client.execute_python(isolation_code.replace(f"Port{our_port}", f"Port{our_port}"))
+        ref_isolation = ref_client.execute_python(isolation_code.replace(f"Port{our_port}", "Port9876"))
+        
+        print(f"      Our service isolation: {our_isolation.strip()}")
+        print(f"      Reference isolation: {ref_isolation.strip()}")
+        
+        # Final scene state via both
+        our_final = our_client.get_scene_info()
+        ref_final = ref_client.get_scene_info()
+        
+        final_consistent = our_final.get('object_count') == ref_final.get('object_count')
+        print(f"   Final state consistency: {'✅ Match' if final_consistent else '❌ Mismatch'}")
+        print(f"      Both report {our_final.get('object_count')} objects in scene")
+        
+        return scene_consistent and final_consistent
+        
     except Exception as e:
-        print(f"❌ Comparison test failed: {e}")
+        print(f"   ❌ Cross-validation failed: {e}")
         return False
 
-# Usage
+def validate_single_service(client):
+    """Validate our service when reference is not available"""
+    print("   🔍 Single service validation (no reference available)...")
+    
+    try:
+        # Basic functionality test
+        scene_info = client.get_scene_info()
+        print(f"   Scene info: {scene_info.get('name')}, {scene_info.get('object_count')} objects")
+        
+        # Code execution test
+        result = client.execute_python("print('Single service validation successful')")
+        print(f"   Code execution: {result.strip()}")
+        
+        return "successful" in result
+    except Exception as e:
+        print(f"   ❌ Single service validation failed: {e}")
+        return False
+
+# Usage for GUI mode with dual services
 if port:
-    compare_with_blender_auto_mcp(port)
+    dual_service_cross_validation(port)
 ```
 
-**Expected Result**: Both services work with same client interface
+#### **9B. Background Mode - Single Service Validation**
+
+**Test Script**:
+```python
+def background_service_validation(our_port):
+    """Validate our service in background mode (no reference available)"""
+    print("🔍 BACKGROUND MODE Service Validation...")
+    print("   Note: BlenderAutoMCP not available in background mode")
+    
+    try:
+        our_client = BlenderMCPClient(host="localhost", port=our_port, timeout=30.0)
+        
+        if not our_client.test_connection():
+            print("   ❌ Our service not responding in background mode")
+            return False
+        
+        print("   ✅ Service responding in background mode")
+        
+        # Background-specific tests
+        print("   🔍 Background mode specific tests:")
+        
+        # Test context access
+        context_test = """
+import bpy
+try:
+    scene_name = bpy.context.scene.name
+    print(f"Background context access: Scene={scene_name}")
+except Exception as e:
+    print(f"Background context error: {e}")
+"""
+        
+        result = our_client.execute_python(context_test)
+        print(f"   Context test: {result.strip()}")
+        
+        return "Scene=" in result or "Background context access" in result
+        
+    except Exception as e:
+        print(f"   ❌ Background validation failed: {e}")
+        return False
+
+# Usage for background mode
+if port and mode == 'background':
+    background_service_validation(port)
+```
+
+**Expected Results**: 
+- **GUI Mode**: Cross-validation between services shows consistent Blender state
+- **Background Mode**: Service responds correctly without reference service
+- **Isolation**: Both services can operate independently without interference
 
 ## Comprehensive Test Runner
 
@@ -484,6 +757,9 @@ class BLDRemoteMCPTester:
         self.results = {}
         self.port = None
         self.client = None
+        self.ref_client = None
+        self.dual_mode = False
+        self.process = None
         
     def setup_environment(self):
         """Setup test environment and find available port"""
@@ -512,38 +788,94 @@ class BLDRemoteMCPTester:
         return False
     
     def start_service(self, mode='gui'):
-        """Start BLD Remote MCP service"""
+        """Start service(s) based on mode"""
         if not self.port:
             return False
+        
+        if mode == 'gui':
+            return self.start_dual_services()
+        else:
+            return self.start_background_service()
+    
+    def start_dual_services(self):
+        """Start both BLD Remote MCP and BlenderAutoMCP in GUI mode"""
+        print(f"🚀 Starting DUAL services in GUI mode...")
+        print(f"   - BLD Remote MCP on port {self.port}")
+        print(f"   - BlenderAutoMCP on port 9876 (reference)")
+        
+        env = os.environ.copy()
+        
+        # Configure our service
+        env['BLD_REMOTE_MCP_PORT'] = str(self.port)
+        env['BLD_REMOTE_MCP_START_NOW'] = '1'
+        
+        # Configure BlenderAutoMCP reference service  
+        env['BLENDER_AUTO_MCP_SERVICE_PORT'] = '9876'
+        env['BLENDER_AUTO_MCP_START_NOW'] = '1'
+        
+        # Start Blender in GUI mode with both services
+        cmd = ['/apps/blender-4.4.3-linux-x64/blender']
+        self.process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        
+        # Wait for both services to start
+        print("   Waiting 15 seconds for dual service startup...")
+        time.sleep(15)
+        
+        # Check if both services are responding
+        try:
+            self.client = BlenderMCPClient(host="localhost", port=self.port, timeout=30.0)
+            our_connected = self.client.test_connection()
             
-        print(f"🚀 Starting BLD Remote MCP on port {self.port} in {mode} mode...")
+            self.ref_client = BlenderMCPClient(host="localhost", port=9876, timeout=30.0)  
+            ref_connected = self.ref_client.test_connection()
+            
+            print(f"   BLD Remote MCP: {'✅ Connected' if our_connected else '❌ Failed'}")
+            print(f"   BlenderAutoMCP: {'✅ Connected' if ref_connected else '❌ Failed'}")
+            
+            if our_connected and ref_connected:
+                print("✅ DUAL SERVICES started successfully!")
+                self.dual_mode = True
+                return True
+            elif our_connected:
+                print("⚠️  Partial success: Our service running, reference failed")
+                self.dual_mode = False
+                return True
+            else:
+                print("❌ DUAL SERVICE startup failed")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Service startup failed: {e}")
+            return False
+    
+    def start_background_service(self):
+        """Start BLD Remote MCP service in background mode"""
+        print(f"🚀 Starting BLD Remote MCP on port {self.port} in BACKGROUND mode...")
+        print("   Note: BlenderAutoMCP cannot run in background mode")
         
         env = os.environ.copy()
         env['BLD_REMOTE_MCP_PORT'] = str(self.port)
         env['BLD_REMOTE_MCP_START_NOW'] = '1'
         
-        if mode == 'background':
-            cmd = ['/apps/blender-4.4.3-linux-x64/blender', '--background']
-        else:
-            cmd = ['/apps/blender-4.4.3-linux-x64/blender']
-        
-        # Start Blender
-        process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        cmd = ['/apps/blender-4.4.3-linux-x64/blender', '--background']
+        self.process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
         # Wait for startup
+        print("   Waiting 10 seconds for background startup...")
         time.sleep(10)
         
         # Check if service is responding
         try:
             self.client = BlenderMCPClient(host="localhost", port=self.port, timeout=30.0)
             if self.client.test_connection():
-                print(f"✅ Service started successfully")
+                print(f"✅ Background service started successfully")
+                self.dual_mode = False
                 return True
             else:
-                print(f"❌ Service not responding")
+                print(f"❌ Background service not responding")
                 return False
         except Exception as e:
-            print(f"❌ Service startup failed: {e}")
+            print(f"❌ Background service startup failed: {e}")
             return False
     
     def run_test(self, test_name, test_func):
@@ -647,17 +979,64 @@ print(f"Scene: {scene_name}, Objects: {object_count}")
         return all(results)
     
     def test_comparison_with_blender_auto_mcp(self):
-        """Compare with BlenderAutoMCP reference"""
+        """Cross-validate with BlenderAutoMCP or test standalone"""
+        if self.dual_mode and self.ref_client:
+            return self.test_dual_service_cross_validation()
+        else:
+            return self.test_single_service_validation()
+    
+    def test_dual_service_cross_validation(self):
+        """Cross-validate using both services in dual mode"""
         try:
-            # Test BlenderAutoMCP
-            auto_client = BlenderMCPClient(host="localhost", port=9876, timeout=30.0)
-            auto_works = auto_client.test_connection()
+            print("   🔍 Dual service cross-validation...")
             
-            # Test our service
-            our_works = self.client.test_connection() if self.client else False
+            # Test 1: Scene consistency
+            our_scene = self.client.get_scene_info()
+            ref_scene = self.ref_client.get_scene_info() 
             
-            return auto_works and our_works
-        except Exception:
+            scene_match = (our_scene.get('name') == ref_scene.get('name') and
+                          our_scene.get('object_count') == ref_scene.get('object_count'))
+            
+            print(f"   Scene consistency: {'✅ Match' if scene_match else '❌ Mismatch'}")
+            
+            # Test 2: Cross-service object creation/verification
+            test_code = "import bpy; bpy.ops.mesh.primitive_cube_add(location=(0, 0, 5)); print('Cross-test cube created')"
+            
+            our_result = self.client.execute_python(test_code)
+            verify_code = "import bpy; cube = bpy.data.objects.get('Cube'); print(f'Cube found: {cube is not None}')"
+            ref_result = self.ref_client.execute_python(verify_code)
+            
+            cross_validation = "created" in our_result and "True" in ref_result
+            print(f"   Cross-validation: {'✅ Pass' if cross_validation else '❌ Fail'}")
+            
+            return scene_match and cross_validation
+            
+        except Exception as e:
+            print(f"   ❌ Cross-validation error: {e}")
+            return False
+    
+    def test_single_service_validation(self):
+        """Validate single service when reference not available"""
+        try:
+            print("   🔍 Single service validation...")
+            
+            # Basic connectivity
+            if not self.client or not self.client.test_connection():
+                return False
+            
+            # Scene info test
+            scene_info = self.client.get_scene_info()
+            scene_ok = scene_info and 'name' in scene_info
+            
+            # Code execution test
+            result = self.client.execute_python("print('Validation test')")
+            exec_ok = "Validation test" in result
+            
+            print(f"   Single service: {'✅ Pass' if scene_ok and exec_ok else '❌ Fail'}")
+            return scene_ok and exec_ok
+            
+        except Exception as e:
+            print(f"   ❌ Single service validation error: {e}")
             return False
     
     def run_all_tests(self, mode='gui'):
@@ -841,3 +1220,72 @@ echo "Cleanup complete"
 2. Implement missing essential commands
 3. Address background mode compatibility
 4. Validate against BlenderAutoMCP patterns
+
+## 🎯 **Dual-Service Testing Strategy Benefits**
+
+### **GUI Mode - Two Communication Channels**
+When testing in GUI mode, you have **dual communication channels** to the same Blender instance:
+
+```
+Test Client ──┬─► BLD Remote MCP (port 6688) ──┐
+              │                                 ├─► Same Blender Instance
+              └─► BlenderAutoMCP (port 9876) ───┘
+```
+
+**Key Benefits:**
+1. **Cross-Validation**: Verify Blender state changes via both services  
+2. **Backup Channel**: If our service fails, use BlenderAutoMCP to debug
+3. **Reference Comparison**: Compare our service behavior with proven implementation
+4. **Isolation Testing**: Ensure services don't interfere with each other
+5. **Debugging Support**: Use BlenderAutoMCP to inspect scene state when our service has issues
+
+**Example Debugging Workflow:**
+```python
+# Create object via our service
+our_client.execute_python("bpy.ops.mesh.primitive_cube_add()")
+
+# Verify via reference service  
+ref_result = ref_client.execute_python("print(len(bpy.context.scene.objects))")
+
+# If counts don't match, investigate the discrepancy
+```
+
+### **Background Mode - Pure Implementation Test**
+In background mode, only our service is available:
+
+```
+Test Client ──► BLD Remote MCP (port 6688) ──► Blender --background
+```
+
+**Benefits:**
+1. **True Headless Testing**: Validates production deployment scenarios
+2. **Service Independence**: Tests our implementation without fallbacks
+3. **Background Compatibility**: Verifies asyncio and context handling
+4. **Performance Testing**: Measures headless service performance
+
+### **Testing Strategy Matrix**
+
+| Mode | Our Service | Reference | Strategy | Benefits |
+|------|------------|-----------|----------|----------|
+| **GUI** | ✅ Port 6688 | ✅ Port 9876 | Dual-channel validation | Cross-verification, backup channel, debugging |
+| **Background** | ✅ Port 6688 | ❌ Not available | Single-service validation | True headless testing, independence |
+
+### **Practical Testing Scenarios**
+
+#### **Scenario 1: Service Development**
+- Start dual services in GUI mode
+- Test new features via our service
+- Cross-validate results via BlenderAutoMCP
+- Use reference service to debug issues
+
+#### **Scenario 2: Production Validation**  
+- Test in background mode to simulate deployment
+- Validate headless operation without GUI dependencies
+- Ensure service works in containerized environments
+
+#### **Scenario 3: Regression Testing**
+- Run dual-service tests to compare with known-good reference
+- Detect behavior changes or compatibility issues
+- Validate protocol compliance with proven implementation
+
+This dual-service approach provides comprehensive testing coverage while maintaining the flexibility to test in both development and production scenarios.
