@@ -1,9 +1,24 @@
 # Minimal Blender MCP Service With Background Running Support
 
 ## Goal
-We are developing a blender plugin that supports MCP (Model Context Protocol) in blender, so that it can be controlled by LLM.
+We are developing a minimal blender plugin that supports MCP (Model Context Protocol) in blender, enabling LLM control in both GUI and background modes.
 
-The goal is to develop blender mcp server (inspired by `blender-mcp` in `context/refcode/blender-mcp`), which supports startup control with env variables, running without GUI so that it works in `blender --background` mode, and also has GUI when blender is started with GUI. Compared to the `blender-mcp`, this one is minimal, will NOT include access functions to 3rd party 3d model repositories (`sketchfab`, `Hyper3D`, `Poly Haven`, etc).
+## Context and Reference Implementations
+
+### BlenderAutoMCP (Reference Implementation)
+- **Location**: `@context/refcode/blender_auto_mcp/`
+- **Port**: 9876 (TCP)
+- **Limitations**: Only works in GUI mode, not in `blender --background`
+- **Interaction**: Via code in `@context/refcode/auto_mcp_remote/`
+- **Core Server**: `@context/refcode/blender_auto_mcp/server.py` - **THIS IS OUR PRIMARY REFERENCE**
+- **Asset Providers**: `@context/refcode/blender_auto_mcp/asset_providers.py` - **WE DON'T WANT THESE**
+
+### Our Implementation Requirements
+- **Goal**: Create a minimal MCP service that works like BlenderAutoMCP but supports both GUI and background modes
+- **Essential Functions Only**: Connection management, code execution, basic scene operations (following MCP protocol)
+- **No 3rd Party Assets**: Exclude PolyHaven, Hyper3D/Rodin, Sketchfab integrations
+- **Same Interaction Pattern**: Should be usable with similar client code as BlenderAutoMCP
+- **MCP Protocol**: Follow specifications in `@context/refcode/modelcontextprotocol/` (focus on essentials)
 
 ## Design
 
@@ -70,6 +85,12 @@ within menu, the user can:
 
 # Status Tracking
 
+## Current State
+- **Partial Implementation**: See `@blender_addon/` and `@context/logs/`
+- **Successful BLD Remote MCP**: Service working on port 6688 (see CLAUDE.md notes)
+- **Reference Pattern**: Follow BlenderAutoMCP's server.py architecture for TCP/threading
+- **Background Mode Challenge**: Need asyncio integration for background mode support
+
 ## Implementation Status
 
 ### Phase 1: Core Infrastructure (Priority: High)
@@ -94,14 +115,14 @@ within menu, the user can:
   - [ ] Add connection handling for multiple clients
   - [ ] Implement graceful shutdown procedures
 
-- [ ] **2.2 Command Handlers**
-  - [ ] Create `command_handlers.py` with essential MCP tools
-  - [ ] Implement `execute_python_code` tool
-  - [ ] Implement `get_scene_info` tool
-  - [ ] Implement `get_object_info` tool
-  - [ ] Implement `create_primitive` tool
-  - [ ] Implement `modify_object` tool
-  - [ ] Implement `render_scene` tool
+- [ ] **2.2 Essential Command Handlers (Based on BlenderAutoMCP)**
+  - [ ] Create `command_handlers.py` implementing core handlers from `server.py`
+  - [ ] Implement `execute_code` tool (like BlenderAutoMCP's execute_code)
+  - [ ] Implement `get_scene_info` tool (like BlenderAutoMCP's get_scene_info)
+  - [ ] Implement `get_object_info` tool (like BlenderAutoMCP's get_object_info)
+  - [ ] Implement `get_viewport_screenshot` tool (like BlenderAutoMCP's get_viewport_screenshot)
+  - [ ] Implement `server_shutdown` tool (like BlenderAutoMCP's server_shutdown)
+  - [ ] **EXCLUDE**: All asset provider handlers (PolyHaven, Hyper3D, Sketchfab)
 
 - [ ] **2.3 Python API Module**
   - [ ] Implement `get_status()` function
@@ -149,6 +170,22 @@ within menu, the user can:
 3. Create configuration handling for environment variables
 
 ## Notes
-- Implementation plan created in `context/plans/blender-bg-mcp-implementation.md`
-- Architecture based on patterns from blender-mcp and blender-echo-plugin references
-- All tasks prioritized for systematic implementation approach
+
+### Key References
+- **Primary Reference**: `@context/refcode/blender_auto_mcp/server.py` - Core MCP server implementation
+- **Client Interaction**: `@context/refcode/auto_mcp_remote/` - How to interact with our service
+- **MCP Protocol**: `@context/refcode/modelcontextprotocol/` - Official protocol documentation
+- **Current Work**: `@context/logs/2025-07-08_bld-remote-mcp-service-implementation-success.md`
+
+### Architecture Decisions
+- **Follow BlenderAutoMCP Pattern**: TCP server with threading (from server.py)
+- **Essential Handlers Only**: execute_code, get_scene_info, get_object_info, get_viewport_screenshot, server_shutdown
+- **Background Mode Support**: Add asyncio integration for headless operation
+- **Same Client Interface**: Should work with similar client code as BlenderAutoMCP
+- **Minimal Footprint**: No asset providers, no 3rd party integrations
+
+### Implementation Guidelines
+- Use BlenderAutoMCP's BlenderAutoMCPServer class as architectural template
+- Port the essential handlers but adapt for background mode compatibility
+- Maintain same JSON message format for client compatibility
+- Add environment variable control for auto-startup in background mode

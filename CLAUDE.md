@@ -65,18 +65,20 @@ For Blender addon patterns and MCP integration examples:
 
 ### Primary Reference: blender_auto_mcp
 - **Location**: `context/refcode/blender_auto_mcp/`
-- **Description**: Production-ready modular Blender MCP addon with auto-start capabilities
-- **Key Features**:
-  - Environment variable configuration (`BLENDER_AUTO_MCP_SERVICE_PORT`, `BLENDER_AUTO_MCP_START_NOW`)
-  - Background mode support with asyncio event loop
-  - Modular architecture (server.py, ui_panel.py, utils.py, asset_providers.py)
-  - Cross-platform socket handling
-  - Multi-threaded server with proper cleanup
-  - GUI integration with scene properties
-- **Analysis**: See `context/summaries/blender-auto-mcp-analysis.md` for detailed implementation patterns
+- **Description**: Production-ready 3rd party Blender MCP addon (GUI mode only)
+- **Operational Status**: 
+  - ✅ Installed and running on port 9876
+  - ⚠️ **Limitation**: Only works in GUI mode, not in `blender --background`
+- **Key Components**:
+  - `server.py`: Core MCP server implementation (**PRIMARY ARCHITECTURE REFERENCE**)
+  - `asset_providers.py`: 3rd party integrations (PolyHaven, Hyper3D, Sketchfab) - **NOT NEEDED**
+  - `ui_panel.py`: GUI controls
+  - `utils.py`: Helper functions
+- **Environment Variables**: 
+  - `BLENDER_AUTO_MCP_SERVICE_PORT=9876` (default port)
+  - `BLENDER_AUTO_MCP_START_NOW=1` (auto-start)
+- **Client Interaction**: Via `context/refcode/auto_mcp_remote/` modules
 - **Usage**: For MCP integration via `uvx blender-mcp` (interfaces with this implementation)
-- **Installation Status**: 
-  - blender_auto_mcp is already installed
 
 ### Secondary References
 - **blender-echo-plugin**: `context/refcode/blender-echo-plugin/` - Simple TCP server pattern for background services
@@ -92,6 +94,22 @@ For Blender addon patterns and MCP integration examples:
 
 4. **CLI Tools** (`scripts/`): Command-line interface tools for remote Blender control operations.
 
+## Current Development Focus: Minimal Background-Compatible MCP Service
+
+### Active Task: `context/tasks/blender-bg-mcp/goal.md`
+We are developing a minimal MCP service that:
+- **Works like BlenderAutoMCP** but supports both GUI and background modes
+- **Essential functions only**: connection management, code execution, scene operations
+- **No 3rd party assets**: Excludes PolyHaven, Hyper3D, Sketchfab integrations
+- **Same interaction pattern**: Compatible with BlenderAutoMCP client code
+- **Background mode support**: Works in `blender --background` via asyncio
+
+### Architecture References
+- **Primary**: `context/refcode/blender_auto_mcp/server.py` - BlenderAutoMCPServer class
+- **Essential Handlers**: execute_code, get_scene_info, get_object_info, get_viewport_screenshot, server_shutdown
+- **Client Pattern**: `context/refcode/auto_mcp_remote/` - How to interact with the service
+- **Background Integration**: Needs asyncio event loop for headless operation
+
 ## Key Development Tasks
 
 When implementing features:
@@ -99,6 +117,7 @@ When implementing features:
 2. The remote control package should provide a clean Python API for external use
 3. MCP server integration should handle communication reliably
 4. CLI tools should follow standard command-line conventions
+5. **NEW**: Background mode compatibility requires asyncio integration patterns
 
 ## Important Notes
 
@@ -211,3 +230,29 @@ status = bld_remote.get_status()  # Check if running
 ```
 
 **Logs**: See `context/logs/2025-07-08_bld-remote-mcp-service-implementation-success.md` for complete implementation details.
+
+## Multiple MCP Services Overview
+
+This project now involves **TWO separate MCP services**:
+
+### 1. BlenderAutoMCP (3rd Party - Reference)
+- **Location**: Installed system-wide in Blender
+- **Port**: 9876
+- **Status**: ✅ Operational, GUI mode only
+- **Purpose**: Reference implementation and comparison
+- **Limitation**: Cannot run in `blender --background`
+- **Features**: Full-featured with 3rd party asset providers
+
+### 2. BLD Remote MCP (Our Implementation) 
+- **Location**: `blender_addon/bld_remote_mcp/`
+- **Port**: 6688 
+- **Status**: ✅ Operational, both GUI and background modes
+- **Purpose**: Minimal essential MCP service
+- **Goal**: Background mode compatibility for headless applications
+- **Features**: Essential handlers only (no 3rd party assets)
+
+### Development Strategy
+- **Use BlenderAutoMCP** as architectural reference (`server.py`)
+- **Build BLD Remote MCP** with same client interaction patterns
+- **Focus on minimal essential functions** for background mode compatibility
+- **Test both services** to ensure they don't conflict (different ports)
