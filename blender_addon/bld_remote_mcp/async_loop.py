@@ -17,19 +17,37 @@ _loop_kicking_operator_running = False
 
 def setup_asyncio_executor():
     """Sets up AsyncIO to run properly on each platform."""
+    log_info("=== SETTING UP ASYNCIO EXECUTOR ===")
+    log_info(f"Platform: {sys.platform}")
+    
     if sys.platform == "win32":
+        log_info("Windows platform detected, using ProactorEventLoop")
         # On Windows, use ProactorEventLoop for proper operation
         try:
-            asyncio.get_event_loop().close()
-        except:
-            pass
+            existing_loop = asyncio.get_event_loop()
+            log_info(f"Existing event loop: {existing_loop}")
+            existing_loop.close()
+            log_info("Existing event loop closed")
+        except Exception as e:
+            log_info(f"No existing event loop to close or error closing: {e}")
+        
+        log_info("Creating ProactorEventLoop...")
         loop = asyncio.ProactorEventLoop()
         asyncio.set_event_loop(loop)
+        log_info(f"ProactorEventLoop set: {loop}")
     else:
+        log_info("Non-Windows platform, using default event loop")
         loop = asyncio.get_event_loop()
+        log_info(f"Got event loop: {loop}")
 
+    log_info("Creating ThreadPoolExecutor...")
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+    log_info(f"ThreadPoolExecutor created: {executor}")
+    
+    log_info("Setting default executor...")
     loop.set_default_executor(executor)
+    log_info(f"Default executor set for loop: {loop}")
+    log_info("=== ASYNCIO EXECUTOR SETUP COMPLETED ===")
 
 
 def kick_async_loop(*args) -> bool:
@@ -37,82 +55,142 @@ def kick_async_loop(*args) -> bool:
 
     :return: whether the asyncio loop should stop after this kick.
     """
-    loop = asyncio.get_event_loop()
+    # Get loop information
+    try:
+        loop = asyncio.get_event_loop()
+    except Exception as e:
+        log_error(f"Failed to get event loop: {e}")
+        return True
 
     # Even when we want to stop, we always need to do one more
     # 'kick' to handle task-done callbacks.
     stop_after_this_kick = False
 
     if loop.is_closed():
-        log_warning("loop closed, stopping immediately.")
+        log_warning("Event loop is closed, stopping immediately")
         return True
 
     # Passing an explicit loop is required. Without it, the function uses
     # asyncio.get_running_loop(), which raises a RuntimeError as the current
     # loop isn't running.
-    all_tasks = asyncio.all_tasks(loop=loop)
+    try:
+        all_tasks = asyncio.all_tasks(loop=loop)
+    except Exception as e:
+        log_error(f"Failed to get all tasks: {e}")
+        return True
     
-    # Add debugging for task processing
-    log_info(f"kick_async_loop: {len(all_tasks)} tasks to process")
+    # Log task processing details with throttling
+    task_count = len(all_tasks)
+    
+    # Create a counter for this function to throttle logging
+    if not hasattr(kick_async_loop, '_call_count'):
+        kick_async_loop._call_count = 0
+    kick_async_loop._call_count += 1
+    
+    # Only log detailed info every 100 calls to avoid spam
+    should_log_details = (kick_async_loop._call_count % 100 == 1) or task_count > 0
+    
+    if should_log_details:
+        log_info(f"kick_async_loop (call #{kick_async_loop._call_count}): {task_count} tasks to process")
 
-    if not len(all_tasks):
-        log_info("no more scheduled tasks, stopping after this kick.")
+    if not task_count:
+        if should_log_details:
+            log_info("No more scheduled tasks, stopping after this kick")
         stop_after_this_kick = True
 
     elif all(task.done() for task in all_tasks):
-        log_info(
-            f"all {len(all_tasks)} tasks are done, fetching results and stopping after this kick."
-        )
+        if should_log_details:
+            log_info(f"All {task_count} tasks are done, fetching results and stopping after this kick")
         stop_after_this_kick = True
 
         # Clean up circular references between tasks.
         gc.collect()
 
-        for task_idx, task in enumerate(all_tasks):
-            if not task.done():
-                continue
+        if should_log_details:
+            for task_idx, task in enumerate(all_tasks):
+                if not task.done():
+                    continue
 
-            try:
-                res = task.result()
-                log_info(f"   task #{task_idx}: result={res!r}")
-            except asyncio.CancelledError:
-                # No problem, we want to stop anyway.
-                log_info(f"   task #{task_idx}: cancelled")
-            except Exception:
-                print("{}: resulted in exception".format(task))
-                traceback.print_exc()
+                try:
+                    res = task.result()
+                    log_info(f"   task #{task_idx}: result={res!r}")
+                except asyncio.CancelledError:
+                    # No problem, we want to stop anyway.
+                    log_info(f"   task #{task_idx}: cancelled")
+                except Exception as task_e:
+                    log_error(f"   task #{task_idx}: resulted in exception: {task_e}")
+                    log_error(f"   task #{task_idx}: {traceback.format_exc()}")
     else:
         # There are tasks that are not done yet
-        log_info(f"Processing {len(all_tasks)} tasks...")
-        for task_idx, task in enumerate(all_tasks):
-            if task.done():
-                log_info(f"   task #{task_idx}: already done")
-            else:
-                log_info(f"   task #{task_idx}: pending - {task}")
+        if should_log_details:
+            log_info(f"Processing {task_count} active tasks...")
+            for task_idx, task in enumerate(all_tasks):
+                if task.done():
+                    log_info(f"   task #{task_idx}: done")
+                else:
+                    log_info(f"   task #{task_idx}: pending - {task}")
 
-    loop.stop()
-    loop.run_forever()
+    # Run the loop
+    try:
+        loop.stop()
+        loop.run_forever()
+    except Exception as e:
+        log_error(f"Error running event loop: {e}")
+        return True
 
     return stop_after_this_kick
 
 
 def ensure_async_loop():
-    log_info("Starting asyncio loop")
-    result = bpy.ops.bld_remote.async_loop()
-    log_info(f"Result of starting modal operator is {result!r}")
+    log_info("=== ENSURING ASYNC LOOP ===")
+    log_info("ensure_async_loop() called")
+    log_info(f"Current loop kicking operator status: {_loop_kicking_operator_running}")
+    
+    log_info("Starting modal operator for asyncio loop...")
+    try:
+        result = bpy.ops.bld_remote.async_loop()
+        log_info(f"Modal operator start result: {result!r}")
+    except Exception as e:
+        log_error(f"ERROR: Failed to start modal operator: {e}")
+        log_error(f"Traceback: {traceback.format_exc()}")
+        return
     
     # Add extra debugging
-    log_info(f"Loop kicking operator running: {_loop_kicking_operator_running}")
+    log_info(f"Loop kicking operator running after start: {_loop_kicking_operator_running}")
     
     # Check if there are any scheduled tasks
+    log_info("Checking scheduled asyncio tasks...")
     try:
         loop = asyncio.get_event_loop()
+        log_info(f"Got event loop: {loop}")
+        log_info(f"Loop is closed: {loop.is_closed()}")
+        log_info(f"Loop is running: {loop.is_running()}")
+        
         all_tasks = asyncio.all_tasks(loop=loop)
-        log_info(f"Number of scheduled asyncio tasks: {len(all_tasks)}")
-        for i, task in enumerate(all_tasks):
-            log_info(f"Task {i}: {task}")
+        task_count = len(all_tasks)
+        log_info(f"Number of scheduled asyncio tasks: {task_count}")
+        
+        if task_count > 0:
+            for i, task in enumerate(all_tasks):
+                task_info = f"Task {i}: {task} (done: {task.done()}"
+                if task.done():
+                    try:
+                        if task.cancelled():
+                            task_info += ", cancelled"
+                        else:
+                            task_info += f", result available"
+                    except Exception:
+                        task_info += ", result error"
+                task_info += ")"
+                log_info(task_info)
+        else:
+            log_info("No tasks currently scheduled")
+            
     except Exception as e:
-        log_info(f"Error checking tasks: {e}")
+        log_error(f"Error checking asyncio tasks: {e}")
+        log_error(f"Task check traceback: {traceback.format_exc()}")
+    
+    log_info("=== ASYNC LOOP ENSURE COMPLETED ===")
 
 
 def erase_async_loop():
@@ -144,20 +222,41 @@ class BLD_REMOTE_OT_async_loop(bpy.types.Operator):
     def invoke(self, context, event):
         global _loop_kicking_operator_running
 
-        log_info("Modal operator invoke called")
+        log_info("=== MODAL OPERATOR INVOKE ===")
+        log_info(f"Modal operator invoke called - context: {context}, event: {event}")
+        log_info(f"Current _loop_kicking_operator_running: {_loop_kicking_operator_running}")
         
         if _loop_kicking_operator_running:
-            log_info("Another loop-kicking operator is already running.")
+            log_info("⚠️ Another loop-kicking operator is already running, passing through")
             return {"PASS_THROUGH"}
 
-        log_info("Starting new modal operator")
-        context.window_manager.modal_handler_add(self)
+        log_info("Starting new modal operator...")
+        try:
+            context.window_manager.modal_handler_add(self)
+            log_info("✅ Modal handler added to window manager")
+        except Exception as e:
+            log_error(f"ERROR: Failed to add modal handler: {e}")
+            return {"CANCELLED"}
+        
         _loop_kicking_operator_running = True
+        log_info(f"Set _loop_kicking_operator_running to: {_loop_kicking_operator_running}")
 
-        wm = context.window_manager
-        self.timer = wm.event_timer_add(0.00025, window=context.window)
-        log_info("Modal operator timer added, returning RUNNING_MODAL")
-
+        try:
+            wm = context.window_manager
+            log_info(f"Got window manager: {wm}")
+            log_info(f"Current window: {context.window}")
+            
+            # Use a fast timer for responsive asyncio processing
+            timer_interval = 0.00025  # 0.25ms
+            self.timer = wm.event_timer_add(timer_interval, window=context.window)
+            log_info(f"✅ Modal operator timer added (interval: {timer_interval}s): {self.timer}")
+        except Exception as e:
+            log_error(f"ERROR: Failed to add timer: {e}")
+            _loop_kicking_operator_running = False
+            return {"CANCELLED"}
+        
+        log_info("Modal operator setup complete, returning RUNNING_MODAL")
+        log_info("=== MODAL OPERATOR INVOKE COMPLETED ===")
         return {"RUNNING_MODAL"}
 
     def modal(self, context, event):
@@ -167,45 +266,81 @@ class BLD_REMOTE_OT_async_loop(bpy.types.Operator):
         # erase_async_loop(). This is a signal that we really should stop
         # running.
         if not _loop_kicking_operator_running:
+            log_info("⚠️ _loop_kicking_operator_running is False, finishing modal operator")
+            try:
+                if hasattr(self, 'timer') and self.timer:
+                    context.window_manager.event_timer_remove(self.timer)
+                    log_info("Timer removed during early finish")
+            except Exception as e:
+                log_error(f"Error removing timer during early finish: {e}")
             return {"FINISHED"}
 
         if event.type != "TIMER":
             return {"PASS_THROUGH"}
 
-        # Only log occasionally to avoid spam
-        if hasattr(self, '_modal_call_count'):
-            self._modal_call_count += 1
-        else:
-            self._modal_call_count = 1
+        # Initialize and track modal call count
+        if not hasattr(self, '_modal_call_count'):
+            self._modal_call_count = 0
+            log_info("Modal operator processing started")
             
-        if self._modal_call_count % 1000 == 1:  # Log every 1000 calls
+        self._modal_call_count += 1
+            
+        # Log progress periodically to avoid spam but provide visibility
+        should_log = (self._modal_call_count % 1000 == 1) or (self._modal_call_count <= 10)
+        if should_log:
             log_info(f"Modal operator processing timer event (call #{self._modal_call_count})")
 
-        stop_after_this_kick = kick_async_loop()
+        # Process asyncio loop
+        try:
+            stop_after_this_kick = kick_async_loop()
+        except Exception as e:
+            log_error(f"ERROR: Exception in kick_async_loop: {e}")
+            log_error(f"Traceback: {traceback.format_exc()}")
+            stop_after_this_kick = True  # Stop on error
+            
         if stop_after_this_kick:
-            context.window_manager.event_timer_remove(self.timer)
+            log_info(f"Asyncio loop requested stop after {self._modal_call_count} modal calls")
+            
+            try:
+                context.window_manager.event_timer_remove(self.timer)
+                log_info("✅ Timer removed successfully")
+            except Exception as e:
+                log_error(f"ERROR: Failed to remove timer: {e}")
+            
             _loop_kicking_operator_running = False
+            log_info(f"Set _loop_kicking_operator_running to: {_loop_kicking_operator_running}")
 
-            log_info("Stopped asyncio loop kicking")
+            log_info("✅ Stopped asyncio loop kicking - modal operator finished")
             return {"FINISHED"}
 
         return {"RUNNING_MODAL"}
 
 
 def register():
+    log_info("Registering BLD_REMOTE_OT_async_loop operator...")
     try:
         bpy.utils.register_class(BLD_REMOTE_OT_async_loop)
+        log_info("✅ BLD_REMOTE_OT_async_loop operator registered successfully")
     except ValueError as e:
         if "already registered" in str(e):
             # Already registered, that's fine
-            pass
+            log_info("⚠️ BLD_REMOTE_OT_async_loop operator already registered")
         else:
+            log_error(f"ERROR: Failed to register BLD_REMOTE_OT_async_loop operator: {e}")
             raise
+    except Exception as e:
+        log_error(f"ERROR: Unexpected error registering operator: {e}")
+        raise
 
 
 def unregister():
+    log_info("Unregistering BLD_REMOTE_OT_async_loop operator...")
     try:
         bpy.utils.unregister_class(BLD_REMOTE_OT_async_loop)
-    except (ValueError, RuntimeError):
+        log_info("✅ BLD_REMOTE_OT_async_loop operator unregistered successfully")
+    except (ValueError, RuntimeError) as e:
         # Not registered or already unregistered, that's fine
-        pass
+        log_info(f"⚠️ BLD_REMOTE_OT_async_loop operator not registered or already unregistered: {e}")
+    except Exception as e:
+        log_error(f"ERROR: Unexpected error unregistering operator: {e}")
+        # Don't raise during unregistration

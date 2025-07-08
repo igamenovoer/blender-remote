@@ -36,23 +36,34 @@ server_port = 0
 
 def _is_background_mode():
     """Check if Blender is running in background mode"""
-    return bpy.app.background
+    bg_mode = bpy.app.background
+    log_info(f"Blender background mode check: {bg_mode}")
+    return bg_mode
 
 def _signal_handler(signum, frame):
     """Handle shutdown signals in background mode"""
+    log_info(f"Signal handler triggered: signal={signum}, frame={frame}")
     log_info(f"Received signal {signum}, shutting down server...")
     cleanup_server()
     if _is_background_mode():
+        log_info("Background mode detected, quitting Blender...")
         bpy.ops.wm.quit_blender()
+    else:
+        log_info("GUI mode detected, server stopped but Blender continues running")
 
 def _cleanup_on_exit():
     """Cleanup function for exit handler"""
+    log_info("Exit handler triggered, performing cleanup...")
     try:
         if tcp_server:
-            log_info("BLD Remote: Cleaning up on process exit...")
+            log_info("BLD Remote: TCP server exists, cleaning up on process exit...")
             cleanup_server()
+        else:
+            log_info("BLD Remote: No TCP server to clean up on exit")
     except Exception as e:
-        log_error(f"BLD Remote: Error during cleanup: {e}")
+        log_error(f"BLD Remote: Error during exit cleanup: {e}")
+        import traceback
+        log_error(f"BLD Remote: Exit cleanup traceback: {traceback.format_exc()}")
 
 def _start_background_keepalive():
     """Note: Background keep-alive is managed by external script, not internal blocking"""
@@ -67,27 +78,55 @@ def cleanup_server():
     the global state variables.
     """
     global tcp_server, server_task, server_port
+    
+    log_info(f"cleanup_server() called - tcp_server={tcp_server is not None}, server_task={server_task is not None}, server_port={server_port}")
+    
     if not tcp_server and not server_task:
+        log_info("cleanup_server: No server or task to clean up, returning early")
         return
 
-    log_info("Cleaning up server...")
+    log_info("Starting server cleanup process...")
     
     # Background mode cleanup will be handled by external script
+    log_info(f"Background mode: {_is_background_mode()}")
     
     if tcp_server:
-        tcp_server.close()
+        log_info("Closing TCP server...")
+        try:
+            tcp_server.close()
+            log_info("TCP server closed successfully")
+        except Exception as e:
+            log_error(f"Error closing TCP server: {e}")
         tcp_server = None
+        log_info("TCP server reference cleared")
+        
     if server_task:
-        server_task.cancel()
+        log_info("Cancelling server task...")
+        try:
+            server_task.cancel()
+            log_info("Server task cancelled successfully")
+        except Exception as e:
+            log_error(f"Error cancelling server task: {e}")
         server_task = None
+        log_info("Server task reference cleared")
+        
+    old_port = server_port
     server_port = 0
+    log_info(f"Server port reset from {old_port} to 0")
     
+    # Update scene property
     try:
-        if bpy.data.scenes:
+        if hasattr(bpy, 'data') and hasattr(bpy.data, 'scenes') and bpy.data.scenes:
+            log_info("Updating scene property bld_remote_server_running to False...")
             bpy.data.scenes[0].bld_remote_server_running = False
-    except (AttributeError, TypeError):
+            log_info("Scene property updated successfully")
+        else:
+            log_info("No scenes available to update property")
+    except (AttributeError, TypeError) as e:
         # In restricted context, can't access scenes
-        pass
+        log_info(f"Cannot access scenes to update property (restricted context): {e}")
+    except Exception as e:
+        log_error(f"Unexpected error updating scene property: {e}")
         
     log_info("Server cleanup complete")
 
@@ -114,63 +153,153 @@ def process_message(data):
         If the received code contains the string "quit_blender", this
         exception is raised to signal the main script to terminate.
     """
+    log_info(f"process_message() called with data keys: {list(data.keys()) if isinstance(data, dict) else 'not a dict'}")
+    log_info(f"Current server_port: {server_port}")
+    
     response = {
         "response": "OK",
         "message": "Task received",
         "source": f"tcp://127.0.0.1:{server_port}"
     }
+    log_info(f"Initial response prepared: {response}")
     
     if "message" in data:
-        log_info(f"Message received: {data['message']}")
-        response["message"] = f"Printed message: {data['message']}"
+        message_content = data['message']
+        log_info(f"Processing message field: '{message_content}' (length: {len(message_content) if message_content else 0})")
+        response["message"] = f"Printed message: {message_content}"
+        log_info(f"Message processed, response updated")
         
     if "code" in data:
         code_to_run = data['code']
-        log_info(f"Executing code: {code_to_run}")
+        code_length = len(code_to_run) if code_to_run else 0
+        log_info(f"Processing code field (length: {code_length})")
+        log_info(f"Code to execute: {code_to_run[:200]}{'...' if code_length > 200 else ''}")
+        
         try:
             # Special handling for the quit command
             if "quit_blender" in code_to_run:
+                log_info("Detected quit_blender command in code")
                 log_info("Shutdown command received. Raising SystemExit")
                 raise SystemExit("Shutdown requested by client")
             else:
+                log_info("Code does not contain quit_blender, proceeding with execution")
+                
                 # Run other code in a deferred context
                 def code_runner():
-                    exec(code_to_run, {'bpy': bpy})
+                    log_info(f"code_runner() executing: {code_to_run[:100]}{'...' if len(code_to_run) > 100 else ''}")
+                    try:
+                        exec(code_to_run, {'bpy': bpy})
+                        log_info("Code execution completed successfully")
+                    except Exception as exec_e:
+                        log_error(f"Error during code execution in timer: {exec_e}")
+                        import traceback
+                        log_error(f"Code execution traceback: {traceback.format_exc()}")
+                        
+                log_info("Registering code_runner with Blender timer system...")
                 bpy.app.timers.register(code_runner, first_interval=0.01)
                 response["message"] = "Code execution scheduled"
+                log_info("Code execution scheduled successfully")
+                
+        except SystemExit:
+            log_info("SystemExit raised, re-raising for shutdown")
+            raise
         except Exception as e:
-            log_error(f"Error executing code: {e}")
+            log_error(f"Error processing code execution: {e}")
+            log_error(f"Exception type: {type(e).__name__}")
             traceback.print_exc()
             response["response"] = "FAILED"
             response["message"] = f"Error executing code: {str(e)}"
+            log_error(f"Error response prepared: {response}")
             
+    log_info(f"Final response: {response}")
     return response
 
 
 class BldRemoteProtocol(asyncio.Protocol):
     """The asyncio Protocol for handling client connections."""
 
+    def __init__(self):
+        """Initialize protocol instance."""
+        self.transport = None
+        self.connection_start_time = None
+        log_info("BldRemoteProtocol instance created")
+
     def connection_made(self, transport):
         """Called when a connection is made."""
+        import time
         self.transport = transport
+        self.connection_start_time = time.time()
         peername = transport.get_extra_info('peername')
-        log_info(f"Connection from {peername}")
+        sockname = transport.get_extra_info('sockname')
+        log_info(f"NEW CLIENT CONNECTION from {peername} to {sockname}")
+        log_info(f"Transport details: {transport}")
+        log_info(f"Connection established at {self.connection_start_time}")
 
     def data_received(self, data):
         """Called when data is received from the client."""
+        import time
+        receive_time = time.time()
+        data_length = len(data)
+        log_info(f"DATA RECEIVED: {data_length} bytes at {receive_time}")
+        log_info(f"Raw data preview: {data[:200]}{'...' if data_length > 200 else ''}")
+        
         try:
-            message = json.loads(data.decode())
+            log_info("Attempting to decode data as UTF-8...")
+            decoded_data = data.decode()
+            log_info(f"Data decoded successfully, length: {len(decoded_data)}")
+            
+            log_info("Attempting to parse JSON...")
+            message = json.loads(decoded_data)
+            log_info(f"JSON parsed successfully: {type(message)} with keys {list(message.keys()) if isinstance(message, dict) else 'not a dict'}")
+            
+            log_info("Calling process_message()...")
             response = process_message(message)
-            self.transport.write(json.dumps(response).encode())
+            log_info(f"process_message() returned: {response}")
+            
+            log_info("Encoding response as JSON...")
+            response_json = json.dumps(response)
+            response_bytes = response_json.encode()
+            log_info(f"Response encoded: {len(response_bytes)} bytes")
+            
+            log_info("Sending response to client...")
+            self.transport.write(response_bytes)
+            log_info("Response sent successfully")
+            
+        except json.JSONDecodeError as e:
+            log_error(f"JSON decode error: {e}")
+            log_error(f"Invalid JSON data: {decoded_data[:500] if 'decoded_data' in locals() else 'data decode failed'}")
+            error_response = {"response": "ERROR", "message": f"Invalid JSON: {str(e)}"}
+            try:
+                self.transport.write(json.dumps(error_response).encode())
+            except Exception as send_error:
+                log_error(f"Failed to send error response: {send_error}")
+        except UnicodeDecodeError as e:
+            log_error(f"Unicode decode error: {e}")
+            log_error(f"Invalid UTF-8 data received")
         except Exception as e:
-            log_error(f"Error processing message: {e}")
+            log_error(f"Unexpected error processing message: {e}")
+            log_error(f"Exception type: {type(e).__name__}")
             traceback.print_exc()
         finally:
-            self.transport.close()
+            log_info("Closing client connection...")
+            try:
+                self.transport.close()
+                log_info("Client connection closed successfully")
+            except Exception as close_error:
+                log_error(f"Error closing connection: {close_error}")
 
     def connection_lost(self, exc):
         """Called when the connection is lost or closed."""
-        log_info("Client connection closed")
+        import time
+        end_time = time.time()
+        duration = end_time - self.connection_start_time if self.connection_start_time else 0
+        
+        if exc:
+            log_info(f"CLIENT CONNECTION LOST with exception: {exc} (duration: {duration:.3f}s)")
+        else:
+            log_info(f"CLIENT CONNECTION CLOSED normally (duration: {duration:.3f}s)")
+        
+        log_info(f"Connection ended at {end_time}")
 
 
 async def start_server_task(port, scene_to_update):
@@ -189,22 +318,42 @@ async def start_server_task(port, scene_to_update):
     """
     global tcp_server, server_task, server_port
     
-    log_info(f"start_server_task executing for port {port}")
+    log_info(f"=== START_SERVER_TASK BEGINNING ===")
+    log_info(f"start_server_task() called with port={port}, scene_to_update={scene_to_update}")
+    log_info(f"Current global state: tcp_server={tcp_server}, server_task={server_task}, server_port={server_port}")
+    
     server_port = port
+    log_info(f"Global server_port updated to: {server_port}")
+    
+    log_info("Getting asyncio event loop...")
     loop = asyncio.get_event_loop()
     log_info(f"Got asyncio event loop: {loop}")
+    log_info(f"Loop is closed: {loop.is_closed()}")
+    log_info(f"Loop is running: {loop.is_running()}")
     
     try:
-        log_info(f"Creating server on 127.0.0.1:{port}")
-        tcp_server = await loop.create_server(BldRemoteProtocol, '127.0.0.1', port)
-        log_info(f"Server created successfully: {tcp_server}")
+        log_info(f"About to create TCP server on 127.0.0.1:{port}")
+        log_info(f"Using protocol factory: {BldRemoteProtocol}")
         
+        tcp_server = await loop.create_server(BldRemoteProtocol, '127.0.0.1', port)
+        log_info(f"TCP server created successfully: {tcp_server}")
+        log_info(f"Server socket info: {tcp_server.sockets}")
+        
+        log_info("Creating serve_forever task...")
         server_task = asyncio.ensure_future(tcp_server.serve_forever())
-        log_info(f"BLD Remote server started on port {port}")
+        log_info(f"Server task created: {server_task}")
+        
+        log_info(f"✅ BLD Remote server STARTED successfully on port {port}")
+        log_info(f"Server is now listening for connections on 127.0.0.1:{port}")
         
         if scene_to_update:
+            log_info(f"Updating scene property for scene: {scene_to_update}")
             scene_to_update.bld_remote_server_running = True
-            log_info("Scene property updated")
+            log_info("✅ Scene property bld_remote_server_running set to True")
+        else:
+            log_info("No scene to update (scene_to_update is None)")
+        
+        log_info(f"=== START_SERVER_TASK COMPLETED SUCCESSFULLY ===")
             
     except OSError as e:
         # Handle socket-specific errors with detailed logging
@@ -229,6 +378,7 @@ async def start_server_task(port, scene_to_update):
             log_error(f"ERROR: This is typically a port conflict or network configuration issue")
         
         log_error(f"ERROR: Socket error details: {type(e).__name__}: {e}")
+        log_error(f"=== START_SERVER_TASK FAILED WITH SOCKET ERROR ===")
         cleanup_server()
         
     except PermissionError as e:
@@ -239,6 +389,7 @@ async def start_server_task(port, scene_to_update):
             log_error(f"ERROR: Try using a port above 1024 (e.g., 6688, 8080, 9999)")
         else:
             log_error(f"ERROR: Check if firewall or security software is blocking port {port}")
+        log_error(f"=== START_SERVER_TASK FAILED WITH PERMISSION ERROR ===")
         cleanup_server()
         
     except Exception as e:
@@ -246,6 +397,7 @@ async def start_server_task(port, scene_to_update):
         log_error(f"ERROR: Exception type: {type(e).__name__}")
         import traceback
         log_error(f"ERROR: Detailed traceback: {traceback.format_exc()}")
+        log_error(f"=== START_SERVER_TASK FAILED WITH UNEXPECTED ERROR ===")
         cleanup_server()
 
 
@@ -256,45 +408,99 @@ def start_server_from_script():
     from an environment variable, gets a reference to a scene, and schedules
     the `start_server_task` to run on the asyncio event loop.
     """
+    log_info("=== START_SERVER_FROM_SCRIPT BEGINNING ===")
+    log_info("start_server_from_script() called")
+    
+    # Parse port from environment
+    log_info("Reading port configuration from environment...")
+    port_str = os.environ.get('BLD_REMOTE_MCP_PORT', '6688')
+    log_info(f"Raw port value from environment: '{port_str}'")
+    
     try:
-        port = int(os.environ.get('BLD_REMOTE_MCP_PORT', 6688))
+        port = int(port_str)
+        log_info(f"Port parsed successfully: {port}")
         if port < 1024 or port > 65535:
             log_error(f"ERROR: Invalid port {port}. Port must be between 1024 and 65535")
             log_error(f"ERROR: Consider using ports like 6688, 8080, 9999")
+            log_error(f"=== START_SERVER_FROM_SCRIPT FAILED - INVALID PORT ===")
             return
+        log_info(f"Port validation passed: {port}")
     except ValueError as e:
-        port_str = os.environ.get('BLD_REMOTE_MCP_PORT', '6688')
         log_error(f"ERROR: Invalid port value '{port_str}'. Must be a valid integer")
         log_error(f"ERROR: Port parsing failed: {e}")
+        log_error(f"=== START_SERVER_FROM_SCRIPT FAILED - PORT PARSE ERROR ===")
         return
     
-    log_info(f"Starting server on port {port}")
+    log_info(f"✅ Starting server on port {port}")
+    log_info(f"Background mode: {_is_background_mode()}")
     
     # Set up asyncio executor first
-    async_loop.setup_asyncio_executor()
+    log_info("Setting up asyncio executor...")
+    try:
+        async_loop.setup_asyncio_executor()
+        log_info("✅ Asyncio executor setup completed")
+    except Exception as e:
+        log_error(f"ERROR: Failed to setup asyncio executor: {e}")
+        log_error(f"=== START_SERVER_FROM_SCRIPT FAILED - ASYNCIO SETUP ERROR ===")
+        return
     
     # Try to get scene reference, handle restricted context
+    log_info("Attempting to get scene reference...")
     scene = None
     try:
-        if hasattr(bpy.data, 'scenes') and bpy.data.scenes:
-            scene = bpy.data.scenes[0]
-    except (AttributeError, TypeError):
+        if hasattr(bpy, 'data'):
+            log_info("bpy.data is available")
+            if hasattr(bpy.data, 'scenes'):
+                log_info("bpy.data.scenes is available")
+                if bpy.data.scenes:
+                    scene = bpy.data.scenes[0]
+                    log_info(f"✅ Scene reference obtained: {scene} (name: {scene.name if hasattr(scene, 'name') else 'unknown'})")
+                else:
+                    log_info("bpy.data.scenes is empty")
+            else:
+                log_info("bpy.data.scenes is not available")
+        else:
+            log_info("bpy.data is not available")
+    except (AttributeError, TypeError) as e:
         # In restricted context, we can't access scenes - that's OK
-        pass
+        log_info(f"Cannot access scenes (restricted context): {e}")
+    except Exception as e:
+        log_warning(f"Unexpected error getting scene reference: {e}")
     
-    log_info(f"Scheduling server task for port {port}")
-    asyncio.ensure_future(start_server_task(port, scene))
+    log_info(f"Scene reference result: {scene}")
+    
+    # Schedule the server task
+    log_info(f"Scheduling server task for port {port}...")
+    try:
+        future = asyncio.ensure_future(start_server_task(port, scene))
+        log_info(f"✅ Server task scheduled: {future}")
+    except Exception as e:
+        log_error(f"ERROR: Failed to schedule server task: {e}")
+        log_error(f"=== START_SERVER_FROM_SCRIPT FAILED - TASK SCHEDULING ERROR ===")
+        return
     
     # Ensure the async loop machinery is ready and start the modal operator
+    log_info("Registering async loop machinery...")
     try:
         async_loop.register()
-    except ValueError:
+        log_info("✅ Async loop registered successfully")
+    except ValueError as e:
         # Already registered, which is fine
-        pass
+        log_info(f"Async loop already registered: {e}")
+    except Exception as e:
+        log_error(f"ERROR: Failed to register async loop: {e}")
+        log_error(f"=== START_SERVER_FROM_SCRIPT FAILED - ASYNC LOOP REGISTRATION ERROR ===")
+        return
     
     # Start the modal operator to process asyncio events
-    log_info("Starting modal operator for asyncio event processing")
-    async_loop.ensure_async_loop()
+    log_info("Starting modal operator for asyncio event processing...")
+    try:
+        async_loop.ensure_async_loop()
+        log_info("✅ Modal operator started successfully")
+        log_info(f"=== START_SERVER_FROM_SCRIPT COMPLETED SUCCESSFULLY ===")
+    except Exception as e:
+        log_error(f"ERROR: Failed to start modal operator: {e}")
+        log_error(f"=== START_SERVER_FROM_SCRIPT FAILED - MODAL OPERATOR ERROR ===")
 
 
 # =============================================================================
@@ -305,29 +511,40 @@ def get_status():
     """Return service status dictionary."""
     global tcp_server, server_port
     
-    return {
+    log_info(f"get_status() called - tcp_server={tcp_server is not None}, server_port={server_port}")
+    
+    status = {
         "running": tcp_server is not None,
         "port": server_port,
         "address": f"127.0.0.1:{server_port}",
         "server_object": tcp_server is not None
     }
+    
+    log_info(f"Status result: {status}")
+    return status
 
 
 def start_mcp_service():
     """Start MCP service, raise exception on failure."""
     global tcp_server
     
+    log_info("start_mcp_service() called")
+    log_info(f"Current server state: tcp_server={tcp_server is not None}")
+    
     if tcp_server is not None:
-        log_info("Server already running")
+        log_info("⚠️ Server already running, nothing to do")
         return
     
+    log_info("Server not running, attempting to start...")
     try:
         start_server_from_script()
-        log_info("Server start initiated")
+        log_info("✅ Server start initiated successfully")
         
     except Exception as e:
         error_msg = f"Failed to start server: {e}"
-        log_error(error_msg)
+        log_error(f"ERROR in start_mcp_service(): {error_msg}")
+        import traceback
+        log_error(f"Traceback: {traceback.format_exc()}")
         raise RuntimeError(error_msg)
 
 
@@ -376,63 +593,142 @@ def get_mcp_service_port():
 
 def register():
     """Register the addon's properties and classes with Blender."""
+    log_info("=== BLD REMOTE MCP ADDON REGISTRATION STARTING ===")
+    log_info("register() function called")
+    
+    # Check Blender environment
+    log_info(f"Blender version: {bpy.app.version}")
+    log_info(f"Blender background mode: {_is_background_mode()}")
+    log_info(f"Python path: {os.sys.path[:3]}...")  # Show first few paths
+    
     # Register async loop
-    async_loop.register()
+    log_info("Registering async loop machinery...")
+    try:
+        async_loop.register()
+        log_info("✅ Async loop registered successfully")
+    except Exception as e:
+        log_error(f"ERROR: Failed to register async loop: {e}")
+        raise
     
     # Add scene properties
-    bpy.types.Scene.bld_remote_server_running = BoolProperty(
-        name="BLD Remote Server Running",
-        description="Indicates if the BLD Remote server is active",
-        default=False
-    )
+    log_info("Adding scene properties...")
+    try:
+        bpy.types.Scene.bld_remote_server_running = BoolProperty(
+            name="BLD Remote Server Running",
+            description="Indicates if the BLD Remote server is active",
+            default=False
+        )
+        log_info("✅ Scene property 'bld_remote_server_running' added")
+    except Exception as e:
+        log_error(f"ERROR: Failed to add scene property: {e}")
+        raise
     
     # Set up asyncio
-    async_loop.setup_asyncio_executor()
+    log_info("Setting up asyncio executor...")
+    try:
+        async_loop.setup_asyncio_executor()
+        log_info("✅ Asyncio executor setup completed")
+    except Exception as e:
+        log_error(f"ERROR: Failed to setup asyncio executor: {e}")
+        raise
     
     # Log startup configuration  
-    from .config import log_startup_config
-    log_startup_config()
+    log_info("Loading and logging startup configuration...")
+    try:
+        from .config import log_startup_config
+        log_startup_config()
+        log_info("✅ Startup configuration logged")
+    except Exception as e:
+        log_error(f"ERROR: Failed to log startup config: {e}")
+        # Don't raise here, this is non-critical
     
     # Install signal handlers and exit handlers for background mode
-    if _is_background_mode():
-        signal.signal(signal.SIGTERM, _signal_handler)
-        signal.signal(signal.SIGINT, _signal_handler)
-        atexit.register(_cleanup_on_exit)
-        log_info("Background mode detected - signal handlers installed")
+    background_mode = _is_background_mode()
+    if background_mode:
+        log_info("Background mode detected, installing signal handlers...")
+        try:
+            signal.signal(signal.SIGTERM, _signal_handler)
+            signal.signal(signal.SIGINT, _signal_handler)
+            log_info("✅ Signal handlers (SIGTERM, SIGINT) installed")
+            
+            atexit.register(_cleanup_on_exit)
+            log_info("✅ Exit handler registered")
+            
+            log_info("Background mode setup completed")
+        except Exception as e:
+            log_error(f"ERROR: Failed to setup background mode handlers: {e}")
+            # Don't raise, continue with registration
+    else:
+        log_info("GUI mode detected, skipping signal handler installation")
     
     # Auto-start if configured
-    from .config import should_auto_start
-    if should_auto_start():
-        log_info("Auto-start enabled, attempting to start server")
-        try:
-            start_mcp_service()
-            
-            # In background mode, start keep-alive loop
-            if _is_background_mode():
-                log_info("Background mode - starting keep-alive loop")
-                _start_background_keepalive()
+    log_info("Checking auto-start configuration...")
+    try:
+        from .config import should_auto_start
+        auto_start = should_auto_start()
+        log_info(f"Auto-start enabled: {auto_start}")
+        
+        if auto_start:
+            log_info("✅ Auto-start enabled, attempting to start server")
+            try:
+                start_mcp_service()
+                log_info("✅ Auto-start server initialization completed")
                 
-        except Exception as e:
-            log_warning(f"Auto-start failed: {e}")
+                # In background mode, start keep-alive loop
+                if background_mode:
+                    log_info("Background mode - starting keep-alive loop")
+                    _start_background_keepalive()
+                    log_info("✅ Background keep-alive setup completed")
+                    
+            except Exception as e:
+                log_warning(f"⚠️ Auto-start failed: {e}")
+                import traceback
+                log_warning(f"Auto-start failure traceback: {traceback.format_exc()}")
+        else:
+            log_info("Auto-start disabled, server will not start automatically")
+    except Exception as e:
+        log_error(f"ERROR: Failed to check auto-start config: {e}")
+        # Don't raise, continue with registration
     
-    log_info("BLD Remote MCP addon registered")
+    log_info("✅ BLD Remote MCP addon registered successfully")
+    log_info("=== BLD REMOTE MCP ADDON REGISTRATION COMPLETED ===")
 
 
 def unregister():
     """Unregister the addon and clean up all resources."""
+    log_info("=== BLD REMOTE MCP ADDON UNREGISTRATION STARTING ===")
+    log_info("unregister() function called")
+    
     # Stop server
-    cleanup_server()
+    log_info("Stopping server and cleaning up resources...")
+    try:
+        cleanup_server()
+        log_info("✅ Server cleanup completed")
+    except Exception as e:
+        log_error(f"ERROR: Failed to cleanup server: {e}")
+        # Continue with unregistration
     
     # Clean up scene properties
+    log_info("Removing scene properties...")
     try:
         del bpy.types.Scene.bld_remote_server_running
-    except (AttributeError, RuntimeError):
-        pass
+        log_info("✅ Scene property 'bld_remote_server_running' removed")
+    except (AttributeError, RuntimeError) as e:
+        log_info(f"Scene property already removed or not accessible: {e}")
+    except Exception as e:
+        log_error(f"ERROR: Unexpected error removing scene property: {e}")
     
     # Unregister async loop
-    async_loop.unregister()
+    log_info("Unregistering async loop machinery...")
+    try:
+        async_loop.unregister()
+        log_info("✅ Async loop unregistered successfully")
+    except Exception as e:
+        log_error(f"ERROR: Failed to unregister async loop: {e}")
+        # Continue anyway
     
-    log_info("BLD Remote MCP addon unregistered")
+    log_info("✅ BLD Remote MCP addon unregistered successfully")
+    log_info("=== BLD REMOTE MCP ADDON UNREGISTRATION COMPLETED ===")
 
 
 # =============================================================================
