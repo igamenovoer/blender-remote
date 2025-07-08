@@ -1,6 +1,6 @@
 When `BlenderAutoMCP` is developed, it is intended as a drop-in replacement of the `blender-mcp` plugin (context/refcode/blender-mcp), so that `context/refcode/blender-mcp/src/blender_mcp/server.py` can communicate with the `BlenderAutoMCP` addon ('context/refcode/blender_auto_mcp/__init__.py') directly. In that sense, `BlenderAutoMCP` and `blender-mcp` has the exact same communication protocol that they can be used interchangably.
 
-This is also a requirement for `BLD_Remote_MCP`, we expect LLMs like Gemini or Sonnet who can talk to the `blender-mcp` (`context/refcode/blender-mcp/src/blender_mcp/server.py`) can also directly talk to `BLD_Remote_MCP`, sending and receiving TCP messages from port 9876 via direct socket connection.
+This is also a requirement for `BLD_Remote_MCP`, we expect LLMs like Gemini or Sonnet who can talk to the `blender-mcp` (`context/refcode/blender-mcp/src/blender_mcp/server.py`) can also directly talk to `BLD_Remote_MCP`, sending and receiving TCP messages from port 9876 via direct socket connection. Note that, we DO NOT need to support functions related to 3rd asset providers (`context/refcode/blender_auto_mcp/asset_providers.py`).
 
 Now when `BLD_Remote_MCP` is running, and I set it to run in port 9876, and try it with LLM, something goes wrong
 

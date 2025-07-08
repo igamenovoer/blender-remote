@@ -87,11 +87,11 @@ def kick_async_loop(*args) -> bool:
         kick_async_loop._call_count = 0
     kick_async_loop._call_count += 1
     
-    # Only log detailed info every 1000 calls to avoid spam (reduced verbosity)
-    should_log_details = (kick_async_loop._call_count % 1000 == 1) or task_count > 1
+    # Only log detailed info every 10000 calls to avoid spam (significantly reduced verbosity)
+    should_log_details = (kick_async_loop._call_count % 10000 == 1) or task_count > 1
     
-    if should_log_details:
-        log_info(f"kick_async_loop (call #{kick_async_loop._call_count}): {task_count} tasks to process")
+    # if should_log_details:
+    #     log_info(f"kick_async_loop (call #{kick_async_loop._call_count}): {task_count} tasks to process")
 
     if not task_count:
         if should_log_details:
@@ -122,13 +122,14 @@ def kick_async_loop(*args) -> bool:
                     log_error(f"   task #{task_idx}: {traceback.format_exc()}")
     else:
         # There are tasks that are not done yet
-        if should_log_details:
-            log_info(f"Processing {task_count} active tasks...")
-            for task_idx, task in enumerate(all_tasks):
-                if task.done():
-                    log_info(f"   task #{task_idx}: done")
-                else:
-                    log_info(f"   task #{task_idx}: pending - {task}")
+        # if should_log_details:
+        #     log_info(f"Processing {task_count} active tasks...")
+        #     for task_idx, task in enumerate(all_tasks):
+        #         if task.done():
+        #             log_info(f"   task #{task_idx}: done")
+        #         else:
+        #             log_info(f"   task #{task_idx}: pending - {task}")
+        pass
 
     # Run the loop
     try:

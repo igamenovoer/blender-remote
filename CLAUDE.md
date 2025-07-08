@@ -266,5 +266,22 @@ This project now involves **TWO separate MCP services**:
 
 - We will refer to our in-development plugin as `BLD_Remote_MCP`
 - We will refer to the reference implementation which is also running in blender as `BlenderAutoMCP`
-- If you start the blender, no matter in GUI mode or background mode, your bash command time out should be less than 10 seconds
-- If you start blender process, you should start it in shell background (with `&`), and wait for 10 seconds and then read its console output. This is applied to both GUI mode (starting with `blender`) or background mode (starting with `blender --background`)
+
+## CRITICAL: Blender Process Management Rules
+
+- **TIMEOUT REQUIREMENT**: When starting Blender with Bash() command, ALWAYS set timeout to 10 seconds maximum
+- **NEVER use long timeouts**: NEVER set timeout to 2 minutes (120 seconds) or any long duration
+- **Background execution**: Always start Blender in shell background (with `&`)
+- **Quick startup verification**: Wait exactly 10 seconds after start, then read console output
+- **Both modes**: This applies to GUI mode (`blender`) and background mode (`blender --background`)
+
+### Correct Bash Command Pattern:
+```bash
+# CORRECT - 10 second timeout
+Bash(command="blender &", timeout=10000)  # 10 seconds = 10000ms
+
+# WRONG - Never do this
+Bash(command="blender &", timeout=120000)  # 2 minutes = 120000ms
+```
+
+**Rationale**: Blender starts quickly (~5-10 seconds) but runs indefinitely. Long timeouts waste time and provide no benefit since Blender doesn't exit on its own in GUI mode.

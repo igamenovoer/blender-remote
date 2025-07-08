@@ -70,6 +70,98 @@ def _start_background_keepalive():
     log_info("Background mode detected - external script should manage keep-alive loop")
 
 
+def get_scene_info():
+    """Get information about the current Blender scene."""
+    log_info("Getting scene info...")
+    try:
+        scene = bpy.context.scene
+        scene_info = {
+            "name": scene.name,
+            "object_count": len(scene.objects),
+            "objects": [],
+            "materials_count": len(bpy.data.materials),
+            "frame_current": scene.frame_current,
+            "frame_start": scene.frame_start,
+            "frame_end": scene.frame_end,
+        }
+        
+        # Collect basic object information (limit to first 10 objects)
+        for i, obj in enumerate(scene.objects):
+            if i >= 10:
+                break
+            obj_info = {
+                "name": obj.name,
+                "type": obj.type,
+                "location": list(obj.location),
+                "visible": obj.visible_get(),
+            }
+            scene_info["objects"].append(obj_info)
+        
+        log_info(f"Scene info collected: {len(scene_info['objects'])} objects")
+        return scene_info
+    except Exception as e:
+        log_error(f"Error getting scene info: {e}")
+        raise
+
+
+def get_object_info(object_name=None):
+    """Get information about a specific object or all objects."""
+    log_info(f"Getting object info for: {object_name if object_name else 'all objects'}")
+    try:
+        if object_name:
+            # Get info for specific object
+            obj = bpy.data.objects.get(object_name)
+            if not obj:
+                raise ValueError(f"Object '{object_name}' not found")
+            
+            return {
+                "name": obj.name,
+                "type": obj.type,
+                "location": list(obj.location),
+                "rotation": list(obj.rotation_euler),
+                "scale": list(obj.scale),
+                "visible": obj.visible_get(),
+                "dimensions": list(obj.dimensions),
+            }
+        else:
+            # Get info for all objects
+            objects = []
+            for obj in bpy.context.scene.objects:
+                obj_info = {
+                    "name": obj.name,
+                    "type": obj.type,
+                    "location": list(obj.location),
+                    "visible": obj.visible_get(),
+                }
+                objects.append(obj_info)
+            return {"objects": objects}
+    except Exception as e:
+        log_error(f"Error getting object info: {e}")
+        raise
+
+
+def execute_code(code=None, **kwargs):
+    """Execute Python code in Blender context."""
+    if not code:
+        raise ValueError("No code provided")
+    
+    log_info(f"Executing code: {code[:100]}{'...' if len(code) > 100 else ''}")
+    
+    try:
+        # Create execution context with bpy available
+        exec_globals = {'bpy': bpy}
+        exec_locals = {}
+        
+        # Execute the code
+        exec(code, exec_globals, exec_locals)
+        
+        log_info("Code execution completed successfully")
+        return {"message": "Code executed successfully"}
+    except Exception as e:
+        log_error(f"Error executing code: {e}")
+        raise
+
+
 def cleanup_server():
     """Stop the TCP server and clean up associated resources.
 
@@ -156,6 +248,58 @@ def process_message(data):
     log_info(f"process_message() called with data keys: {list(data.keys()) if isinstance(data, dict) else 'not a dict'}")
     log_info(f"Current server_port: {server_port}")
     
+    # Check if this is a command-based message (BlenderAutoMCP compatibility)
+    if "type" in data:
+        cmd_type = data.get("type")
+        params = data.get("params", {})
+        log_info(f"Processing command type: {cmd_type}")
+        
+        # Handle basic commands that LLM clients expect
+        if cmd_type == "get_scene_info":
+            try:
+                scene_info = get_scene_info()
+                return {"status": "success", "result": scene_info}
+            except Exception as e:
+                log_error(f"Error getting scene info: {e}")
+                return {"status": "error", "message": str(e)}
+        
+        elif cmd_type == "get_object_info":
+            try:
+                object_info = get_object_info(**params)
+                return {"status": "success", "result": object_info}
+            except Exception as e:
+                log_error(f"Error getting object info: {e}")
+                return {"status": "error", "message": str(e)}
+        
+        elif cmd_type == "execute_code":
+            try:
+                code_result = execute_code(**params)
+                return {"status": "success", "result": code_result}
+            except Exception as e:
+                log_error(f"Error executing code: {e}")
+                return {"status": "error", "message": str(e)}
+        
+        elif cmd_type == "server_shutdown":
+            log_info("Server shutdown command received")
+            # Schedule shutdown
+            def delayed_shutdown():
+                cleanup_server()
+                if _is_background_mode():
+                    bpy.ops.wm.quit_blender()
+                return None
+            bpy.app.timers.register(delayed_shutdown, first_interval=1.0)
+            return {"status": "success", "message": "Server shutdown initiated"}
+        
+        elif cmd_type == "get_polyhaven_status":
+            # Asset provider not supported - return disabled status
+            return {"status": "success", "result": {"enabled": False, "reason": "Asset providers not supported"}}
+        
+        else:
+            # Unknown command type
+            log_warning(f"Unknown command type: {cmd_type}")
+            return {"status": "error", "message": f"Unknown command type: {cmd_type}"}
+    
+    # Legacy message/code processing for backward compatibility
     response = {
         "response": "OK",
         "message": "Task received",
@@ -222,6 +366,7 @@ class BldRemoteProtocol(asyncio.Protocol):
         """Initialize protocol instance."""
         self.transport = None
         self.connection_start_time = None
+        self.buffer = b''  # Buffer for incomplete messages
         log_info("BldRemoteProtocol instance created")
 
     def connection_made(self, transport):
@@ -243,50 +388,63 @@ class BldRemoteProtocol(asyncio.Protocol):
         log_info(f"DATA RECEIVED: {data_length} bytes at {receive_time}")
         log_info(f"Raw data preview: {data[:200]}{'...' if data_length > 200 else ''}")
         
-        try:
-            log_info("Attempting to decode data as UTF-8...")
-            decoded_data = data.decode()
-            log_info(f"Data decoded successfully, length: {len(decoded_data)}")
-            
-            log_info("Attempting to parse JSON...")
-            message = json.loads(decoded_data)
-            log_info(f"JSON parsed successfully: {type(message)} with keys {list(message.keys()) if isinstance(message, dict) else 'not a dict'}")
-            
-            log_info("Calling process_message()...")
-            response = process_message(message)
-            log_info(f"process_message() returned: {response}")
-            
-            log_info("Encoding response as JSON...")
-            response_json = json.dumps(response)
-            response_bytes = response_json.encode()
-            log_info(f"Response encoded: {len(response_bytes)} bytes")
-            
-            log_info("Sending response to client...")
-            self.transport.write(response_bytes)
-            log_info("Response sent successfully")
-            
-        except json.JSONDecodeError as e:
-            log_error(f"JSON decode error: {e}")
-            log_error(f"Invalid JSON data: {decoded_data[:500] if 'decoded_data' in locals() else 'data decode failed'}")
-            error_response = {"response": "ERROR", "message": f"Invalid JSON: {str(e)}"}
+        # Add to buffer
+        self.buffer += data
+        
+        # Try to process complete messages from buffer
+        while self.buffer:
             try:
-                self.transport.write(json.dumps(error_response).encode())
-            except Exception as send_error:
-                log_error(f"Failed to send error response: {send_error}")
-        except UnicodeDecodeError as e:
-            log_error(f"Unicode decode error: {e}")
-            log_error(f"Invalid UTF-8 data received")
-        except Exception as e:
-            log_error(f"Unexpected error processing message: {e}")
-            log_error(f"Exception type: {type(e).__name__}")
-            traceback.print_exc()
-        finally:
-            log_info("Closing client connection...")
-            try:
-                self.transport.close()
-                log_info("Client connection closed successfully")
-            except Exception as close_error:
-                log_error(f"Error closing connection: {close_error}")
+                log_info("Attempting to decode buffered data as UTF-8...")
+                decoded_data = self.buffer.decode('utf-8')
+                log_info(f"Data decoded successfully, length: {len(decoded_data)}")
+                
+                log_info("Attempting to parse JSON...")
+                message = json.loads(decoded_data)
+                log_info(f"JSON parsed successfully: {type(message)} with keys {list(message.keys()) if isinstance(message, dict) else 'not a dict'}")
+                
+                # Clear buffer after successful parse
+                self.buffer = b''
+                
+                log_info("Calling process_message()...")
+                response = process_message(message)
+                log_info(f"process_message() returned: {response}")
+                
+                log_info("Encoding response as JSON...")
+                response_json = json.dumps(response)
+                response_bytes = response_json.encode()
+                log_info(f"Response encoded: {len(response_bytes)} bytes")
+                
+                log_info("Sending response to client...")
+                self.transport.write(response_bytes)
+                log_info("Response sent successfully")
+                
+            except json.JSONDecodeError as e:
+                # Incomplete JSON - wait for more data
+                log_info(f"Incomplete JSON data, waiting for more: {e}")
+                break
+            except UnicodeDecodeError as e:
+                log_error(f"Unicode decode error: {e}")
+                log_error(f"Invalid UTF-8 data received")
+                # Clear buffer and send error response
+                self.buffer = b''
+                error_response = {"status": "error", "message": f"Invalid UTF-8: {str(e)}"}
+                try:
+                    self.transport.write(json.dumps(error_response).encode())
+                except Exception as send_error:
+                    log_error(f"Failed to send error response: {send_error}")
+                break
+            except Exception as e:
+                log_error(f"Unexpected error processing message: {e}")
+                log_error(f"Exception type: {type(e).__name__}")
+                traceback.print_exc()
+                # Clear buffer and send error response
+                self.buffer = b''
+                error_response = {"status": "error", "message": f"Processing error: {str(e)}"}
+                try:
+                    self.transport.write(json.dumps(error_response).encode())
+                except Exception as send_error:
+                    log_error(f"Failed to send error response: {send_error}")
+                break
 
     def connection_lost(self, exc):
         """Called when the connection is lost or closed."""
