@@ -188,16 +188,28 @@ async def start_server_task(port, scene_to_update):
         If None, no scene property is updated.
     """
     global tcp_server, server_task, server_port
+    
+    log_info(f"start_server_task executing for port {port}")
     server_port = port
     loop = asyncio.get_event_loop()
+    log_info(f"Got asyncio event loop: {loop}")
+    
     try:
+        log_info(f"Creating server on 127.0.0.1:{port}")
         tcp_server = await loop.create_server(BldRemoteProtocol, '127.0.0.1', port)
+        log_info(f"Server created successfully: {tcp_server}")
+        
         server_task = asyncio.ensure_future(tcp_server.serve_forever())
         log_info(f"BLD Remote server started on port {port}")
+        
         if scene_to_update:
             scene_to_update.bld_remote_server_running = True
+            log_info("Scene property updated")
+            
     except Exception as e:
         log_error(f"Failed to start server: {e}")
+        import traceback
+        log_error(f"Traceback: {traceback.format_exc()}")
         cleanup_server()
 
 
@@ -209,6 +221,11 @@ def start_server_from_script():
     the `start_server_task` to run on the asyncio event loop.
     """
     port = int(os.environ.get('BLD_REMOTE_MCP_PORT', 6688))
+    log_info(f"Starting server on port {port}")
+    
+    # Set up asyncio executor first
+    async_loop.setup_asyncio_executor()
+    
     # Try to get scene reference, handle restricted context
     scene = None
     try:
@@ -218,14 +235,19 @@ def start_server_from_script():
         # In restricted context, we can't access scenes - that's OK
         pass
     
+    log_info(f"Scheduling server task for port {port}")
     asyncio.ensure_future(start_server_task(port, scene))
     
-    # Ensure the async loop machinery is ready
+    # Ensure the async loop machinery is ready and start the modal operator
     try:
         async_loop.register()
     except ValueError:
         # Already registered, which is fine
         pass
+    
+    # Start the modal operator to process asyncio events
+    log_info("Starting modal operator for asyncio event processing")
+    async_loop.ensure_async_loop()
 
 
 # =============================================================================
