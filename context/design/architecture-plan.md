@@ -1,3 +1,8 @@
+# HEADER
+- **Created**: 2025-07-07 19:18:00
+- **Modified**: 2025-07-08 16:20:00
+- **Summary**: Architecture plan for blender-remote project combining reference implementation best practices for comprehensive remote Blender control.
+
 # Blender Remote Architecture Plan
 
 ## Overview

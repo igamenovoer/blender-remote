@@ -1,3 +1,8 @@
+# HEADER
+- **Created**: 2025-07-07 19:15:00
+- **Modified**: 2025-07-08 16:20:00
+- **Summary**: Analysis of blender-echo-plugin patterns for creating robust background TCP servers in Blender without GUI dependencies.
+
 # Blender Background Service Patterns
 
 ## Overview

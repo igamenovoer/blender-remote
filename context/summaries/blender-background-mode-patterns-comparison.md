@@ -1,3 +1,8 @@
+# HEADER
+- **Created**: 2025-07-07 21:46:00
+- **Modified**: 2025-07-08 16:20:00
+- **Summary**: Definitive comparison of Blender background mode service implementation patterns based on real-world testing and experience.
+
 # Blender Background Mode Service Patterns - Definitive Comparison
 
 ## Overview

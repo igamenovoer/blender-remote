@@ -1,3 +1,8 @@
+# HEADER
+- **Created**: 2025-07-07 16:50:00
+- **Modified**: 2025-07-08 16:20:00
+- **Summary**: Analysis of blender_auto_mcp reference implementation covering architecture patterns, startup mechanisms, and best practices.
+
 # Blender Auto MCP Implementation Analysis
 
 ## Overview

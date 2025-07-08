@@ -92,6 +92,36 @@ All documentation MUST follow these standards:
 - Keep content current with project evolution
 - Update README.md files to reflect actual content as directories are populated
 
+### Markdown Format Requirements
+
+**File Format Standards**:
+1. Projects should use `.md` files for all textual records including logs, user-created prompts, AI-generated memos, and documentation
+2. Unless there is a specific requirement to use another format, always use Markdown files for textual content
+3. Maintain consistent formatting and structure across all Markdown files
+
+**Header Requirements for AI-Generated Content**:
+All AI-generated or AI-modified Markdown files MUST include a `# HEADER` section at the beginning of the file containing:
+- **Date of Creation**: When the file was originally created (format: YYYY-MM-DD HH:MM:SS)
+- **Date of Modification**: When the file was last modified (format: YYYY-MM-DD HH:MM:SS, update this each time)
+- **Summary**: A very short (1-2 sentences) description of what the file contains
+
+**Header Format Example**:
+```markdown
+# HEADER
+- **Created**: 2025-07-08 14:30:00
+- **Modified**: 2025-07-08 16:15:30
+- **Summary**: Implementation log documenting successful deployment of BLD Remote MCP service with debugging and testing results.
+
+# [Actual Document Title]
+[Document content begins here...]
+```
+
+**Header Update Requirements**:
+- Update the "Modified" date whenever the file content is changed by AI
+- Update the summary if the file's purpose or scope significantly changes
+- For existing files without headers, the creation date can be determined from file system properties
+- Human-created files may optionally include headers but are not required to do so
+
 ### Access Patterns
 
 AI assistants SHOULD:

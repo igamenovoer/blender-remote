@@ -32,9 +32,9 @@ This directory contains various operational logs used as memory for AI assistant
 ## File Naming
 
 Use timestamps and descriptive names:
-- `2024-01-15_initial_project_setup.log`
-- `2024-01-16_mcp_connection_debug.log`
-- `2024-01-17_blender_api_integration.log`
+- `2024-01-15_initial_project_setup.md`
+- `2024-01-16_mcp_connection_debug.md`
+- `2024-01-17_blender_api_integration.md`
 
 ## Format
 

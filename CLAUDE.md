@@ -121,7 +121,7 @@ When implementing features:
 
 ## Blender Process Management
 
-**Blender Path**: `/home/igamenovoer/apps/blender-4.4.3-linux-x64/blender`
+**Blender Path**: `/apps/blender-4.4.3-linux-x64/blender`
 
 ### Starting Blender with Auto MCP
 ```bash
@@ -131,7 +131,7 @@ pkill -f blender
 # Start with auto-start MCP (GUI mode recommended)
 export BLENDER_AUTO_MCP_SERVICE_PORT=9876
 export BLENDER_AUTO_MCP_START_NOW=1
-/home/igamenovoer/apps/blender-4.4.3-linux-x64/blender &
+/apps/blender-4.4.3-linux-x64/blender &
 
 # Wait ~10 seconds for startup (not 2 minutes!)
 sleep 10
@@ -166,7 +166,7 @@ These guides should be updated when improved patterns or practices are discovere
 
 ## Blender Configuration
 
-- Blender path is `/home/igamenovoer/apps/blender-4.4.3-linux-x64/blender`, you can start it yourself
+- Blender path is `/apps/blender-4.4.3-linux-x64/blender`, you can start it yourself
 
 ## Implementation Hints
 
@@ -175,3 +175,39 @@ These guides should be updated when improved patterns or practices are discovere
 ## Blender Development Notes
 
 - blender is not very good at cleaning up its internal states, so if anything goes weird, consider restart blender and re-install the plugin under development
+
+## BLD Remote MCP Service Status
+
+**Service Status**: ✅ FULLY OPERATIONAL (as of 2025-07-08)
+
+**Installation**: 
+- Plugin permanently installed at `/home/igamenovoer/.config/blender/4.4/scripts/addons/bld_remote_mcp/`
+- Auto-loads on Blender startup
+- Available as `import bld_remote` API
+
+**Key Fix Applied**: 
+- Issue: `start_mcp_service()` scheduled asyncio task but modal operator wasn't started
+- Solution: Added `async_loop.ensure_async_loop()` call in `start_server_from_script()`
+- Result: Service now starts properly and `get_status()` reports running correctly
+
+**Service Configuration**:
+- Default port: 6688 (configurable via `BLD_REMOTE_MCP_PORT`)
+- Protocol: JSON TCP (`{"message": "...", "code": "..."}`)
+- Auto-start: Controlled by `BLD_REMOTE_MCP_START_NOW` environment variable
+
+**Testing Verified**:
+- ✅ Basic TCP connection and message processing
+- ✅ Python code execution in Blender context
+- ✅ Blender API access and scene manipulation
+- ✅ Multiple concurrent connections (stress tested)
+- ✅ Large code blocks and error handling
+- ✅ Service stability under load
+
+**Usage**:
+```python
+import bld_remote
+bld_remote.start_mcp_service()  # Start on port 6688
+status = bld_remote.get_status()  # Check if running
+```
+
+**Logs**: See `context/logs/2025-07-08_bld-remote-mcp-service-implementation-success.md` for complete implementation details.

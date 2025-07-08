@@ -1,3 +1,8 @@
+# HEADER
+- **Created**: 2025-07-07 14:28:00
+- **Modified**: 2025-07-08 16:20:00
+- **Summary**: Implementation guide for Blender MCP services covering architecture, FastMCP integration, and background mode execution patterns.
+
 # How to Implement Blender MCP Service
 
 ## Architecture Overview
