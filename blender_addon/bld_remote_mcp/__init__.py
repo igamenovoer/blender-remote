@@ -206,10 +206,46 @@ async def start_server_task(port, scene_to_update):
             scene_to_update.bld_remote_server_running = True
             log_info("Scene property updated")
             
+    except OSError as e:
+        # Handle socket-specific errors with detailed logging
+        if "Address already in use" in str(e) or "address already in use" in str(e).lower():
+            log_error(f"ERROR: Port {port} is already in use by another process")
+            log_error(f"ERROR: Cannot start BLD Remote MCP server - port conflict detected")
+            log_error(f"ERROR: Try using a different port or kill the process using port {port}")
+            log_error(f"ERROR: Use 'netstat -tulnp | grep {port}' or 'lsof -i:{port}' to find the conflicting process")
+        elif "Only one usage of each socket address" in str(e):
+            log_error(f"ERROR: Port {port} is already in use (Windows)")
+            log_error(f"ERROR: Cannot start BLD Remote MCP server - port conflict detected")
+            log_error(f"ERROR: Try using a different port or close the application using port {port}")
+        elif "Permission denied" in str(e) and port < 1024:
+            log_error(f"ERROR: Permission denied for port {port} (privileged port)")
+            log_error(f"ERROR: Ports below 1024 require administrator/root privileges")
+            log_error(f"ERROR: Try using a port number above 1024 (e.g., 6688, 8080, 9999)")
+        elif "Permission denied" in str(e):
+            log_error(f"ERROR: Permission denied for port {port}")
+            log_error(f"ERROR: Check if another service is using this port or if firewall is blocking it")
+        else:
+            log_error(f"ERROR: Socket error starting server on port {port}: {e}")
+            log_error(f"ERROR: This is typically a port conflict or network configuration issue")
+        
+        log_error(f"ERROR: Socket error details: {type(e).__name__}: {e}")
+        cleanup_server()
+        
+    except PermissionError as e:
+        log_error(f"ERROR: Permission denied starting server on port {port}")
+        log_error(f"ERROR: {e}")
+        if port < 1024:
+            log_error(f"ERROR: Port {port} is a privileged port requiring administrator/root access")
+            log_error(f"ERROR: Try using a port above 1024 (e.g., 6688, 8080, 9999)")
+        else:
+            log_error(f"ERROR: Check if firewall or security software is blocking port {port}")
+        cleanup_server()
+        
     except Exception as e:
-        log_error(f"Failed to start server: {e}")
+        log_error(f"ERROR: Failed to start server on port {port}: {e}")
+        log_error(f"ERROR: Exception type: {type(e).__name__}")
         import traceback
-        log_error(f"Traceback: {traceback.format_exc()}")
+        log_error(f"ERROR: Detailed traceback: {traceback.format_exc()}")
         cleanup_server()
 
 
@@ -220,7 +256,18 @@ def start_server_from_script():
     from an environment variable, gets a reference to a scene, and schedules
     the `start_server_task` to run on the asyncio event loop.
     """
-    port = int(os.environ.get('BLD_REMOTE_MCP_PORT', 6688))
+    try:
+        port = int(os.environ.get('BLD_REMOTE_MCP_PORT', 6688))
+        if port < 1024 or port > 65535:
+            log_error(f"ERROR: Invalid port {port}. Port must be between 1024 and 65535")
+            log_error(f"ERROR: Consider using ports like 6688, 8080, 9999")
+            return
+    except ValueError as e:
+        port_str = os.environ.get('BLD_REMOTE_MCP_PORT', '6688')
+        log_error(f"ERROR: Invalid port value '{port_str}'. Must be a valid integer")
+        log_error(f"ERROR: Port parsing failed: {e}")
+        return
+    
     log_info(f"Starting server on port {port}")
     
     # Set up asyncio executor first
