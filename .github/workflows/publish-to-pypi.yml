@@ -71,9 +71,6 @@ jobs:
     name: Publish to PyPI
     runs-on: ubuntu-latest
     needs: build
-    environment: release
-    permissions:
-      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
 
     steps:
     - name: Download build artifacts
@@ -87,7 +84,7 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
-        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        password: ${{ secrets.PYPI_API_TOKEN }}
 
     - name: Publish to PyPI
       if: github.event.inputs.test_pypi != 'true'
