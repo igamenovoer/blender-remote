@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "blender-remote"
-version = "1.1.0"
+version = "1.2.0-rc1"
 description = "Automate Blender workflows with external Python control, background operation, and LLM integration"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -30,7 +30,7 @@ classifiers = [
 
 dependencies = [
     "fastmcp>=2.0.0",  # FastMCP framework for Model Context Protocol
-    "click>=8.0.0", "pydantic>=2.11.7,<3",  # for CLI tools
+    "click>=8.0.0", "pydantic>=2.11.7",  # for CLI tools
 ]
 
 [project.optional-dependencies]
@@ -134,10 +134,10 @@ pre-commit = "*"
 mkdocs = "*"
 mkdocs-material = "*"
 # Core API dependencies
-numpy = ">=1.24.0,<2"
-scipy = ">=1.16.0,<2"
-requests = ">=2.32.4,<3"
-attrs = ">=25.3.0,<26"
+numpy = ">=1.24.0"
+scipy = ">=1.16.0"
+requests = ">=2.32.4"
+attrs = ">=25.3.0"
 
 # PyPI-only dependencies that don't have conda equivalents
 [tool.pixi.pypi-dependencies]
