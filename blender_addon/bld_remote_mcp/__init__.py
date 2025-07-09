@@ -148,17 +148,97 @@ def execute_code(code=None, **kwargs):
     log_info(f"Executing code: {code[:100]}{'...' if len(code) > 100 else ''}")
     
     try:
-        # Create execution context with bpy available
-        exec_globals = {'bpy': bpy}
-        exec_locals = {}
+        # Create execution context with full built-ins and bpy available
+        # Use the same dictionary for both globals and locals to ensure proper scoping
+        # This allows imports like 'import numpy as np' to work properly in functions
+        exec_globals = {
+            '__builtins__': __builtins__,
+            'bpy': bpy,
+        }
         
-        # Execute the code
-        exec(code, exec_globals, exec_locals)
+        # Execute the code with same dict for globals and locals
+        exec(code, exec_globals, exec_globals)
         
         log_info("Code execution completed successfully")
         return {"message": "Code executed successfully"}
     except Exception as e:
         log_error(f"Error executing code: {e}")
+        raise
+
+
+def get_viewport_screenshot(max_size=800, filepath=None, format="png", **kwargs):
+    """
+    Capture a screenshot of the current 3D viewport and save it to the specified path.
+    
+    Parameters:
+    - max_size: Maximum size in pixels for the largest dimension of the image
+    - filepath: Path where to save the screenshot file
+    - format: Image format (png, jpg, etc.)
+    
+    Returns success/error status
+    """
+    log_info(f"Getting viewport screenshot: filepath={filepath}, max_size={max_size}, format={format}")
+    
+    # Check if we're in background mode (no GUI)
+    if _is_background_mode():
+        log_warning("get_viewport_screenshot called in background mode - no viewport available")
+        raise ValueError("Viewport screenshots are not available in background mode (blender --background)")
+    
+    try:
+        if not filepath:
+            raise ValueError("No filepath provided")
+        
+        log_info("Searching for active 3D viewport...")
+        # Find the active 3D viewport
+        area = None
+        for a in bpy.context.screen.areas:
+            if a.type == 'VIEW_3D':
+                area = a
+                break
+        
+        if not area:
+            raise ValueError("No 3D viewport found")
+        
+        log_info(f"Found 3D viewport area: {area}")
+        
+        # Take screenshot with proper context override
+        log_info(f"Taking screenshot and saving to: {filepath}")
+        with bpy.context.temp_override(area=area):
+            bpy.ops.screen.screenshot_area(filepath=filepath)
+        
+        # Load and resize if needed
+        log_info("Loading image for resizing...")
+        img = bpy.data.images.load(filepath)
+        width, height = img.size
+        log_info(f"Original image size: {width}x{height}")
+        
+        if max(width, height) > max_size:
+            log_info(f"Resizing image to max_size={max_size}")
+            scale = max_size / max(width, height)
+            new_width = int(width * scale)
+            new_height = int(height * scale)
+            img.scale(new_width, new_height)
+            
+            # Set format and save
+            img.file_format = format.upper()
+            img.save()
+            width, height = new_width, new_height
+            log_info(f"Resized image to: {width}x{height}")
+        
+        # Cleanup Blender image data
+        bpy.data.images.remove(img)
+        
+        result = {
+            "success": True,
+            "width": width,
+            "height": height,
+            "filepath": filepath
+        }
+        log_info(f"Screenshot captured successfully: {result}")
+        return result
+        
+    except Exception as e:
+        log_error(f"Error capturing viewport screenshot: {e}")
         raise
 
 
@@ -290,6 +370,14 @@ def process_message(data):
             bpy.app.timers.register(delayed_shutdown, first_interval=1.0)
             return {"status": "success", "message": "Server shutdown initiated"}
         
+        elif cmd_type == "get_viewport_screenshot":
+            try:
+                screenshot_result = get_viewport_screenshot(**params)
+                return {"status": "success", "result": screenshot_result}
+            except Exception as e:
+                log_error(f"Error getting viewport screenshot: {e}")
+                return {"status": "error", "message": str(e)}
+        
         elif cmd_type == "get_polyhaven_status":
             # Asset provider not supported - return disabled status
             return {"status": "success", "result": {"enabled": False, "reason": "Asset providers not supported"}}
@@ -332,7 +420,14 @@ def process_message(data):
                 def code_runner():
                     log_info(f"code_runner() executing: {code_to_run[:100]}{'...' if len(code_to_run) > 100 else ''}")
                     try:
-                        exec(code_to_run, {'bpy': bpy})
+                        # Create execution context with full built-ins and bpy available
+                        # Use the same dictionary for both globals and locals to ensure proper scoping
+                        # This allows imports like 'import numpy as np' to work properly in functions
+                        exec_globals = {
+                            '__builtins__': __builtins__,
+                            'bpy': bpy,
+                        }
+                        exec(code_to_run, exec_globals, exec_globals)
                         log_info("Code execution completed successfully")
                     except Exception as exec_e:
                         log_error(f"Error during code execution in timer: {exec_e}")
