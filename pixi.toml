@@ -45,6 +45,7 @@ scipy = ">=1.16.0,<2"
 rich = ">=14.0.0,<15"
 attrs = ">=25.3.0,<26"
 omegaconf = ">=2.3.0,<3"
+fastmcp = ">=2.10.2,<3"
 
 [feature.dev.dependencies]
 ipython = "*"

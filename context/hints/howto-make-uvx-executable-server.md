@@ -310,6 +310,307 @@ uvx --from git+https://github.com/yourusername/blender-remote blender-remote ser
 4. **CI/CD Friendly**: Great for automated workflows
 5. **Cross-Platform**: Works consistently across operating systems
 
+## Implementation with FastMCP
+
+### What is FastMCP?
+
+[FastMCP](https://github.com/jlowin/fastmcp) is a high-level Python framework that makes building MCP (Model Context Protocol) servers simple and intuitive. It's designed to eliminate the boilerplate required for implementing the MCP protocol directly.
+
+### Why Use FastMCP for Blender Remote?
+
+FastMCP provides several advantages for implementing your MCP server:
+
+1. **Pythonic Interface**: Write tools using simple decorators (`@mcp.tool()`, `@mcp.resource()`)
+2. **Protocol Handling**: Automatically handles JSON-RPC, session state, and MCP formatting
+3. **Built-in Transport Support**: Supports STDIO (for Claude Desktop), SSE, WebSockets
+4. **Type Safety**: Automatically generates schemas from Python type hints
+5. **uvx Ready**: Can be packaged and executed with `uvx` out of the box
+
+### FastMCP Implementation for Blender Remote
+
+#### Step 1: Add FastMCP Dependencies
+
+Update your `pyproject.toml`:
+
+```toml
+[project]
+name = "blender-remote"
+version = "0.1.0"
+# ... existing configuration ...
+
+dependencies = [
+    "fastmcp>=2.0.0",  # Core FastMCP framework
+    # Add your existing dependencies
+]
+
+# Add the console script entry point:
+[project.scripts]
+blender-remote = "blender_remote.server:main"
+```
+
+#### Step 2: Create FastMCP Server Module
+
+Create `src/blender_remote/server.py`:
+
+```python
+"""
+FastMCP server implementation for Blender Remote.
+"""
+
+import asyncio
+import socket
+import json
+import logging
+from typing import Optional, Dict, Any
+
+from fastmcp import FastMCP, Context, Image
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Create the FastMCP server instance
+mcp = FastMCP("Blender Remote MCP")
+
+class BlenderConnection:
+    """Handle connection to Blender TCP server."""
+    
+    def __init__(self, host: str = "127.0.0.1", port: int = 9876):
+        self.host = host
+        self.port = port
+        self.sock = None
+    
+    async def connect(self) -> bool:
+        """Connect to Blender addon."""
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.connect((self.host, self.port))
+            logger.info(f"Connected to Blender at {self.host}:{self.port}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to connect to Blender: {e}")
+            self.sock = None
+            return False
+    
+    async def send_command(self, command: Dict[str, Any]) -> Dict[str, Any]:
+        """Send command to Blender and get response."""
+        if not self.sock:
+            if not await self.connect():
+                raise ConnectionError("Cannot connect to Blender")
+        
+        try:
+            # Send command
+            message = json.dumps(command)
+            self.sock.send(message.encode() + b'\n')
+            
+            # Receive response
+            response = b""
+            while True:
+                chunk = self.sock.recv(4096)
+                if not chunk:
+                    break
+                response += chunk
+                try:
+                    data = json.loads(response.decode())
+                    return data
+                except json.JSONDecodeError:
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"Error communicating with Blender: {e}")
+            self.sock = None
+            raise
+
+# Global connection instance
+blender_conn = BlenderConnection()
+
+@mcp.tool()
+async def get_scene_info(ctx: Context) -> Dict[str, Any]:
+    """Get information about the current Blender scene."""
+    await ctx.info("Getting scene information from Blender...")
+    
+    try:
+        response = await blender_conn.send_command({
+            "type": "get_scene_info",
+            "params": {}
+        })
+        return response
+    except Exception as e:
+        await ctx.error(f"Failed to get scene info: {e}")
+        raise
+
+@mcp.tool()
+async def execute_blender_code(code: str, ctx: Context) -> Dict[str, Any]:
+    """Execute Python code in Blender."""
+    await ctx.info(f"Executing code in Blender...")
+    
+    try:
+        response = await blender_conn.send_command({
+            "type": "execute_code",
+            "params": {"code": code}
+        })
+        return response
+    except Exception as e:
+        await ctx.error(f"Failed to execute code: {e}")
+        raise
+
+@mcp.tool()
+async def get_object_info(object_name: str, ctx: Context) -> Dict[str, Any]:
+    """Get detailed information about a specific object in Blender."""
+    await ctx.info(f"Getting info for object: {object_name}")
+    
+    try:
+        response = await blender_conn.send_command({
+            "type": "get_object_info",
+            "params": {"object_name": object_name}
+        })
+        return response
+    except Exception as e:
+        await ctx.error(f"Failed to get object info: {e}")
+        raise
+
+@mcp.tool()
+async def get_viewport_screenshot(ctx: Context) -> Image:
+    """Capture a screenshot of the Blender viewport."""
+    await ctx.info("Capturing viewport screenshot...")
+    
+    try:
+        response = await blender_conn.send_command({
+            "type": "get_viewport_screenshot",
+            "params": {}
+        })
+        
+        if response.get("status") == "success":
+            # Assuming response contains base64 image data
+            import base64
+            image_data = base64.b64decode(response["image_data"])
+            return Image(data=image_data, format="png")
+        else:
+            raise ValueError(response.get("message", "Screenshot failed"))
+            
+    except Exception as e:
+        await ctx.error(f"Failed to capture screenshot: {e}")
+        raise
+
+@mcp.resource("blender://status")
+async def blender_status() -> Dict[str, Any]:
+    """Get the current status of the Blender connection."""
+    try:
+        if blender_conn.sock:
+            return {"status": "connected", "host": blender_conn.host, "port": blender_conn.port}
+        else:
+            return {"status": "disconnected"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@mcp.prompt()
+def blender_workflow_start() -> str:
+    """Initialize a Blender workflow session."""
+    return """I'm ready to help you work with Blender! I can:
+
+1. **Get Scene Info**: View current scene objects and properties
+2. **Execute Code**: Run Python scripts in Blender  
+3. **Get Object Info**: Inspect specific objects in detail
+4. **Take Screenshots**: Capture viewport images
+5. **Check Status**: Monitor connection to Blender
+
+What would you like to do with your Blender scene?"""
+
+def main():
+    """Main entry point for uvx execution."""
+    # This is the function called when running `uvx blender-remote`
+    mcp.run()
+
+if __name__ == "__main__":
+    main()
+```
+
+#### Step 3: Create CLI Module (Optional)
+
+For compatibility with the existing guide, create `src/blender_remote/cli.py`:
+
+```python
+"""
+CLI interface - delegates to FastMCP server.
+"""
+
+from .server import main
+
+# For backward compatibility with the original guide
+if __name__ == "__main__":
+    main()
+```
+
+#### Step 4: Update Package Structure
+
+Ensure your `src/blender_remote/__init__.py` exports the main function:
+
+```python
+"""Blender Remote Control Package."""
+
+__version__ = "0.1.0"
+
+# Import main components for easy access
+from .server import main
+
+__all__ = ["main"]
+```
+
+### Usage with LLM-Assisted IDEs
+
+After publishing to PyPI, users can add your server to their LLM IDE configuration:
+
+#### VS Code (with Cline/Claude Dev):
+
+```json
+{
+  "mcp": {
+    "blender-remote": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["blender-remote"]
+    }
+  }
+}
+```
+
+#### Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "blender-remote": {
+      "command": "uvx",
+      "args": ["blender-remote"]
+    }
+  }
+}
+```
+
+### FastMCP Benefits for Your Use Case
+
+1. **Protocol Compatibility**: FastMCP ensures your server is fully compatible with the MCP specification
+2. **Context Support**: Built-in logging, progress reporting, and error handling via `Context`
+3. **Type Safety**: Automatic schema generation from type hints
+4. **Image Handling**: Built-in support for returning images (screenshots)
+5. **Resource Templates**: Dynamic resources for object-specific data
+6. **Prompt Templates**: Guide users on how to use your tools effectively
+
+### Testing Your FastMCP Server
+
+FastMCP provides excellent development tools:
+
+```bash
+# Development mode with MCP Inspector
+fastmcp dev src/blender_remote/server.py
+
+# Install for Claude Desktop
+fastmcp install src/blender_remote/server.py --name "Blender Remote"
+
+# Test locally
+python -m blender_remote.server
+```
+
 ## Complete Example Integration
 
 For your `blender-remote` project, the minimal changes needed:
@@ -317,19 +618,22 @@ For your `blender-remote` project, the minimal changes needed:
 1. **Add to `pyproject.toml`**:
 ```toml
 [project.scripts]
-blender-remote = "blender_remote.cli:main"
+blender-remote = "blender_remote.server:main"
+
+dependencies = [
+    "fastmcp>=2.0.0",
+]
 ```
 
-2. **Create `src/blender_remote/cli.py`** with the main function
+2. **Create `src/blender_remote/server.py`** with FastMCP implementation (see above)
 
-3. **Ensure proper imports** in `src/blender_remote/__init__.py`:
+3. **Update `src/blender_remote/__init__.py`**:
 ```python
 """Blender Remote Control Package."""
 
 __version__ = "0.1.0"
 
-# Import main components for easy access
-from .cli import main
+from .server import main
 
 __all__ = ["main"]
 ```
@@ -337,7 +641,7 @@ __all__ = ["main"]
 After these changes and publishing to PyPI, users can run:
 
 ```bash
-uvx blender-remote server --port 9876
+uvx blender-remote
 ```
 
-This will start your Blender Remote MCP server without any installation required!
+This will start your Blender Remote MCP server and make it available to any MCP-compatible LLM client!
