@@ -15,16 +15,12 @@ async def test_base64_screenshot():
         
         print("📸 Testing base64 screenshot functionality...")
         
-        # Test screenshot capture
-        import tempfile
-        temp_path = os.path.join(tempfile.gettempdir(), "test_screenshot.png")
-        
+        # Test screenshot capture (no filepath - auto-generate unique UUID filename)
         response = await blender_conn.send_command({
             "type": "get_viewport_screenshot",
             "params": {
                 "max_size": 400,
-                "format": "png",
-                "filepath": temp_path
+                "format": "png"
             }
         })
         
@@ -35,42 +31,50 @@ async def test_base64_screenshot():
             print(f"   Filepath: {result.get('filepath', 'N/A')}")
             print(f"   Dimensions: {result.get('width', 'N/A')}x{result.get('height', 'N/A')}")
             
-            # Test base64 encoding
+            # Test base64 encoding (read from temporary file before it's cleaned up)
             filepath = result.get("filepath")
-            if filepath and os.path.exists(filepath):
-                with open(filepath, "rb") as f:
-                    image_data = f.read()
+            if filepath:
+                print(f"✅ Screenshot generated at: {filepath}")
                 
-                base64_data = base64.b64encode(image_data).decode('utf-8')
-                
-                print(f"✅ Base64 encoding successful")
-                print(f"   Original size: {len(image_data)} bytes")
-                print(f"   Base64 size: {len(base64_data)} characters")
-                print(f"   Base64 preview: {base64_data[:50]}...")
-                
-                # Verify it's valid base64
-                try:
-                    decoded = base64.b64decode(base64_data)
-                    if len(decoded) == len(image_data):
-                        print("✅ Base64 round-trip validation successful")
-                        return {
-                            "type": "image",
-                            "data": base64_data,
-                            "mimeType": "image/png",
-                            "size": len(image_data),
-                            "dimensions": {
-                                "width": result.get("width"),
-                                "height": result.get("height")
+                # Check if file exists (it should, since we just created it)
+                if os.path.exists(filepath):
+                    with open(filepath, "rb") as f:
+                        image_data = f.read()
+                    
+                    base64_data = base64.b64encode(image_data).decode('utf-8')
+                    
+                    print(f"✅ Base64 encoding successful")
+                    print(f"   Original size: {len(image_data)} bytes")
+                    print(f"   Base64 size: {len(base64_data)} characters")
+                    print(f"   Base64 preview: {base64_data[:50]}...")
+                    
+                    # Verify it's valid base64
+                    try:
+                        decoded = base64.b64decode(base64_data)
+                        if len(decoded) == len(image_data):
+                            print("✅ Base64 round-trip validation successful")
+                            print(f"ℹ️  Note: MCP server will auto-cleanup this temp file after reading")
+                            return {
+                                "type": "image",
+                                "data": base64_data,
+                                "mimeType": "image/png",
+                                "size": len(image_data),
+                                "dimensions": {
+                                    "width": result.get("width"),
+                                    "height": result.get("height")
+                                }
                             }
-                        }
-                    else:
-                        print("❌ Base64 round-trip validation failed")
+                        else:
+                            print("❌ Base64 round-trip validation failed")
+                            return None
+                    except Exception as e:
+                        print(f"❌ Base64 validation error: {e}")
                         return None
-                except Exception as e:
-                    print(f"❌ Base64 validation error: {e}")
+                else:
+                    print(f"❌ Screenshot file not found: {filepath}")
                     return None
             else:
-                print(f"❌ Screenshot file not found: {filepath}")
+                print(f"❌ No filepath returned in response")
                 return None
         else:
             error_msg = response.get("message", "Unknown error")

@@ -139,7 +139,9 @@ Once connected, the LLM in VSCode can:
 
 1. **Inspect Blender Scenes**: Get information about objects, materials, and scene structure
 2. **Execute Python Code**: Run any Blender Python API code remotely
-3. **Capture Screenshots**: Get viewport images (when Blender is in GUI mode)
+3. **Capture Screenshots**: Get viewport images as base64 data (when Blender is in GUI mode)
+   - Automatic UUID-based unique filenames for parallel requests
+   - Automatic cleanup of temporary files after reading into memory
 4. **Monitor Connection**: Check if Blender is running and responsive
 
 ## Example LLM Interactions

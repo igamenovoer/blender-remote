@@ -186,7 +186,13 @@ def get_viewport_screenshot(max_size=800, filepath=None, format="png", **kwargs)
     
     try:
         if not filepath:
-            raise ValueError("No filepath provided")
+            # Generate unique temporary filename using UUID
+            import uuid
+            import tempfile
+            temp_dir = tempfile.gettempdir()
+            unique_filename = f"blender_screenshot_{uuid.uuid4().hex}.{format}"
+            filepath = os.path.join(temp_dir, unique_filename)
+            log_info(f"Generated unique temporary filepath: {filepath}")
         
         log_info("Searching for active 3D viewport...")
         # Find the active 3D viewport

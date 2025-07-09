@@ -152,8 +152,8 @@ async def get_viewport_screenshot(ctx: Context, max_size: int = 800, filepath: O
             "type": "get_viewport_screenshot",
             "params": {
                 "max_size": max_size,
-                "filepath": filepath,
                 "format": format
+                # Don't provide filepath - let Blender generate unique UUID filename
             }
         })
         
@@ -170,23 +170,40 @@ async def get_viewport_screenshot(ctx: Context, max_size: int = 800, filepath: O
         
         # Read the image data and encode as base64
         import base64
-        with open(image_path, "rb") as f:
-            image_data = f.read()
+        import os
         
-        base64_data = base64.b64encode(image_data).decode('utf-8')
-        
-        await ctx.info(f"Screenshot captured: {image_path} ({len(image_data)} bytes)")
-        
-        return {
-            "type": "image",
-            "data": base64_data,
-            "mimeType": f"image/{format}",
-            "size": len(image_data),
-            "dimensions": {
-                "width": result.get("width"),
-                "height": result.get("height")
+        try:
+            with open(image_path, "rb") as f:
+                image_data = f.read()
+            
+            base64_data = base64.b64encode(image_data).decode('utf-8')
+            
+            await ctx.info(f"Screenshot captured: {image_path} ({len(image_data)} bytes)")
+            
+            # Clean up temporary file after reading into memory
+            try:
+                os.remove(image_path)
+                await ctx.info(f"Cleaned up temporary file: {image_path}")
+            except Exception as cleanup_error:
+                await ctx.error(f"Warning: Failed to cleanup temporary file {image_path}: {cleanup_error}")
+            
+            return {
+                "type": "image",
+                "data": base64_data,
+                "mimeType": f"image/{format}",
+                "size": len(image_data),
+                "dimensions": {
+                    "width": result.get("width"),
+                    "height": result.get("height")
+                }
             }
-        }
+        except Exception as read_error:
+            # If we can't read the file, try to clean it up anyway
+            try:
+                os.remove(image_path)
+            except:
+                pass
+            raise read_error
             
     except Exception as e:
         await ctx.error(f"Failed to capture screenshot: {e}")
