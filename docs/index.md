@@ -1,20 +1,70 @@
 # Blender Remote
 
-🎯 **Control Blender from any LLM-powered IDE with zero configuration**
+🎯 **Automate Blender workflows with external Python control, background operation, and LLM integration**
 
-blender-remote is a production-ready MCP (Model Context Protocol) server that enables AI coding assistants to control Blender remotely. Simply run `uvx blender-remote` and your LLM can inspect scenes, execute Python code, and capture screenshots directly from Blender.
+blender-remote enables comprehensive Blender automation through multiple interfaces: auto-start service for external Python control, background mode operation for headless workflows, MCP server for LLM integration, and direct Python APIs. Perfect for CI/CD pipelines, render farms, and AI-assisted 3D workflows.
 
-## ✨ Key Features
+## ✨ Core Capabilities
 
-- **🚀 Zero Installation**: Run `uvx blender-remote` - no pip install needed
-- **🤖 LLM Integration**: Works with VSCode Claude, Cursor, and other MCP-compatible IDEs
-- **📱 GUI + Background Mode**: Unique support for both interactive and headless Blender
-- **🔧 Complete Blender Control**: Execute any Blender Python API code through your AI assistant
-- **📸 Screenshot Capture**: Get viewport images as base64 data for LLM analysis
-- **🔄 Thread-Safe**: Handles concurrent requests with UUID-based file management
-- **⚡ Production Ready**: Built on thoroughly tested BLD_Remote_MCP service
+### 1. **🔧 Auto-Start Service for External Automation**
+```bash
+export BLD_REMOTE_MCP_START_NOW=1
+blender &  # Service auto-starts on port 6688
+python automation_script.py  # External Python control
+```
+**Use cases**: CI/CD pipelines, batch processing, automated asset generation
+
+### 2. **🖥️ Background Mode Operation**
+```bash
+# Start headless Blender with service
+blender --background --python start_service.py &
+python headless_automation.py  # Same API, no GUI
+```
+**Use cases**: Headless servers, Docker containers, cloud rendering
+
+### 3. **🤖 MCP Server for LLM Integration**
+```bash
+uvx blender-remote  # Standard MCP protocol
+```
+**Compatible with**: VSCode Claude, Claude Desktop, Cursor, and other LLM IDEs
+
+### 4. **🐍 Python Control Classes**
+Direct Python API for programmatic Blender control *(coming soon)*
 
 ## 🚀 Quick Start
+
+### For Automation Users
+
+**Auto-Start Service Pattern:**
+```bash
+# 1. Install addon and set auto-start
+export BLD_REMOTE_MCP_START_NOW=1
+blender &
+
+# 2. External Python automation
+python -c "
+import socket, json
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.connect(('127.0.0.1', 6688))
+cmd = {'type': 'execute_code', 'params': {'code': 'bpy.ops.mesh.primitive_cube_add()'}}
+sock.send(json.dumps(cmd).encode())
+response = sock.recv(4096).decode()
+print('Blender automated:', response)
+sock.close()
+"
+```
+
+**Background Mode Pattern:**
+```bash
+# 1. Create startup script
+echo 'import bld_remote; bld_remote.start_mcp_service()' > start_bg.py
+
+# 2. Launch headless Blender
+blender --background --python start_bg.py &
+
+# 3. Same external automation (no GUI required)
+python your_automation_script.py
+```
 
 ### For LLM Users
 

@@ -1,20 +1,95 @@
 # blender-remote
 
-🎯 **Control Blender from any LLM-powered IDE with zero configuration**
+🎯 **Automate Blender workflows with external Python control, background operation, and LLM integration**
 
-blender-remote is a production-ready MCP (Model Context Protocol) server that enables AI coding assistants to control Blender remotely. Simply run `uvx blender-remote` and your LLM can inspect scenes, execute Python code, and capture screenshots directly from Blender.
+blender-remote enables comprehensive Blender automation through multiple interfaces: auto-start service for external Python control, background mode operation for headless workflows, MCP server for LLM integration, and direct Python APIs. Perfect for CI/CD pipelines, render farms, and AI-assisted 3D workflows.
 
-## ✨ Key Features
+## ✨ Core Features
 
-- **🚀 Zero Installation**: Run `uvx blender-remote` - no pip install needed
-- **🤖 LLM Integration**: Works with VSCode Claude, Cursor, and other MCP-compatible IDEs
-- **📱 GUI + Background Mode**: Unique support for both interactive and headless Blender
-- **🔧 Complete Blender Control**: Execute any Blender Python API code through your AI assistant
-- **📸 Screenshot Capture**: Get viewport images as base64 data for LLM analysis
-- **🔄 Thread-Safe**: Handles concurrent requests with UUID-based file management
-- **⚡ Production Ready**: Built on thoroughly tested BLD_Remote_MCP service
+### 1. **🔧 Auto-Start Service for Blender Automation**
+Enable headless Blender automation via external Python control:
 
-## 🎯 Quick Start for LLM Users
+```bash
+# Set auto-start and launch Blender
+export BLD_REMOTE_MCP_START_NOW=1
+blender &
+
+# External Python script controls Blender
+python automation_script.py  # Connects to port 6688, executes Blender operations
+```
+
+**Perfect for**: CI/CD pipelines, batch processing, render farms, automated asset generation
+
+### 2. **🖥️ Background Mode Operation** 
+Run Blender completely headless with `blender --background`:
+
+```python
+# start_blender_bg.py - Script to enable service in background mode
+import bpy
+import bld_remote
+bld_remote.start_mcp_service()  # Starts service on port 6688
+```
+
+```bash
+# Launch headless Blender with service
+blender --background --python start_blender_bg.py &
+
+# External control works identically
+python your_automation.py  # Same API, no GUI required
+```
+
+**Perfect for**: Headless servers, Docker containers, cloud rendering, automated workflows
+
+### 3. **🤖 MCP Server for LLM Integration**
+Standard Model Context Protocol server for AI assistant control:
+
+```bash
+uvx blender-remote  # Starts MCP server for Claude, VSCode, Cursor, etc.
+```
+
+**Compatible with**: VSCode Claude, Claude Desktop, Cursor, and other MCP-compatible LLM IDEs
+
+### 4. **🐍 Python Control Classes**
+Direct Python API for programmatic Blender control *(coming soon)*
+
+**Enables**: Native Python integration, custom automation tools, scripted workflows
+
+## 🚀 Quick Start
+
+### For Automation Users
+
+**Auto-Start Service Pattern:**
+```bash
+# 1. Install addon (see details below) and set auto-start
+export BLD_REMOTE_MCP_START_NOW=1
+blender &
+
+# 2. External Python automation via socket connection
+python -c "
+import socket, json
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.connect(('127.0.0.1', 6688))
+cmd = {'type': 'execute_code', 'params': {'code': 'bpy.ops.mesh.primitive_cube_add()'}}
+sock.send(json.dumps(cmd).encode())
+response = sock.recv(4096).decode()
+print('Blender automated:', response)
+sock.close()
+"
+```
+
+**Background Mode Pattern:**
+```bash
+# 1. Create service startup script
+echo 'import bld_remote; bld_remote.start_mcp_service()' > start_bg_service.py
+
+# 2. Launch headless Blender with service
+blender --background --python start_bg_service.py &
+
+# 3. Same automation API works without GUI
+python your_automation_script.py
+```
+
+### For LLM Users
 
 ### 1. Install Blender Add-on
 
@@ -118,15 +193,22 @@ Your LLM can now:
 
 ## 🏗️ Architecture
 
+**Multi-Interface Design for Different Automation Needs:**
+
 ```
-LLM IDE (VSCode/Claude) 
-    ↓ MCP Protocol
-blender-remote (uvx)
-    ↓ JSON-TCP (port 6688)
-BLD_Remote_MCP (Blender addon)
-    ↓ Python API
-Blender (GUI or --background)
+External Python Scripts ←────┐
+                            │
+LLM IDE (VSCode/Claude) ←────┼─→ JSON-TCP (port 6688) ←─ BLD_Remote_MCP (Blender addon)
+                            │                                      ↓
+blender-remote (uvx MCP) ←───┘                               Blender Python API
+                                                                   ↓
+Python Control Classes* ←─────────────────────────────→ Blender (GUI or --background)
 ```
+
+**Three Control Pathways:**
+1. **Direct Socket Connection**: External Python → JSON-TCP → Blender
+2. **MCP Protocol**: LLM IDE → uvx blender-remote → JSON-TCP → Blender  
+3. **Python Classes**: Python → Direct API → Blender *(coming soon)*
 
 ## 📋 Available MCP Tools
 
@@ -140,7 +222,28 @@ Blender (GUI or --background)
 
 ## 🔧 Advanced Usage
 
-### Manual Installation (for development)
+### Automation Integration
+
+**CI/CD Pipeline Example:**
+```yaml
+# .github/workflows/blender-automation.yml
+- name: Setup Blender Automation
+  run: |
+    export BLD_REMOTE_MCP_START_NOW=1
+    blender --background --python setup_service.py &
+    sleep 10  # Wait for service startup
+    python batch_render_pipeline.py
+```
+
+**Docker Container:**
+```dockerfile
+FROM blender:4.4.3
+COPY blender_addon/bld_remote_mcp/ /opt/blender/scripts/addons/
+ENV BLD_REMOTE_MCP_START_NOW=1
+CMD ["blender", "--background", "--python", "/app/automation.py"]
+```
+
+### Development Installation
 
 ```bash
 # Clone and install from source
@@ -225,20 +328,48 @@ blender-remote/
 └── context/                   # AI assistant resources
 ```
 
-## ⚠️ Background Mode Support
+## 🔧 Automation Capabilities
 
-**Unique Advantage**: Unlike other Blender MCP solutions, blender-remote supports both GUI and background modes:
+### Background Mode Support
 
-- **GUI Mode**: Full functionality including viewport screenshots
-- **Background Mode**: Code execution and scene inspection (screenshots unavailable)
-- **Automatic Detection**: Service gracefully handles mode limitations
+**Key Advantage**: Full automation support in both GUI and headless environments:
+
+- **GUI Mode**: Complete functionality including viewport screenshots
+- **Background Mode**: Code execution, scene manipulation, rendering (no screenshots)
+- **Automatic Detection**: Service gracefully handles mode-specific limitations
+
+**Automation Patterns:**
 
 ```bash
-# GUI mode (recommended for development)
-blender &
+# Interactive development with screenshots
+export BLD_REMOTE_MCP_START_NOW=1
+blender &  # GUI mode with auto-start service
 
-# Background mode (for servers/CI)
-blender --background &
+# Production automation (CI/CD, render farms)
+blender --background --python start_service.py &  # Headless with service
+```
+
+### External Control Examples
+
+**Batch Asset Generation:**
+```python
+# automation_example.py
+import socket, json, time
+
+def send_blender_command(cmd_type, params={}):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(('127.0.0.1', 6688))
+    command = {"type": cmd_type, "params": params}
+    sock.send(json.dumps(command).encode())
+    response = json.loads(sock.recv(4096).decode())
+    sock.close()
+    return response
+
+# Automated workflow
+send_blender_command("execute_code", {"code": "bpy.ops.object.select_all(action='DELETE')"})
+send_blender_command("execute_code", {"code": "bpy.ops.mesh.primitive_cube_add(location=(0,0,0))"})
+send_blender_command("execute_code", {"code": "bpy.context.object.name = 'AutoCube'"})
+print("✅ Automated asset creation complete")
 ```
 
 ## 🔧 Troubleshooting
