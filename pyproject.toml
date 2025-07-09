@@ -62,13 +62,17 @@ blender-remote = "blender_remote.mcp_server:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["blender_remote*"]
-exclude = ["tests*", "docs*", "context*"]
+exclude = ["tests*", "context*", "tmp*", "build*", "dist*", "*.egg-info*"]
 
 [tool.setuptools.package-dir]
 "" = "src"
 
 [tool.setuptools.package-data]
-blender_addon = ["*.py", "*.json"]
+"blender_remote" = ["*.py", "*.json", "*.md"]
+
+# Include blender addon files
+[tool.setuptools.data-files]
+"share/blender_remote/blender_addon" = ["blender_addon/bld_remote_mcp/*.py"]
 
 [tool.black]
 line-length = 88

@@ -1,0 +1,58 @@
+# Include essential files
+include README.md
+include LICENSE
+include pyproject.toml
+
+# Include source code
+recursive-include src *.py *.json *.md
+
+# Include Blender addon
+recursive-include blender_addon *.py *.json *.md
+
+# Include documentation (for offline access)
+recursive-include docs *.md
+
+# Include examples (helpful for users)
+recursive-include examples *.md *.py
+
+# Exclude development directories and files
+exclude context-dir-guide.md
+exclude project-init-guide.md
+exclude project-init.md
+exclude TEST_INSTRUCTIONS.md
+exclude VSCODE_MCP_TESTING.md
+exclude run_tests_with_pixi.sh
+exclude start_bld_remote_mcp.sh
+exclude start_dual_services.sh
+exclude pixi.lock
+exclude pixi.toml
+exclude mkdocs.yml
+
+# Exclude development directories
+recursive-exclude context *
+recursive-exclude tests *
+recursive-exclude tmp *
+recursive-exclude scripts *
+recursive-exclude .git *
+recursive-exclude .vscode *
+recursive-exclude .pixi *
+recursive-exclude build *
+recursive-exclude dist *
+recursive-exclude *.egg-info *
+
+# Exclude build artifacts
+recursive-exclude src *.egg-info*
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * .DS_Store
+recursive-exclude * .pytest_cache
+recursive-exclude * .coverage
+recursive-exclude * .mypy_cache
+recursive-exclude * .ruff_cache
+
+# Exclude test files in root
+exclude test_*.py
+exclude *_test.py
+exclude demonstrate_advanced_features.py
+exclude final_verification.py
+exclude stress_test_mcp.py
