@@ -168,5 +168,7 @@ htmltest.log
 
 # pixi lock
 pixi.lock
-*.zip# pixi environments
+*.zip
+
+# pixi environments
 .pixi
