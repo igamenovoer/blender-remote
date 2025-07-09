@@ -37,13 +37,19 @@ blender-remote/
 
 ## Development Environment
 
-- Python environment is managed by **pixi** (see pixi.toml)
+- **IMPORTANT**: Python environment is managed by **pixi** (configured in pyproject.toml)
+- **ALWAYS use pixi commands** for development tasks - DO NOT use bare `python` commands
+- **All dependencies are defined in pyproject.toml** with [tool.pixi] sections
 - The project targets publication to PyPI
-- Development commands:
-  - `pixi run test` - Run tests
+- **Essential pixi commands:**
+  - `pixi run test` - Run tests (REQUIRED for testing)
   - `pixi run lint` - Run linting
-  - `pixi run format` - Format code
-  - `pixi run build` - Build package
+  - `pixi run format` - Format code  
+  - `pixi run check` - Run format, lint, type-check, and test
+  - `pixi shell` - Enter development shell with all dependencies
+  - `pixi run python <script>` - Run Python scripts with proper environment
+  - `pixi run test-blender` - Run Blender-specific tests
+  - `pixi run mcp-server` - Start MCP server
 
 ## Available MCP Servers
 

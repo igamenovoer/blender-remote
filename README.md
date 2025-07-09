@@ -49,8 +49,24 @@ uvx blender-remote  # Starts MCP server for Claude, VSCode, Cursor, etc.
 
 **Compatible with**: VSCode Claude, Claude Desktop, Cursor, and other MCP-compatible LLM IDEs
 
-### 4. **🐍 Python Control Classes**
-Direct Python API for programmatic Blender control *(coming soon)*
+### 4. **🐍 Python Control API**
+Direct Python API for programmatic Blender control:
+
+```python
+import blender_remote
+
+# Connect to Blender
+client = blender_remote.connect_to_blender(port=6688)
+
+# High-level scene management
+scene_manager = blender_remote.create_scene_manager(client)
+cube_name = scene_manager.add_cube(location=(2, 0, 0), size=1.5)
+scene_manager.set_camera_location(location=(7, -7, 5), target=(0, 0, 0))
+
+# Asset library management
+asset_manager = blender_remote.create_asset_manager(client)
+libraries = asset_manager.list_asset_libraries()
+```
 
 **Enables**: Native Python integration, custom automation tools, scripted workflows
 
@@ -202,13 +218,13 @@ LLM IDE (VSCode/Claude) ←────┼─→ JSON-TCP (port 6688) ←─ BLD
                             │                                      ↓
 blender-remote (uvx MCP) ←───┘                               Blender Python API
                                                                    ↓
-Python Control Classes* ←─────────────────────────────→ Blender (GUI or --background)
+Python Control API ←─────────────────────────────────→ Blender (GUI or --background)
 ```
 
 **Three Control Pathways:**
 1. **Direct Socket Connection**: External Python → JSON-TCP → Blender
 2. **MCP Protocol**: LLM IDE → uvx blender-remote → JSON-TCP → Blender  
-3. **Python Classes**: Python → Direct API → Blender *(coming soon)*
+3. **Python Control API**: Python → High-level API → JSON-TCP → Blender
 
 ## 📋 Available MCP Tools
 
@@ -268,25 +284,37 @@ blender-remote scene
 blender-remote screenshot
 ```
 
-### Python API (for custom scripts)
+### Python Control API (for custom scripts)
 
 ```python
-# Direct connection to BLD_Remote_MCP service
-import socket
-import json
+# High-level Python API for Blender control
+import blender_remote
 
-# Connect to service
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect(('127.0.0.1', 6688))
+# Connect to Blender
+client = blender_remote.connect_to_blender(port=6688)
 
-# Send command
-command = {"type": "execute_code", "params": {"code": "bpy.ops.mesh.primitive_cube_add()"}}
-sock.sendall(json.dumps(command).encode('utf-8'))
+# Scene management
+scene_manager = blender_remote.create_scene_manager(client)
+cube_name = scene_manager.add_cube(location=(0, 0, 0), size=2.0)
+scene_manager.move_object(cube_name, location=(2, 0, 1))
 
-# Get response
-response = json.loads(sock.recv(4096).decode('utf-8'))
-print(response)
-sock.close()
+# Get scene information
+scene_info = scene_manager.get_scene_info()
+print(f"Scene has {scene_info.object_count} objects")
+
+# Asset management
+asset_manager = blender_remote.create_asset_manager(client)
+libraries = asset_manager.list_asset_libraries()
+for lib in libraries:
+    print(f"Library: {lib.name} at {lib.path}")
+
+# Direct code execution
+result = client.execute_python("bpy.ops.mesh.primitive_sphere_add()")
+print(result)
+
+# Take screenshot
+screenshot_info = scene_manager.take_screenshot("/tmp/scene.png")
+print(f"Screenshot saved: {screenshot_info}")
 ```
 
 ## 🧪 Testing & Development
@@ -317,9 +345,15 @@ blender-remote/
 ├── blender_addon/              # Blender add-ons
 │   └── bld_remote_mcp/        # BLD_Remote_MCP service (port 6688)
 ├── src/blender_remote/         # Python package (src layout)
+│   ├── client.py              # BlenderMCPClient - Direct MCP communication
+│   ├── scene_manager.py       # BlenderSceneManager - High-level scene operations
+│   ├── asset_manager.py       # BlenderAssetManager - Asset library management
+│   ├── data_types.py          # Data structures and attrs classes
+│   ├── exceptions.py          # Custom exception hierarchy
 │   ├── mcp_server.py          # FastMCP server implementation
 │   └── cli.py                 # CLI tools
 ├── tests/                      # Comprehensive test suite
+│   ├── python_control_api/    # Python Control API tests
 │   ├── mcp-server/            # MCP server functionality tests
 │   ├── integration/           # Service comparison tests
 │   └── others/                # Development scripts

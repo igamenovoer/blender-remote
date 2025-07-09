@@ -30,7 +30,7 @@ classifiers = [
 
 dependencies = [
     "fastmcp>=2.0.0",  # FastMCP framework for Model Context Protocol
-    "click>=8.0.0",  # for CLI tools
+    "click>=8.0.0", "pydantic>=2.11.7,<3",  # for CLI tools
 ]
 
 [project.optional-dependencies]
@@ -116,3 +116,66 @@ exclude_lines = [
     "pass",
     "except ImportError:",
 ]
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+# Development dependencies (prefer conda when available for better performance)
+[tool.pixi.dependencies]
+python = ">=3.10"
+# Use conda packages for development tools when possible
+black = "*"
+ruff = "*"
+pytest = "*"
+pytest-cov = "*"
+mypy = "*"
+pre-commit = "*"
+# Documentation tools
+mkdocs = "*"
+mkdocs-material = "*"
+# Core API dependencies
+numpy = ">=1.24.0,<2"
+scipy = ">=1.16.0,<2"
+requests = ">=2.32.4,<3"
+attrs = ">=25.3.0,<26"
+
+# PyPI-only dependencies that don't have conda equivalents
+[tool.pixi.pypi-dependencies]
+blender-remote = { path = ".", editable = true }
+trimesh = "*"  # For 3D mesh processing and GLB export
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+docs = { features = ["docs"], solve-group = "default" }
+test = { features = ["test"], solve-group = "default" }
+
+[tool.pixi.feature.dev.dependencies]
+# Additional dev-specific conda packages
+jupyter = "*"
+ipython = "*"
+
+[tool.pixi.feature.dev.pypi-dependencies]
+# Additional dev-specific PyPI packages if needed
+
+[tool.pixi.feature.test.dependencies]
+# Test-specific conda packages
+
+[tool.pixi.feature.docs.dependencies]
+# Documentation-specific packages
+
+[tool.pixi.tasks]
+# Development tasks
+install-dev = "pip install -e ."
+format = "black src tests"
+lint = "ruff check src tests"
+type-check = "mypy src"
+test = "pytest tests/ -v"
+test-cov = "pytest tests/ --cov=blender_remote --cov-report=html"
+docs-serve = "mkdocs serve"
+docs-build = "mkdocs build"
+# Combined tasks
+check = { depends-on = ["format", "lint", "type-check", "test"] }
+# Blender-specific tasks
+test-blender = "python tests/manual_test_example.py"
+mcp-server = "python -m blender_remote.mcp_server"
