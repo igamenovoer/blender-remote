@@ -27,27 +27,64 @@ Blender Application
 
 ### 1. Install Blender Add-on
 
-Create and install the BLD_Remote_MCP addon:
+#### Step 1: Create the Add-on Zip File
+
+The add-on zip file is not included in the repository and must be created from source:
 
 ```bash
-# Method 1: Create zip from source
-cd blender-remote/  # Your cloned repository
-cd blender_addon/
+# Navigate to the blender_addon directory from project root
+cd blender-remote/blender_addon/
 zip -r bld_remote_mcp.zip bld_remote_mcp/
-
-# Install to Blender
-mkdir -p ~/.config/blender/4.4/scripts/addons/
-cp bld_remote_mcp.zip ~/.config/blender/4.4/scripts/addons/
-cd ~/.config/blender/4.4/scripts/addons/
-unzip bld_remote_mcp.zip
-
-# Method 2: Manual directory copy
-# 1. Clone the repository
-# 2. Copy blender_addon/bld_remote_mcp/ to ~/.config/blender/4.4/scripts/addons/
-# 3. Restart Blender
 ```
 
-**Note**: The `bld_remote_mcp.zip` file is not included in the repository and must be created by users from the `blender_addon/bld_remote_mcp/` directory.
+This creates `bld_remote_mcp.zip` which you'll use for installation.
+
+#### Step 2: Install via Blender GUI (Recommended)
+
+1. **Open Blender**
+2. Go to `Edit > Preferences` from the top menu bar
+3. In the Preferences window, select the `Add-ons` tab
+4. Click the `Install...` button (this opens Blender's file browser)
+5. Navigate to your `blender_addon/` directory and select the `bld_remote_mcp.zip` file
+6. Click `Install Add-on`
+7. **Important**: Search for "BLD Remote MCP" in the add-on list and **enable it by ticking the checkbox**
+
+#### Step 3: Verify Installation
+
+**Critical**: This add-on has **no visible GUI panel**. You must verify installation through the system console.
+
+**How to Access System Console:**
+- **Windows**: Go to `Window > Toggle System Console` in Blender
+- **macOS/Linux**: Start Blender from a terminal - log messages appear in the terminal
+
+**Expected Log Messages:**
+
+When you enable the add-on, look for these registration messages:
+```
+=== BLD REMOTE MCP ADDON REGISTRATION STARTING ===
+🚀 DEV-TEST-UPDATE: BLD Remote MCP v1.0.2 Loading!
+...
+✅ BLD Remote MCP addon registered successfully
+=== BLD REMOTE MCP ADDON REGISTRATION COMPLETED ===
+```
+
+If auto-start is configured (via environment variables), you'll also see:
+```
+✅ Starting server on port 6688
+✅ BLD Remote server STARTED successfully on port 6688
+Server is now listening for connections on 127.0.0.1:6688
+```
+
+#### Alternative: Manual Directory Installation
+
+For development or if you prefer manual installation:
+
+```bash
+# Copy the addon directory directly
+mkdir -p ~/.config/blender/4.4/scripts/addons/
+cp -r bld_remote_mcp/ ~/.config/blender/4.4/scripts/addons/
+# Restart Blender and enable the addon in preferences
+```
 
 ### 2. Start Blender with Auto-Service
 
@@ -359,14 +396,38 @@ When screenshots are requested in background mode, the service returns:
 
 ### Service Won't Start
 
-**Check Addon Installation:**
-```bash
-# Verify addon directory exists
-ls ~/.config/blender/4.4/scripts/addons/bld_remote_mcp/
+**Check Addon Installation and Registration:**
 
-# Check Blender addon preferences
-# Edit → Preferences → Add-ons → Search "BLD Remote MCP"
-```
+First, verify the add-on is properly installed and enabled:
+
+1. **Check File Installation:**
+   ```bash
+   # Verify addon directory exists
+   ls ~/.config/blender/4.4/scripts/addons/bld_remote_mcp/
+   ```
+
+2. **Check Add-on is Enabled in Blender:**
+   - Open Blender → `Edit > Preferences > Add-ons`
+   - Search for "BLD Remote MCP" 
+   - Ensure the checkbox is ticked ✓
+
+3. **Verify Registration via Console:**
+   
+   **Critical**: Check the system console for registration messages:
+   
+   **Windows**: `Window > Toggle System Console`  
+   **macOS/Linux**: Start Blender from terminal
+   
+   **Expected messages when enabling the add-on:**
+   ```
+   === BLD REMOTE MCP ADDON REGISTRATION STARTING ===
+   🚀 DEV-TEST-UPDATE: BLD Remote MCP v1.0.2 Loading!
+   ...
+   ✅ BLD Remote MCP addon registered successfully
+   === BLD REMOTE MCP ADDON REGISTRATION COMPLETED ===
+   ```
+   
+   **If you don't see these messages**, the add-on failed to register. Check for error messages in the console.
 
 **Verify Environment Variables:**
 ```bash

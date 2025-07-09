@@ -19,20 +19,25 @@ blender-remote is a production-ready MCP (Model Context Protocol) server that en
 ### For LLM Users
 
 1. **Install Blender Add-on**
-   ```bash
-   # Create the addon zip file from source
-   cd blender-remote/  # Your cloned repository
-   cd blender_addon/
-   zip -r bld_remote_mcp.zip bld_remote_mcp/
    
-   # Install to Blender
-   mkdir -p ~/.config/blender/4.4/scripts/addons/
-   cp bld_remote_mcp.zip ~/.config/blender/4.4/scripts/addons/
-   cd ~/.config/blender/4.4/scripts/addons/
-   unzip bld_remote_mcp.zip
+   **Create the zip file:**
+   ```bash
+   cd blender-remote/blender_addon/
+   zip -r bld_remote_mcp.zip bld_remote_mcp/
    ```
    
-   **Note**: The `bld_remote_mcp.zip` file is not included in the repository and must be created by users from the `blender_addon/bld_remote_mcp/` directory.
+   **Install via Blender GUI (Recommended):**
+   1. Open Blender → `Edit > Preferences > Add-ons`
+   2. Click `Install...` and select `bld_remote_mcp.zip`
+   3. Search for "BLD Remote MCP" and enable it ✓
+   
+   **Verify installation via system console:**
+   - **Windows**: `Window > Toggle System Console`
+   - **macOS/Linux**: Start Blender from terminal
+   
+   **Look for:** `✅ BLD Remote MCP addon registered successfully`
+   
+   **Note**: The `bld_remote_mcp.zip` file must be created from the `blender_addon/bld_remote_mcp/` directory.
 
 2. **Start Blender with Auto-Service**
    ```bash

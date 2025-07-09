@@ -18,20 +18,57 @@ blender-remote is a production-ready MCP (Model Context Protocol) server that en
 
 ### 1. Install Blender Add-on
 
+#### Create the Add-on Zip File
+
 ```bash
-# Create the addon zip file from source
+# Navigate to the blender_addon directory from project root
 cd blender-remote/  # Your cloned repository
 cd blender_addon/
 zip -r bld_remote_mcp.zip bld_remote_mcp/
-
-# Install to Blender
-mkdir -p ~/.config/blender/4.4/scripts/addons/
-cp bld_remote_mcp.zip ~/.config/blender/4.4/scripts/addons/
-cd ~/.config/blender/4.4/scripts/addons/
-unzip bld_remote_mcp.zip
 ```
 
 **Note**: The `bld_remote_mcp.zip` file is not included in the repository and must be created by users from the `blender_addon/bld_remote_mcp/` directory.
+
+#### Install via Blender GUI (Recommended)
+
+1. **Open Blender**
+2. Go to `Edit > Preferences` from the top menu bar
+3. In the Preferences window, select the `Add-ons` tab
+4. Click the `Install...` button (opens Blender's file browser)
+5. Navigate to your `blender_addon/` directory and select `bld_remote_mcp.zip`
+6. Click `Install Add-on`
+7. **Search for "BLD Remote MCP" and enable it by ticking the checkbox**
+
+#### Alternative: Manual Installation
+
+```bash
+# Copy directly to Blender addons directory
+mkdir -p ~/.config/blender/4.4/scripts/addons/
+cp -r bld_remote_mcp/ ~/.config/blender/4.4/scripts/addons/
+```
+
+#### Verify Installation
+
+**Important**: This add-on has no visible GUI panel. Verify installation via system console:
+
+**Windows**: `Window > Toggle System Console`  
+**macOS/Linux**: Start Blender from terminal
+
+**Look for these log messages when enabling the add-on:**
+```
+=== BLD REMOTE MCP ADDON REGISTRATION STARTING ===
+🚀 DEV-TEST-UPDATE: BLD Remote MCP v1.0.2 Loading!
+...
+✅ BLD Remote MCP addon registered successfully
+=== BLD REMOTE MCP ADDON REGISTRATION COMPLETED ===
+```
+
+**If auto-start is enabled, you'll also see:**
+```
+✅ Starting server on port 6688
+✅ BLD Remote server STARTED successfully on port 6688
+Server is now listening for connections on 127.0.0.1:6688
+```
 
 ### 2. Start Blender with Auto-Service
 
@@ -210,8 +247,18 @@ blender --background &
 
 **"Connection refused" error:**
 - Ensure Blender is running with BLD_Remote_MCP addon enabled
+- **Verify addon installation**: Check system console for registration messages:
+  ```
+  ✅ BLD Remote MCP addon registered successfully
+  ✅ BLD Remote server STARTED successfully on port 6688
+  ```
 - Check service is listening: `netstat -tlnp | grep 6688`
 - Try restarting Blender with environment variables set
+
+**Add-on not working:**
+- **Critical**: Check system console (Windows: `Window > Toggle System Console`, macOS/Linux: start from terminal)
+- Look for registration messages when enabling the add-on
+- If no messages appear, the add-on failed to load - check console for errors
 
 **"No module named 'fastmcp'" error:**
 - Install with uvx: `uvx blender-remote` (handles dependencies automatically)
