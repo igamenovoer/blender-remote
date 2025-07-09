@@ -27,19 +27,27 @@ Blender Application
 
 ### 1. Install Blender Add-on
 
-Download and install the BLD_Remote_MCP addon:
+Create and install the BLD_Remote_MCP addon:
 
 ```bash
-# Method 1: Direct download
+# Method 1: Create zip from source
+cd blender-remote/  # Your cloned repository
+cd blender_addon/
+zip -r bld_remote_mcp.zip bld_remote_mcp/
+
+# Install to Blender
+mkdir -p ~/.config/blender/4.4/scripts/addons/
+cp bld_remote_mcp.zip ~/.config/blender/4.4/scripts/addons/
 cd ~/.config/blender/4.4/scripts/addons/
-wget -O bld_remote_mcp.zip https://github.com/igamenovoer/blender-remote/raw/main/blender_addon/bld_remote_mcp.zip
 unzip bld_remote_mcp.zip
 
-# Method 2: Manual installation
-# 1. Download blender_addon/bld_remote_mcp/ directory
-# 2. Copy to ~/.config/blender/4.4/scripts/addons/
+# Method 2: Manual directory copy
+# 1. Clone the repository
+# 2. Copy blender_addon/bld_remote_mcp/ to ~/.config/blender/4.4/scripts/addons/
 # 3. Restart Blender
 ```
+
+**Note**: The `bld_remote_mcp.zip` file is not included in the repository and must be created by users from the `blender_addon/bld_remote_mcp/` directory.
 
 ### 2. Start Blender with Auto-Service
 
@@ -533,6 +541,12 @@ The MCP server follows semantic versioning:
 **Current Version**: 1.0.0
 **Compatibility**: Blender 4.4.3+
 **MCP Protocol**: 1.0.0
+
+## Credits
+
+This project was inspired by [ahujasid/blender-mcp](https://github.com/ahujasid/blender-mcp), which demonstrated the potential for integrating Blender with the Model Context Protocol. We extend our gratitude to the original developers for pioneering this concept.
+
+blender-remote builds upon this foundation with enhanced features including background mode support, thread-safe operations, comprehensive testing, and production-ready deployment capabilities.
 
 ## Support & Resources
 
