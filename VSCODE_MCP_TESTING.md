@@ -82,7 +82,7 @@ Expected output:
    - `get_scene_info` - Get Blender scene information  
    - `execute_blender_code` - Execute Python code in Blender
    - `get_object_info` - Get object details
-   - `get_viewport_screenshot` - Capture viewport screenshots (GUI mode only)
+   - `get_viewport_screenshot` - Capture viewport screenshots as base64 data (GUI mode only)
    - `check_connection_status` - Check connection to Blender
 
 ## Development Tools

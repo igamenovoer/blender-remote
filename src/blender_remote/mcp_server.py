@@ -143,8 +143,8 @@ async def get_object_info(object_name: str, ctx: Context) -> Dict[str, Any]:
         return {"error": str(e)}
 
 @mcp.tool()
-async def get_viewport_screenshot(ctx: Context, max_size: int = 800, filepath: Optional[str] = None, format: str = "png") -> Image:
-    """Capture a screenshot of the Blender viewport. Note: Only works in GUI mode."""
+async def get_viewport_screenshot(ctx: Context, max_size: int = 800, filepath: Optional[str] = None, format: str = "png") -> Dict[str, Any]:
+    """Capture a screenshot of the Blender viewport and return as base64 encoded data. Note: Only works in GUI mode."""
     await ctx.info("Capturing viewport screenshot...")
     
     try:
@@ -160,7 +160,7 @@ async def get_viewport_screenshot(ctx: Context, max_size: int = 800, filepath: O
         if response.get("status") == "error":
             error_msg = response.get("message", "Unknown error")
             await ctx.error(f"Screenshot failed: {error_msg}")
-            raise ValueError(error_msg)
+            return {"error": error_msg}
         
         result = response.get("result", {})
         image_path = result.get("filepath")
@@ -168,16 +168,29 @@ async def get_viewport_screenshot(ctx: Context, max_size: int = 800, filepath: O
         if not image_path:
             raise ValueError("Screenshot captured but no file path returned")
         
-        # Read the image data and return as Image
+        # Read the image data and encode as base64
+        import base64
         with open(image_path, "rb") as f:
             image_data = f.read()
         
-        await ctx.info(f"Screenshot captured: {image_path}")
-        return Image(data=image_data, media_type=f"image/{format}")
+        base64_data = base64.b64encode(image_data).decode('utf-8')
+        
+        await ctx.info(f"Screenshot captured: {image_path} ({len(image_data)} bytes)")
+        
+        return {
+            "type": "image",
+            "data": base64_data,
+            "mimeType": f"image/{format}",
+            "size": len(image_data),
+            "dimensions": {
+                "width": result.get("width"),
+                "height": result.get("height")
+            }
+        }
             
     except Exception as e:
         await ctx.error(f"Failed to capture screenshot: {e}")
-        raise
+        return {"error": str(e)}
 
 @mcp.tool()
 async def check_connection_status(ctx: Context) -> Dict[str, Any]:
