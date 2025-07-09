@@ -31,7 +31,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "mcp>=1.3.0",  # Model Context Protocol framework
+    "fastmcp>=2.0.0",  # FastMCP framework for Model Context Protocol
     "click>=8.0.0",  # for CLI tools
 ]
 

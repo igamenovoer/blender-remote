@@ -1,5 +1,5 @@
 """
-Blender Remote MCP Server
+FastMCP server implementation for Blender Remote.
 
 This module provides a Model Context Protocol (MCP) server that connects to 
 the BLD_Remote_MCP service running inside Blender. This allows LLM IDEs to 
@@ -17,260 +17,239 @@ import logging
 import socket
 import sys
 import time
-from contextlib import asynccontextmanager
 from typing import Any, Dict, Optional
 
-from mcp.server.fastmcp import FastMCP, Context, Image
-from mcp.server.stdio import stdio_server
+from fastmcp import FastMCP, Context
+from fastmcp.utilities.types import Image
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Global connection to Blender
-blender_connection: Optional[socket.socket] = None
-connection_lock = asyncio.Lock()
+# Create the FastMCP server instance
+mcp = FastMCP("Blender Remote MCP")
 
-class BlenderConnectionError(Exception):
-    """Raised when connection to Blender fails"""
-    pass
-
-def connect_to_blender(host: str = "127.0.0.1", port: int = 6688, timeout: float = 10.0) -> socket.socket:
-    """Connect to BLD_Remote_MCP service in Blender"""
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(timeout)
-        sock.connect((host, port))
-        logger.info(f"Connected to Blender BLD_Remote_MCP service at {host}:{port}")
-        return sock
-    except Exception as e:
-        logger.error(f"Failed to connect to Blender at {host}:{port}: {e}")
-        raise BlenderConnectionError(f"Cannot connect to Blender at {host}:{port}: {e}")
-
-async def send_command_to_blender(command_type: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """Send a command to Blender and return the response"""
-    global blender_connection
+class BlenderConnection:
+    """Handle connection to Blender TCP server."""
     
-    async with connection_lock:
-        # Ensure we have a connection
-        if blender_connection is None:
-            try:
-                blender_connection = connect_to_blender()
-            except BlenderConnectionError as e:
-                return {
-                    "status": "error",
-                    "message": f"Connection failed: {e}"
-                }
-        
-        command = {
-            "type": command_type,
-            "params": params or {}
-        }
+    def __init__(self, host: str = "127.0.0.1", port: int = 6688):
+        self.host = host
+        self.port = port
+        self.sock = None
+    
+    async def connect(self) -> bool:
+        """Connect to Blender addon."""
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.connect((self.host, self.port))
+            logger.info(f"Connected to Blender BLD_Remote_MCP at {self.host}:{self.port}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to connect to Blender: {e}")
+            self.sock = None
+            return False
+    
+    async def send_command(self, command: Dict[str, Any]) -> Dict[str, Any]:
+        """Send command to Blender and get response."""
+        if not self.sock:
+            if not await self.connect():
+                raise ConnectionError("Cannot connect to Blender BLD_Remote_MCP service")
         
         try:
             # Send command
-            command_json = json.dumps(command)
-            blender_connection.sendall(command_json.encode('utf-8'))
+            message = json.dumps(command)
+            self.sock.sendall(message.encode('utf-8'))
             
             # Receive response
-            response_data = blender_connection.recv(8192)
+            response_data = self.sock.recv(8192)
             if not response_data:
                 raise ConnectionError("Connection closed by Blender")
                 
             response = json.loads(response_data.decode('utf-8'))
-            logger.info(f"Command {command_type} executed successfully")
             return response
-            
+                    
         except Exception as e:
             logger.error(f"Error communicating with Blender: {e}")
             # Close and reset connection on error
-            if blender_connection:
+            if self.sock:
                 try:
-                    blender_connection.close()
+                    self.sock.close()
                 except:
                     pass
-                blender_connection = None
-            
-            return {
-                "status": "error", 
-                "message": f"Communication error with Blender: {e}"
-            }
+                self.sock = None
+            raise
 
-@asynccontextmanager
-async def server_lifespan():
-    """Manage server lifecycle"""
-    logger.info("Starting Blender Remote MCP Server...")
+# Global connection instance
+blender_conn = BlenderConnection()
+
+@mcp.tool()
+async def get_scene_info(ctx: Context) -> Dict[str, Any]:
+    """Get information about the current Blender scene."""
+    await ctx.info("Getting scene information from Blender...")
+    
     try:
-        # Test initial connection
-        await send_command_to_blender("get_scene_info")
-        logger.info("Successfully connected to Blender")
-    except Exception as e:
-        logger.warning(f"Initial connection test failed: {e}")
-        logger.info("Server will start anyway - connection will be retried on first request")
-    
-    yield
-    
-    # Cleanup
-    global blender_connection
-    if blender_connection:
-        try:
-            blender_connection.close()
-            logger.info("Closed connection to Blender")
-        except:
-            pass
-
-# Create FastMCP server instance
-mcp = FastMCP(
-    "BlenderRemote", 
-    description="Remote control Blender through the Model Context Protocol using BLD_Remote_MCP service",
-    lifespan=server_lifespan
-)
-
-@mcp.tool()
-async def get_scene_info(ctx: Context) -> str:
-    """Get detailed information about the current Blender scene including objects, materials, and frame settings"""
-    response = await send_command_to_blender("get_scene_info")
-    
-    if response.get("status") == "error":
-        return f"Error getting scene info: {response.get('message', 'Unknown error')}"
-    
-    result = response.get("result", {})
-    
-    # Format the scene information nicely
-    scene_name = result.get("name", "Unknown")
-    object_count = result.get("object_count", 0)
-    materials_count = result.get("materials_count", 0)
-    frame_info = f"Frame {result.get('frame_current', 1)} of {result.get('frame_start', 1)}-{result.get('frame_end', 1)}"
-    
-    info_lines = [
-        f"Scene: {scene_name}",
-        f"Objects: {object_count}",
-        f"Materials: {materials_count}",
-        f"Timeline: {frame_info}",
-        ""
-    ]
-    
-    # Add object details if available
-    objects = result.get("objects", [])
-    if objects:
-        info_lines.append("Objects in scene:")
-        for obj in objects[:10]:  # Limit to first 10 objects
-            obj_name = obj.get("name", "Unknown")
-            obj_type = obj.get("type", "Unknown")
-            obj_location = obj.get("location", [0, 0, 0])
-            obj_visible = obj.get("visible", True)
-            
-            location_str = f"({obj_location[0]:.2f}, {obj_location[1]:.2f}, {obj_location[2]:.2f})"
-            visibility = "visible" if obj_visible else "hidden"
-            info_lines.append(f"  - {obj_name} ({obj_type}) at {location_str} [{visibility}]")
+        response = await blender_conn.send_command({
+            "type": "get_scene_info",
+            "params": {}
+        })
         
-        if len(objects) > 10:
-            info_lines.append(f"  ... and {len(objects) - 10} more objects")
-    
-    return "\\n".join(info_lines)
+        if response.get("status") == "error":
+            await ctx.error(f"Blender error: {response.get('message', 'Unknown error')}")
+            return {"error": response.get("message", "Unknown error")}
+        
+        return response.get("result", {})
+    except Exception as e:
+        await ctx.error(f"Failed to get scene info: {e}")
+        return {"error": str(e)}
 
 @mcp.tool()
-async def get_object_info(ctx: Context, object_name: str) -> str:
-    """Get detailed information about a specific object in the Blender scene"""
-    response = await send_command_to_blender("get_object_info", {"object_name": object_name})
+async def execute_blender_code(code: str, ctx: Context) -> Dict[str, Any]:
+    """Execute Python code in Blender."""
+    await ctx.info(f"Executing code in Blender...")
     
-    if response.get("status") == "error":
-        return f"Error getting object info: {response.get('message', 'Unknown error')}"
-    
-    result = response.get("result", {})
-    
-    if not result:
-        return f"Object '{object_name}' not found in the scene"
-    
-    # Format object information
-    info_lines = [
-        f"Object: {result.get('name', object_name)}",
-        f"Type: {result.get('type', 'Unknown')}",
-        f"Location: {result.get('location', [0, 0, 0])}",
-        f"Rotation: {result.get('rotation_euler', [0, 0, 0])}",
-        f"Scale: {result.get('scale', [1, 1, 1])}",
-        f"Visible: {result.get('visible', True)}",
-    ]
-    
-    # Add material info if available
-    materials = result.get("materials", [])
-    if materials:
-        info_lines.append(f"Materials: {', '.join(materials)}")
-    
-    return "\\n".join(info_lines)
+    try:
+        response = await blender_conn.send_command({
+            "type": "execute_code",
+            "params": {"code": code}
+        })
+        
+        if response.get("status") == "error":
+            await ctx.error(f"Code execution failed: {response.get('message', 'Unknown error')}")
+            return {"error": response.get("message", "Unknown error")}
+        
+        return response.get("result", {"message": "Code executed successfully"})
+    except Exception as e:
+        await ctx.error(f"Failed to execute code: {e}")
+        return {"error": str(e)}
 
 @mcp.tool()
-async def execute_blender_code(ctx: Context, code: str) -> str:
-    """Execute arbitrary Python code in Blender's context. Use this to manipulate scenes, objects, materials, etc."""
-    response = await send_command_to_blender("execute_code", {"code": code})
+async def get_object_info(object_name: str, ctx: Context) -> Dict[str, Any]:
+    """Get detailed information about a specific object in Blender."""
+    await ctx.info(f"Getting info for object: {object_name}")
     
-    if response.get("status") == "error":
-        return f"Error executing code: {response.get('message', 'Unknown error')}"
-    
-    result = response.get("result", {})
-    
-    # Return execution result
-    if "output" in result:
-        return f"Code executed successfully. Output:\\n{result['output']}"
-    elif "message" in result:
-        return f"Code executed successfully: {result['message']}"
-    else:
-        return "Code executed successfully"
+    try:
+        response = await blender_conn.send_command({
+            "type": "get_object_info",
+            "params": {"object_name": object_name}
+        })
+        
+        if response.get("status") == "error":
+            await ctx.error(f"Failed to get object info: {response.get('message', 'Unknown error')}")
+            return {"error": response.get("message", "Unknown error")}
+        
+        return response.get("result", {})
+    except Exception as e:
+        await ctx.error(f"Failed to get object info: {e}")
+        return {"error": str(e)}
 
 @mcp.tool()
 async def get_viewport_screenshot(ctx: Context, max_size: int = 800, filepath: Optional[str] = None, format: str = "png") -> Image:
-    """Capture a screenshot of the current Blender 3D viewport. Note: Only works in GUI mode, not in background mode."""
-    response = await send_command_to_blender("get_viewport_screenshot", {
-        "max_size": max_size,
-        "filepath": filepath,
-        "format": format
-    })
+    """Capture a screenshot of the Blender viewport. Note: Only works in GUI mode."""
+    await ctx.info("Capturing viewport screenshot...")
     
-    if response.get("status") == "error":
-        error_message = response.get("message", "Unknown error")
-        # If it's a background mode error, provide helpful context
-        if "background mode" in error_message.lower():
-            raise ValueError(f"{error_message}. Consider using rendering instead of viewport screenshots when Blender is running in background mode.")
-        else:
-            raise ValueError(f"Error capturing screenshot: {error_message}")
-    
-    result = response.get("result", {})
-    
-    # Get the image path from response
-    image_path = result.get("filepath")
-    if not image_path:
-        raise ValueError("Screenshot was captured but no file path returned")
-    
-    # Read the image data and return as Image
     try:
+        response = await blender_conn.send_command({
+            "type": "get_viewport_screenshot",
+            "params": {
+                "max_size": max_size,
+                "filepath": filepath,
+                "format": format
+            }
+        })
+        
+        if response.get("status") == "error":
+            error_msg = response.get("message", "Unknown error")
+            await ctx.error(f"Screenshot failed: {error_msg}")
+            raise ValueError(error_msg)
+        
+        result = response.get("result", {})
+        image_path = result.get("filepath")
+        
+        if not image_path:
+            raise ValueError("Screenshot captured but no file path returned")
+        
+        # Read the image data and return as Image
         with open(image_path, "rb") as f:
             image_data = f.read()
         
+        await ctx.info(f"Screenshot captured: {image_path}")
         return Image(data=image_data, media_type=f"image/{format}")
+            
     except Exception as e:
-        raise ValueError(f"Error reading screenshot file: {e}")
+        await ctx.error(f"Failed to capture screenshot: {e}")
+        raise
 
 @mcp.tool()
-async def check_connection_status(ctx: Context) -> str:
-    """Check the connection status to Blender's BLD_Remote_MCP service"""
-    try:
-        response = await send_command_to_blender("get_scene_info")
-        if response.get("status") == "success":
-            return "✅ Connected to Blender BLD_Remote_MCP service (port 6688)"
-        else:
-            return f"⚠️ Connected but got error: {response.get('message', 'Unknown error')}"
-    except Exception as e:
-        return f"❌ Connection failed: {e}. Make sure Blender is running with BLD_Remote_MCP addon enabled."
-
-def main():
-    """Main entry point for the MCP server"""
-    logger.info("Starting Blender Remote MCP Server...")
-    logger.info("This server connects to BLD_Remote_MCP service in Blender (port 6688)")
-    logger.info("Make sure Blender is running with the BLD_Remote_MCP addon enabled")
+async def check_connection_status(ctx: Context) -> Dict[str, Any]:
+    """Check the connection status to Blender's BLD_Remote_MCP service."""
+    await ctx.info("Checking connection to Blender...")
     
     try:
-        # Run the MCP server using stdio transport
-        asyncio.run(stdio_server(mcp))
+        response = await blender_conn.send_command({
+            "type": "get_scene_info",
+            "params": {}
+        })
+        
+        if response.get("status") == "success":
+            await ctx.info("✅ Connected to Blender BLD_Remote_MCP service")
+            return {
+                "status": "connected",
+                "host": blender_conn.host,
+                "port": blender_conn.port,
+                "service": "BLD_Remote_MCP"
+            }
+        else:
+            await ctx.error(f"Connection error: {response.get('message', 'Unknown error')}")
+            return {
+                "status": "error",
+                "message": response.get("message", "Unknown error")
+            }
+    except Exception as e:
+        await ctx.error(f"Connection failed: {e}")
+        return {
+            "status": "disconnected",
+            "error": str(e),
+            "suggestion": "Make sure Blender is running with BLD_Remote_MCP addon enabled"
+        }
+
+@mcp.resource("blender://status")
+async def blender_status() -> Dict[str, Any]:
+    """Get the current status of the Blender connection."""
+    try:
+        if blender_conn.sock:
+            return {
+                "status": "connected", 
+                "host": blender_conn.host, 
+                "port": blender_conn.port,
+                "service": "BLD_Remote_MCP"
+            }
+        else:
+            return {"status": "disconnected"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@mcp.prompt()
+def blender_workflow_start() -> str:
+    """Initialize a Blender workflow session."""
+    return """I'm ready to help you work with Blender! I can:
+
+1. **Get Scene Info**: View current scene objects and properties
+2. **Execute Code**: Run Python scripts in Blender  
+3. **Get Object Info**: Inspect specific objects in detail
+4. **Take Screenshots**: Capture viewport images (GUI mode only)
+5. **Check Status**: Monitor connection to Blender
+
+What would you like to do with your Blender scene?"""
+
+def main():
+    """Main entry point for uvx execution."""
+    logger.info("🚀 Starting Blender Remote MCP Server...")
+    logger.info("📡 This server connects to BLD_Remote_MCP service in Blender (port 6688)")
+    logger.info("🔗 Make sure Blender is running with the BLD_Remote_MCP addon enabled")
+    
+    try:
+        # This is the function called when running `uvx blender-remote`
+        mcp.run()
     except KeyboardInterrupt:
         logger.info("Server stopped by user")
     except Exception as e:
