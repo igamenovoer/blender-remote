@@ -264,8 +264,14 @@ This project now involves **TWO separate MCP services**:
 
 ## Project Memories
 
-- We will refer to our in-development plugin as `BLD_Remote_MCP`
-- We will refer to the reference implementation which is also running in blender as `BlenderAutoMCP`
+### MCP Service Naming Conventions
+
+- **`blender-mcp`**: The original 3rd party model context protocol service for Blender
+  - Source code: `context/refcode/blender-mcp/`
+- **`BlenderAutoMCP`**: The enhanced and modularized version of `blender-mcp`, breaking down different parts into different python files, and added features like auto-start and default-port setting via env variable, also a 3rd party library
+  - Source code: `context/refcode/blender_auto_mcp/`
+- **`BLD_Remote_MCP`**: Model context service developed in this project, based on `BlenderAutoMCP`, with auto-start and port-setting via env control, and added background mode to allow it working in `blender --background`, maintains compatibility with `BlenderAutoMCP` and `blender-mcp` when interfacing with LLM, but drops the 3rd party asset repository APIs
+  - Source code: `blender_addon/bld_remote_mcp/`
 
 ## CRITICAL: Blender Process Management Rules
 
