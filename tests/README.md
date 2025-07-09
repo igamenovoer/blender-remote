@@ -19,7 +19,19 @@ Tests ensure:
 tests/
 ├── integration/                           # Integration and comparison tests
 │   ├── test_dual_service_comparison.py   # Functional equivalence tests
-│   └── test_performance_comparison.py    # Performance comparison tests
+│   ├── test_performance_comparison.py    # Performance comparison tests
+│   ├── detailed_comparison_test.py       # Detailed service comparison
+│   ├── protocol_comparison_test.py       # Protocol compatibility tests
+│   └── run_comparison_test.py            # Service comparison runner
+├── mcp-server/                           # MCP server functionality tests
+│   ├── test_fastmcp_server.py           # FastMCP server validation
+│   ├── test_base64_screenshot.py        # Base64 screenshot tests
+│   ├── test_viewport_screenshot.py      # Viewport screenshot tests
+│   └── (see mcp-server/README.md)       # Full MCP server test suite
+├── others/                               # Miscellaneous test scripts
+│   ├── simple_test.py                   # Basic connection test
+│   ├── start_bld_remote.py              # Service startup helper
+│   └── test_compatibility_fix.py        # Compatibility testing
 ├── test_bld_remote_mcp.py                # Unit tests for our MCP service
 ├── run_dual_service_tests.py             # Comprehensive test runner
 ├── smoke_test.py                          # Quick verification script

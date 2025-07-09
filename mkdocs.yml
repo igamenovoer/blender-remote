@@ -1,5 +1,5 @@
 site_name: Blender Remote
-site_description: Remote control Blender with Python and MCP server
+site_description: Control Blender from any LLM-powered IDE with zero configuration
 site_author: igamenovoer
 site_url: https://igamenovoer.github.io/blender-remote/
 
@@ -30,30 +30,84 @@ theme:
 
   features:
     - content.code.copy
+    - content.code.select
     - navigation.footer
     - navigation.instant
+    - navigation.sections
+    - navigation.tabs
     - navigation.top
+    - navigation.tracking
     - search.highlight
     - search.suggest
+    - toc.follow
 
   icon:
     repo: fontawesome/brands/github
 
-# Simple navigation
+# Comprehensive navigation
 nav:
   - Home: index.md
+  - User Guide:
+    - MCP Server Setup: mcp-server.md
+    - LLM IDE Integration: llm-integration.md
+    - API Reference: api-reference.md
+  - Developer Guide:
+    - Development: development.md
+    - Test Suite: ../tests/README.md
+    - Examples: ../examples/README.md
+  - Examples:
+    - MCP Usage: ../examples/mcp-usage/README.md
+    - Basic Operations: ../examples/mcp-usage/01_basic_operations.md
+    - Object Creation: ../examples/mcp-usage/02_object_creation.md
+    - Screenshot Workflows: ../examples/mcp-usage/03_screenshot_workflows.md
 
-# Basic extensions
+# Enhanced extensions
 markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
   - toc:
       permalink: true
   - tables
-  - pymdownx.highlight
-  - pymdownx.superfences
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink:
+      repo_url_shorthand: true
+      user: igamenovoer
+      repo: blender-remote
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
 
 # Plugins
 plugins:
-  - search
+  - search:
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+  - minify:
+      minify_html: true
 
 # Additional configuration
 extra:
@@ -61,6 +115,12 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/igamenovoer/blender-remote
       name: GitHub Repository
+    - icon: fontawesome/solid/book
+      link: https://igamenovoer.github.io/blender-remote/
+      name: Documentation
+    - icon: fontawesome/solid/bug
+      link: https://github.com/igamenovoer/blender-remote/issues
+      name: Report Issues
 
 # Copyright
 copyright: Copyright &copy; 2024 igamenovoer
