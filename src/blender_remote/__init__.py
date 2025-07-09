@@ -4,7 +4,7 @@ Blender Remote Control Library
 A Python package for remotely controlling Blender through MCP server connections.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __author__ = "blender-remote contributors"
 
 # Import main entry points
