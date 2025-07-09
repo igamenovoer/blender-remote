@@ -291,3 +291,7 @@ Bash(command="blender &", timeout=120000)  # 2 minutes = 120000ms
 ```
 
 **Rationale**: Blender starts quickly (~5-10 seconds) but runs indefinitely. Long timeouts waste time and provide no benefit since Blender doesn't exit on its own in GUI mode.
+
+### Memory: Test Script Organization
+
+- if you want to create temporary test scripts, create it in tests/ dir, make a subdir, name it after your purpose, and put the test scripts there.
