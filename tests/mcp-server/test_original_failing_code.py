@@ -11,7 +11,7 @@ def test_original_failing_code(host="127.0.0.1", port=6688):
     """Test the exact code that was failing before."""
     print(f"🧪 Testing original failing numpy code...")
     print("=" * 60)
-    
+
     # The exact code from the user that was failing
     original_code = '''import bpy
 import numpy as np
@@ -74,44 +74,40 @@ def create_camera_complete_test():
 camera = create_camera_complete_test()
 print(f"Final test complete! Camera: {camera.name} at {camera.location}")
 '''
-    
+
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((host, port))
         print(f"✅ Connected to {host}:{port}")
-        
+
         # Test the exact failing code
         print(f"\n📤 Testing original failing code...")
-        
-        command = {
-            "type": "execute_code",
-            "params": {
-                "code": original_code
-            }
-        }
-        
+
+        command = {"type": "execute_code", "params": {"code": original_code}}
+
         print(f"📤 Sending code execution command...")
-        sock.sendall(json.dumps(command).encode('utf-8'))
+        sock.sendall(json.dumps(command).encode("utf-8"))
         print(f"⏳ Waiting for response...")
-        
+
         response_data = sock.recv(8192)
-        response = json.loads(response_data.decode('utf-8'))
-        
+        response = json.loads(response_data.decode("utf-8"))
+
         print(f"📨 Response: {response}")
-        
+
         if response.get("status") == "success":
             print(f"✅ SUCCESS! The original failing code now works!")
             print(f"📋 Result: {response.get('result', {})}")
         else:
             error_msg = response.get("message", "Unknown error")
             print(f"❌ Still failing: {error_msg}")
-        
+
         sock.close()
         print(f"🔒 Connection closed")
-        
+
     except Exception as e:
         print(f"❌ Test failed: {e}")
         import traceback
+
         traceback.print_exc()
 
 

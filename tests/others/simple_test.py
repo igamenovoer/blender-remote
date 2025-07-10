@@ -4,15 +4,17 @@ import time
 
 print("Testing port availability...")
 
+
 # Test if ports are available
 def test_port(port):
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        result = sock.connect_ex(('127.0.0.1', port))
+        result = sock.connect_ex(("127.0.0.1", port))
         sock.close()
         return result == 0
     except:
         return False
+
 
 port_6688 = test_port(6688)
 port_9876 = test_port(9876)

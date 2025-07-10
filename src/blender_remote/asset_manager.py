@@ -12,59 +12,59 @@ from .exceptions import BlenderCommandError
 class BlenderAssetManager:
     """
     Blender Asset Manager for accessing and managing asset libraries.
-    
+
     Provides high-level methods for working with Blender asset libraries,
     including listing collections, importing assets, and managing catalogs.
-    
+
     Parameters
     ----------
     client : BlenderMCPClient
         BlenderMCPClient instance for communication.
-        
+
     Attributes
     ----------
     client : BlenderMCPClient
         MCP client for Blender communication.
     """
-    
+
     def __init__(self, client: BlenderMCPClient):
         """
         Initialize asset manager.
-        
+
         Parameters
         ----------
         client : BlenderMCPClient
             BlenderMCPClient instance for communication.
         """
         self.client = client
-    
+
     @classmethod
-    def from_client(cls, client: BlenderMCPClient) -> 'BlenderAssetManager':
+    def from_client(cls, client: BlenderMCPClient) -> "BlenderAssetManager":
         """
         Create BlenderAssetManager from existing BlenderMCPClient.
-        
+
         Parameters
         ----------
         client : BlenderMCPClient
             Existing BlenderMCPClient instance.
-            
+
         Returns
         -------
         BlenderAssetManager
             New BlenderAssetManager instance using the provided client.
         """
         return cls(client)
-    
+
     def list_asset_libraries(self) -> List[AssetLibrary]:
         """
         List all configured asset libraries.
-        
+
         Returns
         -------
         list of AssetLibrary
             List of AssetLibrary objects with library information.
         """
-        code = '''
+        code = """
 import bpy
 
 # Get asset libraries
@@ -76,36 +76,36 @@ for lib in asset_libs:
     libraries.append({"name": lib.name, "path": lib.path})
 
 print(f"LIBRARIES_JSON:{libraries}")
-'''
+"""
         result = self.client.execute_python(code)
-        
+
         # Extract JSON from output
-        for line in result.split('\n'):
+        for line in result.split("\n"):
             if line.startswith("LIBRARIES_JSON:"):
                 import ast
+
                 libraries_data = ast.literal_eval(line[15:])
-                
+
                 # Convert to AssetLibrary objects
                 libraries = []
                 for lib_data in libraries_data:
-                    libraries.append(AssetLibrary(
-                        name=lib_data['name'],
-                        path=lib_data['path']
-                    ))
-                
+                    libraries.append(
+                        AssetLibrary(name=lib_data["name"], path=lib_data["path"])
+                    )
+
                 return libraries
-        
+
         return []
-    
+
     def get_asset_library(self, library_name: str) -> Optional[AssetLibrary]:
         """
         Get a specific asset library by name.
-        
+
         Parameters
         ----------
         library_name : str
             Name of the asset library.
-            
+
         Returns
         -------
         AssetLibrary or None
@@ -116,22 +116,22 @@ print(f"LIBRARIES_JSON:{libraries}")
             if lib.name == library_name:
                 return lib
         return None
-    
+
     def list_library_collections(self, library_name: str) -> List[AssetCollection]:
         """
         List all collections in a specific asset library.
-        
+
         Parameters
         ----------
         library_name : str
             Name of the asset library.
-            
+
         Returns
         -------
         list of AssetCollection
             List of AssetCollection objects with collection information.
         """
-        code = f'''
+        code = f"""
 import bpy
 import os
 
@@ -170,44 +170,47 @@ else:
                     pass
     
     print("COLLECTIONS_JSON:" + str(collections_data))
-'''
+"""
         result = self.client.execute_python(code)
-        
+
         # Extract JSON from output
-        for line in result.split('\n'):
+        for line in result.split("\n"):
             if line.startswith("COLLECTIONS_JSON:"):
                 import ast
+
                 collections_data = ast.literal_eval(line[17:])
-                
+
                 # Convert to AssetCollection objects
                 collections = []
                 for coll_data in collections_data:
-                    collections.append(AssetCollection(
-                        name=coll_data['name'],
-                        library_name=library_name,
-                        file_path=coll_data['file_path'],
-                        objects=coll_data.get('objects', [])
-                    ))
-                
+                    collections.append(
+                        AssetCollection(
+                            name=coll_data["name"],
+                            library_name=library_name,
+                            file_path=coll_data["file_path"],
+                            objects=coll_data.get("objects", []),
+                        )
+                    )
+
                 return collections
-        
+
         return []
-    
+
     def list_library_catalogs(self, library_name: str) -> Dict[str, Any]:
         """
         List all catalogs (directories and .blend files) in a library.
-        
+
         Parameters
         ----------
         library_name : str
             Name of the asset library.
-            
+
         Returns
         -------
         dict
             Dictionary with 'directories', 'blend_files', and 'summary' keys.
         """
-        code = f'''
+        code = f"""
 import bpy
 import os
 
@@ -249,21 +252,24 @@ else:
         print("CATALOGS_JSON:" + str(catalogs_data))
     except Exception as e:
         print("CATALOGS_JSON:" + str({{}}))
-'''
+"""
         result = self.client.execute_python(code)
-        
+
         # Extract JSON from output
-        for line in result.split('\n'):
+        for line in result.split("\n"):
             if line.startswith("CATALOGS_JSON:"):
                 import ast
+
                 return cast(Dict[str, Any], ast.literal_eval(line[14:]))
-        
+
         return {}
-    
-    def import_collection(self, library_name: str, file_path: str, collection_name: str) -> bool:
+
+    def import_collection(
+        self, library_name: str, file_path: str, collection_name: str
+    ) -> bool:
         """
         Import a collection from an asset library.
-        
+
         Parameters
         ----------
         library_name : str
@@ -272,13 +278,13 @@ else:
             Relative path to .blend file in library.
         collection_name : str
             Name of collection to import.
-            
+
         Returns
         -------
         bool
             True if import successful, False otherwise.
         """
-        code = f'''
+        code = f"""
 import bpy
 import os
 
@@ -310,21 +316,23 @@ if target_lib:
             pass
 
 print("IMPORT_SUCCESS:" + str(success))
-'''
+"""
         result = self.client.execute_python(code)
         return "IMPORT_SUCCESS:True" in result
-    
-    def search_collections(self, library_name: str, search_term: str) -> List[AssetCollection]:
+
+    def search_collections(
+        self, library_name: str, search_term: str
+    ) -> List[AssetCollection]:
         """
         Search for collections in a library by name.
-        
+
         Parameters
         ----------
         library_name : str
             Name of the asset library.
         search_term : str
             Search term to match against collection names.
-            
+
         Returns
         -------
         list of AssetCollection
@@ -332,16 +340,17 @@ print("IMPORT_SUCCESS:" + str(success))
         """
         all_collections = self.list_library_collections(library_name)
         search_term_lower = search_term.lower()
-        
+
         return [
-            coll for coll in all_collections
-            if search_term_lower in coll.name.lower()
+            coll for coll in all_collections if search_term_lower in coll.name.lower()
         ]
-    
-    def get_collection_info(self, library_name: str, file_path: str, collection_name: str) -> Optional[Dict[str, Any]]:
+
+    def get_collection_info(
+        self, library_name: str, file_path: str, collection_name: str
+    ) -> Optional[Dict[str, Any]]:
         """
         Get detailed information about a specific collection.
-        
+
         Parameters
         ----------
         library_name : str
@@ -350,13 +359,13 @@ print("IMPORT_SUCCESS:" + str(success))
             Relative path to .blend file in library.
         collection_name : str
             Name of collection to inspect.
-            
+
         Returns
         -------
         dict or None
             Dictionary with collection information if found, None otherwise.
         """
-        code = f'''
+        code = f"""
 import bpy
 import os
 
@@ -405,36 +414,37 @@ if target_lib:
             pass
 
 print("COLLECTION_INFO:" + str(collection_info))
-'''
+"""
         result = self.client.execute_python(code)
-        
+
         # Extract information from output
-        for line in result.split('\n'):
+        for line in result.split("\n"):
             if line.startswith("COLLECTION_INFO:"):
                 import ast
+
                 info_str = line[16:]
                 if info_str != "None":
                     return cast(Dict[str, Any], ast.literal_eval(info_str))
-        
+
         return None
-    
+
     def list_blend_files(self, library_name: str, subdirectory: str = "") -> List[str]:
         """
         List all .blend files in a library or subdirectory.
-        
+
         Parameters
         ----------
         library_name : str
             Name of the asset library.
         subdirectory : str, optional
             Subdirectory within the library to search.
-            
+
         Returns
         -------
         list of str
             List of relative paths to .blend files.
         """
-        code = f'''
+        code = f"""
 import bpy
 import os
 
@@ -463,26 +473,27 @@ if target_lib:
             pass
 
 print("BLEND_FILES:" + str(blend_files))
-'''
+"""
         result = self.client.execute_python(code)
-        
+
         # Extract file list from output
-        for line in result.split('\n'):
+        for line in result.split("\n"):
             if line.startswith("BLEND_FILES:"):
                 import ast
+
                 return cast(List[str], ast.literal_eval(line[12:]))
-        
+
         return []
-    
+
     def validate_library(self, library_name: str) -> Dict[str, Any]:
         """
         Validate an asset library and return status information.
-        
+
         Parameters
         ----------
         library_name : str
             Name of the asset library to validate.
-            
+
         Returns
         -------
         dict
@@ -494,11 +505,11 @@ print("BLEND_FILES:" + str(blend_files))
                 "valid": False,
                 "exists": False,
                 "accessible": False,
-                "error": f"Library '{library_name}' not found in configuration"
+                "error": f"Library '{library_name}' not found in configuration",
             }
-        
+
         # Check if path exists and is accessible
-        code = f'''
+        code = f"""
 import bpy
 import os
 
@@ -556,18 +567,19 @@ if target_lib:
             validation["error"] = str(e)
 
 print("VALIDATION:" + str(validation))
-'''
+"""
         result = self.client.execute_python(code)
-        
+
         # Extract validation results
-        for line in result.split('\n'):
+        for line in result.split("\n"):
             if line.startswith("VALIDATION:"):
                 import ast
+
                 return cast(Dict[str, Any], ast.literal_eval(line[11:]))
-        
+
         return {
             "valid": False,
             "exists": False,
             "accessible": False,
-            "error": "Failed to validate library"
+            "error": "Failed to validate library",
         }

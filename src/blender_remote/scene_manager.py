@@ -9,102 +9,113 @@ from io import BytesIO
 import base64
 
 from .client import BlenderMCPClient
-from .data_types import SceneObject, SceneInfo, CameraSettings, RenderSettings, MaterialSettings, ExportSettings
+from .data_types import (
+    SceneObject,
+    SceneInfo,
+    CameraSettings,
+    RenderSettings,
+    MaterialSettings,
+    ExportSettings,
+)
 from .exceptions import BlenderMCPError, BlenderCommandError
 
 
 class BlenderSceneManager:
     """
     Blender Scene Manager for accessing and manipulating the 3D scene.
-    
+
     Provides high-level methods for scene operations including object creation,
     manipulation, camera control, and rendering.
-    
+
     Parameters
     ----------
     client : BlenderMCPClient
         BlenderMCPClient instance for communication.
-        
+
     Attributes
     ----------
     client : BlenderMCPClient
         MCP client for Blender communication.
     """
-    
+
     def __init__(self, client: BlenderMCPClient):
         """
         Initialize scene manager.
-        
+
         Parameters
         ----------
         client : BlenderMCPClient
             BlenderMCPClient instance for communication.
         """
         self.client = client
-    
+
     @classmethod
-    def from_client(cls, client: BlenderMCPClient) -> 'BlenderSceneManager':
+    def from_client(cls, client: BlenderMCPClient) -> "BlenderSceneManager":
         """
         Create BlenderSceneManager from existing BlenderMCPClient.
-        
+
         Parameters
         ----------
         client : BlenderMCPClient
             Existing BlenderMCPClient instance.
-            
+
         Returns
         -------
         BlenderSceneManager
             New BlenderSceneManager instance using the provided client.
         """
         return cls(client)
-    
+
     def get_scene_summary(self) -> Dict[str, Any]:
         """
         Get a summary of the current scene.
-        
+
         Returns
         -------
         dict
             Dictionary with scene info (objects, materials, etc.).
         """
         return self.client.get_scene_info()
-    
+
     def get_scene_info(self) -> SceneInfo:
         """
         Get comprehensive scene information as structured data.
-        
+
         Returns
         -------
         SceneInfo
             SceneInfo object with all scene data.
         """
         summary = self.get_scene_summary()
-        
+
         # Convert objects to SceneObject instances
         objects = []
         for obj_data in summary.get("objects", []):
-            objects.append(SceneObject(
-                name=obj_data.get("name", ""),
-                type=obj_data.get("type", ""),
-                location=obj_data.get("location", [0, 0, 0]),
-                rotation=obj_data.get("rotation", [1, 0, 0, 0]),
-                scale=obj_data.get("scale", [1, 1, 1]),
-                visible=obj_data.get("visible", True)
-            ))
-        
+            objects.append(
+                SceneObject(
+                    name=obj_data.get("name", ""),
+                    type=obj_data.get("type", ""),
+                    location=obj_data.get("location", [0, 0, 0]),
+                    rotation=obj_data.get("rotation", [1, 0, 0, 0]),
+                    scale=obj_data.get("scale", [1, 1, 1]),
+                    visible=obj_data.get("visible", True),
+                )
+            )
+
         # Convert materials to MaterialSettings instances
         materials = []
         for mat_data in summary.get("materials", []):
-            materials.append(MaterialSettings(
-                name=mat_data.get("name", ""),
-                color=mat_data.get("color", [0.8, 0.8, 0.8, 1.0]),
-                metallic=mat_data.get("metallic", 0.0),
-                roughness=mat_data.get("roughness", 0.5),
-                emission=mat_data.get("emission", [0.0, 0.0, 0.0]),
-                emission_strength=mat_data.get("emission_strength", 0.0)
-            ))
-        
+            materials.append(
+                MaterialSettings(
+                    name=mat_data.get("name", ""),
+                    color=mat_data.get("color", [0.8, 0.8, 0.8, 1.0]),
+                    metallic=mat_data.get("metallic", 0.0),
+                    roughness=mat_data.get("roughness", 0.5),
+                    emission=mat_data.get("emission", [0.0, 0.0, 0.0]),
+                    emission_strength=mat_data.get("emission_strength", 0.0),
+                )
+            )
+
         # Extract camera settings if available
         camera = None
         camera_data = summary.get("camera")
@@ -113,42 +124,42 @@ class BlenderSceneManager:
                 location=camera_data.get("location", [7, -7, 5]),
                 target=camera_data.get("target", [0, 0, 0]),
                 fov=camera_data.get("fov", 50.0),
-                lens=camera_data.get("lens", 50.0)
+                lens=camera_data.get("lens", 50.0),
             )
-        
+
         # Extract render settings
         render_data = summary.get("render", {})
         render_settings = RenderSettings(
             resolution=render_data.get("resolution", [1920, 1080]),
             samples=render_data.get("samples", 128),
             engine=render_data.get("engine", "CYCLES"),
-            output_path=render_data.get("output_path", "")
+            output_path=render_data.get("output_path", ""),
         )
-        
+
         return SceneInfo(
             objects=objects,
             materials=materials,
             camera=camera,
             render_settings=render_settings,
-            collections=summary.get("collections", [])
+            collections=summary.get("collections", []),
         )
-    
+
     def list_objects(self, object_type: Optional[str] = None) -> List[SceneObject]:
         """
         List objects in the scene.
-        
+
         Parameters
         ----------
         object_type : str, optional
             Filter by object type (e.g., "MESH", "CAMERA", "LIGHT").
-            
+
         Returns
         -------
         list of SceneObject
             List of SceneObject instances with object info.
         """
         type_condition = f'obj.type == "{object_type}"' if object_type else "True"
-        code = f'''
+        code = f"""
 import bpy
 
 objects_data = []
@@ -164,41 +175,44 @@ for obj in bpy.context.scene.objects:
         }})
 
 print("OBJECTS_JSON:" + str(objects_data))
-'''
+"""
         result = self.client.execute_python(code)
-        
+
         # Extract JSON from output and create SceneObject instances
-        for line in result.split('\n'):
+        for line in result.split("\n"):
             if line.startswith("OBJECTS_JSON:"):
                 import ast
+
                 objects_data = ast.literal_eval(line[13:])
-                
+
                 # Convert to SceneObject instances
                 scene_objects = []
                 for obj_data in objects_data:
-                    scene_objects.append(SceneObject(
-                        name=obj_data['name'],
-                        type=obj_data['type'],
-                        location=obj_data['location'],
-                        rotation=obj_data['rotation'],
-                        scale=obj_data['scale'],
-                        visible=obj_data['visible']
-                    ))
-                
+                    scene_objects.append(
+                        SceneObject(
+                            name=obj_data["name"],
+                            type=obj_data["type"],
+                            location=obj_data["location"],
+                            rotation=obj_data["rotation"],
+                            scale=obj_data["scale"],
+                            visible=obj_data["visible"],
+                        )
+                    )
+
                 return scene_objects
-        
+
         return []
-    
+
     def get_objects_top_level(self) -> List[SceneObject]:
         """
         Get top-level objects directly under the Scene Collection.
-        
+
         Returns
         -------
         list of SceneObject
             List of SceneObject instances with top-level object info.
         """
-        code = '''
+        code = """
 import bpy
 
 objects_data = []
@@ -216,41 +230,44 @@ for obj in scene_collection.objects:
     })
 
 print("TOP_LEVEL_OBJECTS_JSON:" + str(objects_data))
-'''
+"""
         result = self.client.execute_python(code)
-        
+
         # Extract JSON from output and create SceneObject instances
-        for line in result.split('\n'):
+        for line in result.split("\n"):
             if line.startswith("TOP_LEVEL_OBJECTS_JSON:"):
                 import ast
+
                 objects_data = ast.literal_eval(line[23:])
-                
+
                 # Convert to SceneObject instances
                 scene_objects = []
                 for obj_data in objects_data:
-                    scene_objects.append(SceneObject(
-                        name=obj_data['name'],
-                        type=obj_data['type'],
-                        location=obj_data['location'],
-                        rotation=obj_data['rotation'],
-                        scale=obj_data['scale'],
-                        visible=obj_data['visible']
-                    ))
-                
+                    scene_objects.append(
+                        SceneObject(
+                            name=obj_data["name"],
+                            type=obj_data["type"],
+                            location=obj_data["location"],
+                            rotation=obj_data["rotation"],
+                            scale=obj_data["scale"],
+                            visible=obj_data["visible"],
+                        )
+                    )
+
                 return scene_objects
-        
+
         return []
-    
+
     def update_scene_objects(self, scene_objects: List[SceneObject]) -> Dict[str, bool]:
         """
         Update objects in the Blender scene with new properties.
-        
+
         Parameters
         ----------
         scene_objects : list of SceneObject
             List of SceneObject instances with updated properties.
             Note: SceneObject.type is not changeable and will be ignored.
-            
+
         Returns
         -------
         dict
@@ -258,20 +275,21 @@ print("TOP_LEVEL_OBJECTS_JSON:" + str(objects_data))
         """
         if not scene_objects:
             return {}
-        
+
         # Build update commands for all objects
         update_commands = []
         object_names = []
-        
+
         for obj in scene_objects:
             object_names.append(obj.name)
-            
+
             # Convert quaternion to list for Blender
             quat_list = obj.rotation.tolist()
             loc_list = obj.location.tolist()
             scale_list = obj.scale.tolist()
-            
-            update_commands.append(f'''
+
+            update_commands.append(
+                f"""
 if "{obj.name}" in bpy.data.objects:
     obj = bpy.data.objects["{obj.name}"]
     obj.location = ({loc_list[0]}, {loc_list[1]}, {loc_list[2]})
@@ -281,10 +299,11 @@ if "{obj.name}" in bpy.data.objects:
     obj.hide_render = {not obj.visible}
     update_results["{obj.name}"] = True
 else:
-    update_results["{obj.name}"] = False''')
-        
+    update_results["{obj.name}"] = False"""
+            )
+
         # Combine all commands into single Python script
-        code = f'''
+        code = f"""
 import bpy
 
 update_results = {{}}
@@ -292,30 +311,31 @@ update_results = {{}}
 {chr(10).join(update_commands)}
 
 print("UPDATE_RESULTS:" + str(update_results))
-'''
-        
+"""
+
         result = self.client.execute_python(code)
-        
+
         # Extract results from output
-        for line in result.split('\n'):
+        for line in result.split("\n"):
             if line.startswith("UPDATE_RESULTS:"):
                 import ast
+
                 return cast(Dict[str, bool], ast.literal_eval(line[15:]))
-        
+
         # Return default failure results if parsing failed
         return {name: False for name in object_names}
-    
+
     def clear_scene(self, keep_camera: bool = True, keep_light: bool = True) -> bool:
         """
         Clear all objects from the scene.
-        
+
         Parameters
         ----------
         keep_camera : bool, default True
             Whether to keep camera objects.
         keep_light : bool, default True
             Whether to keep light objects.
-            
+
         Returns
         -------
         bool
@@ -326,8 +346,8 @@ print("UPDATE_RESULTS:" + str(update_results))
             keep_types.append("CAMERA")
         if keep_light:
             keep_types.append("LIGHT")
-        
-        code = f'''
+
+        code = f"""
 import bpy
 
 # Select objects to delete
@@ -342,18 +362,21 @@ for obj in bpy.context.scene.objects:
 bpy.ops.object.delete()
 
 print("CLEAR_SUCCESS:True")
-'''
+"""
         result = self.client.execute_python(code)
         return "CLEAR_SUCCESS:True" in result
-    
-    def add_primitive(self, primitive_type: str, 
-                     location: Union[np.ndarray, Tuple[float, float, float], None] = None, 
-                     rotation: Union[np.ndarray, Tuple[float, float, float], None] = None,
-                     scale: Union[np.ndarray, Tuple[float, float, float], None] = None,
-                     name: Optional[str] = None) -> str:
+
+    def add_primitive(
+        self,
+        primitive_type: str,
+        location: Union[np.ndarray, Tuple[float, float, float], None] = None,
+        rotation: Union[np.ndarray, Tuple[float, float, float], None] = None,
+        scale: Union[np.ndarray, Tuple[float, float, float], None] = None,
+        name: Optional[str] = None,
+    ) -> str:
         """
         Add a primitive object to the scene.
-        
+
         Parameters
         ----------
         primitive_type : str
@@ -366,7 +389,7 @@ print("CLEAR_SUCCESS:True")
             Object scale (x, y, z).
         name : str, optional
             Optional name for the object.
-            
+
         Returns
         -------
         str
@@ -379,12 +402,12 @@ print("CLEAR_SUCCESS:True")
             rotation = np.array([0.0, 0.0, 0.0])
         if scale is None:
             scale = np.array([1.0, 1.0, 1.0])
-            
+
         # Convert to numpy arrays if needed
         location = np.asarray(location, dtype=np.float64)
         rotation = np.asarray(rotation, dtype=np.float64)
         scale = np.asarray(scale, dtype=np.float64)
-        
+
         # Validate shapes
         if location.shape != (3,):
             raise ValueError("location must be a 3-element array or tuple")
@@ -392,13 +415,13 @@ print("CLEAR_SUCCESS:True")
             raise ValueError("rotation must be a 3-element array or tuple")
         if scale.shape != (3,):
             raise ValueError("scale must be a 3-element array or tuple")
-        
+
         loc_str = f"({location[0]}, {location[1]}, {location[2]})"
         rot_str = f"({rotation[0]}, {rotation[1]}, {rotation[2]})"
         scale_str = f"({scale[0]}, {scale[1]}, {scale[2]})"
-        
-        name_assignment = f'obj.name = "{name}"' if name else ''
-        code = f'''
+
+        name_assignment = f'obj.name = "{name}"' if name else ""
+        code = f"""
 import bpy
 
 # Add primitive
@@ -415,21 +438,25 @@ obj.scale = {scale_str}
 {name_assignment}
 
 print("OBJECT_NAME:" + str(obj.name))
-'''
+"""
         result = self.client.execute_python(code)
-        
+
         # Extract object name
-        for line in result.split('\n'):
+        for line in result.split("\n"):
             if line.startswith("OBJECT_NAME:"):
                 return line[12:]
-        
+
         return ""
-    
-    def add_cube(self, location: Union[np.ndarray, Tuple[float, float, float], None] = None, 
-                 size: float = 2.0, name: Optional[str] = None) -> str:
+
+    def add_cube(
+        self,
+        location: Union[np.ndarray, Tuple[float, float, float], None] = None,
+        size: float = 2.0,
+        name: Optional[str] = None,
+    ) -> str:
         """
         Add a cube to the scene.
-        
+
         Parameters
         ----------
         location : numpy.ndarray or tuple of float, default (0, 0, 0)
@@ -438,7 +465,7 @@ print("OBJECT_NAME:" + str(obj.name))
             Cube size (edge length).
         name : str, optional
             Optional name for the cube.
-            
+
         Returns
         -------
         str
@@ -446,14 +473,18 @@ print("OBJECT_NAME:" + str(obj.name))
         """
         if location is None:
             location = np.array([0.0, 0.0, 0.0])
-        scale = np.array([size/2, size/2, size/2])
+        scale = np.array([size / 2, size / 2, size / 2])
         return self.add_primitive("cube", location=location, scale=scale, name=name)
-    
-    def add_sphere(self, location: Union[np.ndarray, Tuple[float, float, float], None] = None, 
-                   radius: float = 1.0, name: Optional[str] = None) -> str:
+
+    def add_sphere(
+        self,
+        location: Union[np.ndarray, Tuple[float, float, float], None] = None,
+        radius: float = 1.0,
+        name: Optional[str] = None,
+    ) -> str:
         """
         Add a sphere to the scene.
-        
+
         Parameters
         ----------
         location : numpy.ndarray or tuple of float, default (0, 0, 0)
@@ -462,7 +493,7 @@ print("OBJECT_NAME:" + str(obj.name))
             Sphere radius.
         name : str, optional
             Optional name for the sphere.
-            
+
         Returns
         -------
         str
@@ -471,13 +502,20 @@ print("OBJECT_NAME:" + str(obj.name))
         if location is None:
             location = np.array([0.0, 0.0, 0.0])
         scale = np.array([radius, radius, radius])
-        return self.add_primitive("uv_sphere", location=location, scale=scale, name=name)
-    
-    def add_cylinder(self, location: Union[np.ndarray, Tuple[float, float, float], None] = None, 
-                     radius: float = 1.0, depth: float = 2.0, name: Optional[str] = None) -> str:
+        return self.add_primitive(
+            "uv_sphere", location=location, scale=scale, name=name
+        )
+
+    def add_cylinder(
+        self,
+        location: Union[np.ndarray, Tuple[float, float, float], None] = None,
+        radius: float = 1.0,
+        depth: float = 2.0,
+        name: Optional[str] = None,
+    ) -> str:
         """
         Add a cylinder to the scene.
-        
+
         Parameters
         ----------
         location : numpy.ndarray or tuple of float, default (0, 0, 0)
@@ -488,7 +526,7 @@ print("OBJECT_NAME:" + str(obj.name))
             Cylinder depth (height).
         name : str, optional
             Optional name for the cylinder.
-            
+
         Returns
         -------
         str
@@ -496,24 +534,24 @@ print("OBJECT_NAME:" + str(obj.name))
         """
         if location is None:
             location = np.array([0.0, 0.0, 0.0])
-        scale = np.array([radius, radius, depth/2])
+        scale = np.array([radius, radius, depth / 2])
         return self.add_primitive("cylinder", location=location, scale=scale, name=name)
-    
+
     def delete_object(self, object_name: str) -> bool:
         """
         Delete an object by name.
-        
+
         Parameters
         ----------
         object_name : str
             Name of object to delete.
-            
+
         Returns
         -------
         bool
             True if object was deleted.
         """
-        code = f'''
+        code = f"""
 import bpy
 
 success = False
@@ -523,21 +561,23 @@ if "{object_name}" in bpy.data.objects:
     success = True
 
 print("DELETE_SUCCESS:" + str(success))
-'''
+"""
         result = self.client.execute_python(code)
         return "DELETE_SUCCESS:True" in result
-    
-    def move_object(self, object_name: str, location: Union[np.ndarray, Tuple[float, float, float]]) -> bool:
+
+    def move_object(
+        self, object_name: str, location: Union[np.ndarray, Tuple[float, float, float]]
+    ) -> bool:
         """
         Move an object to a new location.
-        
+
         Parameters
         ----------
         object_name : str
             Name of object to move.
         location : numpy.ndarray or tuple of float
             New location (x, y, z).
-            
+
         Returns
         -------
         bool
@@ -547,8 +587,8 @@ print("DELETE_SUCCESS:" + str(success))
         location = np.asarray(location, dtype=np.float64)
         if location.shape != (3,):
             raise ValueError("location must be a 3-element array or tuple")
-            
-        code = f'''
+
+        code = f"""
 import bpy
 
 success = False
@@ -558,22 +598,25 @@ if "{object_name}" in bpy.data.objects:
     success = True
 
 print("MOVE_SUCCESS:" + str(success))
-'''
+"""
         result = self.client.execute_python(code)
         return "MOVE_SUCCESS:True" in result
-    
-    def set_camera_location(self, location: Union[np.ndarray, Tuple[float, float, float]], 
-                           target: Union[np.ndarray, Tuple[float, float, float], None] = None) -> bool:
+
+    def set_camera_location(
+        self,
+        location: Union[np.ndarray, Tuple[float, float, float]],
+        target: Union[np.ndarray, Tuple[float, float, float], None] = None,
+    ) -> bool:
         """
         Set camera location and point it at target.
-        
+
         Parameters
         ----------
         location : numpy.ndarray or tuple of float
             Camera location (x, y, z).
         target : numpy.ndarray or tuple of float, default (0, 0, 0)
             Point to look at (x, y, z).
-            
+
         Returns
         -------
         bool
@@ -582,17 +625,17 @@ print("MOVE_SUCCESS:" + str(success))
         # Default target
         if target is None:
             target = np.array([0.0, 0.0, 0.0])
-            
+
         # Convert to numpy arrays and validate
         location = np.asarray(location, dtype=np.float64)
         target = np.asarray(target, dtype=np.float64)
-        
+
         if location.shape != (3,):
             raise ValueError("location must be a 3-element array or tuple")
         if target.shape != (3,):
             raise ValueError("target must be a 3-element array or tuple")
-        
-        code = f'''
+
+        code = f"""
 import bpy
 import mathutils
 
@@ -617,21 +660,23 @@ if camera:
     success = True
 
 print("CAMERA_SUCCESS:" + str(success))
-'''
+"""
         result = self.client.execute_python(code)
         return "CAMERA_SUCCESS:True" in result
-    
-    def render_image(self, filepath: str, resolution: Union[np.ndarray, Tuple[int, int], None] = None) -> bool:
+
+    def render_image(
+        self, filepath: str, resolution: Union[np.ndarray, Tuple[int, int], None] = None
+    ) -> bool:
         """
         Render the current scene to an image file.
-        
+
         Parameters
         ----------
         filepath : str
             Output file path.
         resolution : numpy.ndarray or tuple of int, default (1920, 1080)
             Render resolution (width, height).
-            
+
         Returns
         -------
         bool
@@ -640,13 +685,13 @@ print("CAMERA_SUCCESS:" + str(success))
         # Default resolution
         if resolution is None:
             resolution = np.array([1920, 1080], dtype=np.int32)
-            
+
         # Convert to numpy array and validate
         resolution = np.asarray(resolution, dtype=np.int32)
         if resolution.shape != (2,):
             raise ValueError("resolution must be a 2-element array or tuple")
-            
-        code = f'''
+
+        code = f"""
 import bpy
 
 # Set render settings
@@ -663,15 +708,20 @@ except:
     success = False
 
 print("RENDER_SUCCESS:" + str(success))
-'''
+"""
         result = self.client.execute_python(code)
         return "RENDER_SUCCESS:True" in result
-    
-    def get_object_as_glb_raw(self, object_name: str, with_material: bool = True, 
-                             blender_temp_dir: Optional[str] = None, keep_temp_file: bool = False) -> bytes:
+
+    def get_object_as_glb_raw(
+        self,
+        object_name: str,
+        with_material: bool = True,
+        blender_temp_dir: Optional[str] = None,
+        keep_temp_file: bool = False,
+    ) -> bytes:
         """
         Export a Blender object or collection as GLB and return raw bytes.
-        
+
         Parameters
         ----------
         object_name : str
@@ -682,18 +732,18 @@ print("RENDER_SUCCESS:" + str(success))
             Temporary directory path on the Blender side.
         keep_temp_file : bool, default False
             Whether to keep the temporary GLB file after transfer.
-            
+
         Returns
         -------
         bytes
             Raw GLB file data as bytes.
-            
+
         Raises
         ------
         BlenderCommandError
             If object/collection doesn't exist or export fails.
         """
-        code = f'''
+        code = f"""
 import bpy
 import os
 import tempfile
@@ -806,19 +856,19 @@ else:
             print(f"EXPORT_ERROR:{{str(e)}}")
     else:
         print("EXPORT_ERROR:No objects selected for export")
-'''
-        
+"""
+
         # Execute export in Blender
         result = self.client.execute_python(code)
-        
+
         # Parse the result to extract base64 data
         export_success = False
         glb_base64 = ""
         file_size = 0
-        
-        lines = result.split('\n')
+
+        lines = result.split("\n")
         in_base64_section = False
-        
+
         for line in lines:
             if line.startswith("EXPORT_SUCCESS:"):
                 export_success = True
@@ -832,30 +882,37 @@ else:
                 in_base64_section = False
             elif in_base64_section:
                 glb_base64 += line
-        
+
         if not export_success:
             raise BlenderCommandError("Export failed: Unknown error")
-        
+
         if not glb_base64:
             raise BlenderCommandError("No GLB data received from Blender")
-        
+
         # Decode base64 to bytes and return raw data
         try:
             glb_bytes = base64.b64decode(glb_base64)
-            
+
             if len(glb_bytes) != file_size:
-                raise BlenderCommandError(f"GLB data size mismatch: expected {file_size}, got {len(glb_bytes)}")
-            
+                raise BlenderCommandError(
+                    f"GLB data size mismatch: expected {file_size}, got {len(glb_bytes)}"
+                )
+
             return glb_bytes
-            
+
         except Exception as e:
             raise BlenderCommandError(f"Failed to decode GLB data: {str(e)}")
-    
-    def get_object_as_glb(self, object_name: str, with_material: bool = True, 
-                         blender_temp_dir: Optional[str] = None, keep_temp_file: bool = False) -> trimesh.Scene:
+
+    def get_object_as_glb(
+        self,
+        object_name: str,
+        with_material: bool = True,
+        blender_temp_dir: Optional[str] = None,
+        keep_temp_file: bool = False,
+    ) -> trimesh.Scene:
         """
         Export a Blender object or collection as GLB and load it as a trimesh Scene.
-        
+
         Parameters
         ----------
         object_name : str
@@ -866,25 +923,27 @@ else:
             Temporary directory path on the Blender side.
         keep_temp_file : bool, default False
             Whether to keep the temporary GLB file after transfer.
-            
+
         Returns
         -------
         trimesh.Scene
             Trimesh Scene object containing the exported geometry and materials.
-            
+
         Raises
         ------
         BlenderCommandError
             If object/collection doesn't exist or export fails.
         """
         # Get raw GLB data
-        glb_bytes = self.get_object_as_glb_raw(object_name, with_material, blender_temp_dir, keep_temp_file)
-        
+        glb_bytes = self.get_object_as_glb_raw(
+            object_name, with_material, blender_temp_dir, keep_temp_file
+        )
+
         # Load with trimesh from memory using BytesIO
         try:
             glb_file_obj = BytesIO(glb_bytes)
-            mesh_data = trimesh.load(glb_file_obj, file_type='glb')
-            
+            mesh_data = trimesh.load(glb_file_obj, file_type="glb")
+
             # Ensure we return a Scene object
             if isinstance(mesh_data, trimesh.Scene):
                 return mesh_data
@@ -893,14 +952,16 @@ else:
                 scene = trimesh.Scene()
                 scene.add_geometry(mesh_data)
                 return scene
-            
+
         except Exception as e:
             raise BlenderCommandError(f"Failed to load GLB with trimesh: {str(e)}")
-    
-    def take_screenshot(self, filepath: str, max_size: int = 1920, format: str = "png") -> Dict[str, Any]:
+
+    def take_screenshot(
+        self, filepath: str, max_size: int = 1920, format: str = "png"
+    ) -> Dict[str, Any]:
         """
         Capture viewport screenshot.
-        
+
         Parameters
         ----------
         filepath : str
@@ -909,7 +970,7 @@ else:
             Maximum image dimension in pixels.
         format : str, default "png"
             Image format ("png", "jpg").
-            
+
         Returns
         -------
         dict
