@@ -5,7 +5,7 @@ Blender MCP Client for communication with BLD Remote MCP service.
 import json
 import socket
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, cast
 
 from .exceptions import BlenderMCPError, BlenderConnectionError, BlenderCommandError, BlenderTimeoutError
 
@@ -239,7 +239,7 @@ class BlenderMCPClient:
                 error_msg = response.get('message', 'Unknown error')
                 raise BlenderCommandError(f"Blender command failed: {error_msg}")
                 
-            return response
+            return cast(Dict[str, Any], response)
             
         except (BlenderTimeoutError, BlenderConnectionError, BlenderCommandError, BlenderMCPError):
             # Re-raise our custom exceptions
@@ -277,7 +277,7 @@ class BlenderMCPClient:
             If execution fails.
         """
         response = self.execute_command("execute_code", {"code": code})
-        return response.get("result", {}).get("message", "")
+        return cast(str, response.get("result", {}).get("message", ""))
     
     def get_scene_info(self) -> Dict[str, Any]:
         """
@@ -294,7 +294,7 @@ class BlenderMCPClient:
             If command fails.
         """
         response = self.execute_command("get_scene_info")
-        return response.get("result", {})
+        return cast(Dict[str, Any], response.get("result", {}))
     
     def get_object_info(self, object_name: str) -> Dict[str, Any]:
         """
@@ -316,7 +316,7 @@ class BlenderMCPClient:
             If command fails.
         """
         response = self.execute_command("get_object_info", {"name": object_name})
-        return response.get("result", {})
+        return cast(Dict[str, Any], response.get("result", {}))
     
     def take_screenshot(self, filepath: str, max_size: int = 1920, format: str = "png") -> Dict[str, Any]:
         """
@@ -347,7 +347,7 @@ class BlenderMCPClient:
             "format": format
         }
         response = self.execute_command("get_viewport_screenshot", params)
-        return response.get("result", {})
+        return cast(Dict[str, Any], response.get("result", {}))
     
     def test_connection(self) -> bool:
         """

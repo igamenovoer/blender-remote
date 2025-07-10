@@ -4,7 +4,7 @@ Blender Scene Manager for accessing and manipulating the 3D scene.
 
 import numpy as np
 import trimesh
-from typing import Dict, List, Any, Union, Tuple, Optional
+from typing import Dict, List, Any, Union, Tuple, Optional, cast
 from io import BytesIO
 import base64
 
@@ -300,7 +300,7 @@ print("UPDATE_RESULTS:" + str(update_results))
         for line in result.split('\n'):
             if line.startswith("UPDATE_RESULTS:"):
                 import ast
-                return ast.literal_eval(line[15:])
+                return cast(Dict[str, bool], ast.literal_eval(line[15:]))
         
         # Return default failure results if parsing failed
         return {name: False for name in object_names}
@@ -883,8 +883,16 @@ else:
         # Load with trimesh from memory using BytesIO
         try:
             glb_file_obj = BytesIO(glb_bytes)
-            scene = trimesh.load(glb_file_obj, file_type='glb')
-            return scene
+            mesh_data = trimesh.load(glb_file_obj, file_type='glb')
+            
+            # Ensure we return a Scene object
+            if isinstance(mesh_data, trimesh.Scene):
+                return mesh_data
+            else:
+                # If it's a Geometry, wrap it in a Scene
+                scene = trimesh.Scene()
+                scene.add_geometry(mesh_data)
+                return scene
             
         except Exception as e:
             raise BlenderCommandError(f"Failed to load GLB with trimesh: {str(e)}")

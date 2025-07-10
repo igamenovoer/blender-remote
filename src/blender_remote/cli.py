@@ -9,9 +9,9 @@ import sys
 import argparse
 import json
 import socket
-from typing import Optional
+from typing import Optional, Dict, Any, cast
 
-def connect_and_send_command(command_type: str, params: dict = None, host: str = "127.0.0.1", port: int = 6688, timeout: float = 10.0) -> dict:
+def connect_and_send_command(command_type: str, params: Optional[Dict[str, Any]] = None, host: str = "127.0.0.1", port: int = 6688, timeout: float = 10.0) -> Dict[str, Any]:
     """Connect to BLD_Remote_MCP and send a command"""
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -32,7 +32,7 @@ def connect_and_send_command(command_type: str, params: dict = None, host: str =
         response = json.loads(response_data.decode('utf-8'))
         
         sock.close()
-        return response
+        return cast(Dict[str, Any], response)
         
     except Exception as e:
         return {
@@ -40,7 +40,7 @@ def connect_and_send_command(command_type: str, params: dict = None, host: str =
             "message": f"Connection failed: {e}"
         }
 
-def cmd_status():
+def cmd_status() -> None:
     """Check connection status to Blender"""
     print("🔍 Checking connection to Blender BLD_Remote_MCP service...")
     
@@ -58,7 +58,7 @@ def cmd_status():
         print(f"❌ Connection failed: {error_msg}")
         print("   Make sure Blender is running with BLD_Remote_MCP addon enabled")
 
-def cmd_exec(code: str):
+def cmd_exec(code: str) -> None:
     """Execute Python code in Blender"""
     print(f"🚀 Executing code in Blender...")
     print(f"Code: {code}")
@@ -76,7 +76,7 @@ def cmd_exec(code: str):
         error_msg = response.get("message", "Unknown error")
         print(f"❌ Execution failed: {error_msg}")
 
-def cmd_scene():
+def cmd_scene() -> None:
     """Get scene information"""
     print("📋 Getting scene information...")
     
@@ -106,7 +106,7 @@ def cmd_scene():
         error_msg = response.get("message", "Unknown error")
         print(f"❌ Failed to get scene info: {error_msg}")
 
-def cmd_screenshot(output: str = "screenshot.png", max_size: int = 800):
+def cmd_screenshot(output: str = "screenshot.png", max_size: int = 800) -> None:
     """Capture viewport screenshot"""
     print(f"📸 Capturing screenshot...")
     
@@ -126,7 +126,7 @@ def cmd_screenshot(output: str = "screenshot.png", max_size: int = 800):
         if "background mode" in error_msg.lower():
             print("   Note: Screenshots don't work in background mode. Use rendering instead.")
 
-def main():
+def main() -> int:
     """Enhanced CLI entry point for blender-remote tools"""
     parser = argparse.ArgumentParser(
         description="Enhanced CLI tools for blender-remote",

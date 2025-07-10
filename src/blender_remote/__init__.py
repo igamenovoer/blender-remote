@@ -4,19 +4,24 @@ Blender Remote Control Library
 A Python package for remotely controlling Blender through MCP server connections.
 """
 
+from typing import Optional, Callable, Any
+
 __version__ = "1.1.0"
 __author__ = "blender-remote contributors"
 
-# Import main entry points (conditionally)
+# Import main entry points (conditionally)  
+mcp_server_main: Optional[Callable[[], Any]] = None
+cli_main: Optional[Callable[[], Any]] = None
+
 try:
     from .mcp_server import main as mcp_server_main
 except ImportError:
-    mcp_server_main = None
+    pass
 
 try:
     from .cli import main as cli_main
 except ImportError:
-    cli_main = None
+    pass
 
 # Import core API components
 from .client import BlenderMCPClient
@@ -65,7 +70,7 @@ def connect_to_blender(host: str = "localhost", port: int = 6688, timeout: float
     """
     return BlenderMCPClient(host=host, port=port, timeout=timeout)
 
-def create_scene_manager(client: BlenderMCPClient = None, **kwargs) -> BlenderSceneManager:
+def create_scene_manager(client: Optional[BlenderMCPClient] = None, **kwargs: Any) -> BlenderSceneManager:
     """
     Create a BlenderSceneManager instance.
     
@@ -85,7 +90,7 @@ def create_scene_manager(client: BlenderMCPClient = None, **kwargs) -> BlenderSc
         client = connect_to_blender(**kwargs)
     return BlenderSceneManager(client)
 
-def create_asset_manager(client: BlenderMCPClient = None, **kwargs) -> BlenderAssetManager:
+def create_asset_manager(client: Optional[BlenderMCPClient] = None, **kwargs: Any) -> BlenderAssetManager:
     """
     Create a BlenderAssetManager instance.
     

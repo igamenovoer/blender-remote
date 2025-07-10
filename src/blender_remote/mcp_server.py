@@ -17,7 +17,7 @@ import logging
 import socket
 import sys
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 from fastmcp import FastMCP, Context
 from fastmcp.utilities.types import Image
@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Create the FastMCP server instance
-mcp = FastMCP("Blender Remote MCP")
+mcp: FastMCP = FastMCP("Blender Remote MCP")
 
 class BlenderConnection:
     """Handle connection to Blender TCP server."""
@@ -35,7 +35,7 @@ class BlenderConnection:
     def __init__(self, host: str = "127.0.0.1", port: int = 6688):
         self.host = host
         self.port = port
-        self.sock = None
+        self.sock: Optional[socket.socket] = None
     
     async def connect(self) -> bool:
         """Connect to Blender addon."""
@@ -55,6 +55,9 @@ class BlenderConnection:
             if not await self.connect():
                 raise ConnectionError("Cannot connect to Blender BLD_Remote_MCP service")
         
+        # At this point, self.sock should not be None
+        assert self.sock is not None
+        
         try:
             # Send command
             message = json.dumps(command)
@@ -66,7 +69,7 @@ class BlenderConnection:
                 raise ConnectionError("Connection closed by Blender")
                 
             response = json.loads(response_data.decode('utf-8'))
-            return response
+            return cast(Dict[str, Any], response)
                     
         except Exception as e:
             logger.error(f"Error communicating with Blender: {e}")
@@ -97,7 +100,7 @@ async def get_scene_info(ctx: Context) -> Dict[str, Any]:
             await ctx.error(f"Blender error: {response.get('message', 'Unknown error')}")
             return {"error": response.get("message", "Unknown error")}
         
-        return response.get("result", {})
+        return cast(Dict[str, Any], response.get("result", {}))
     except Exception as e:
         await ctx.error(f"Failed to get scene info: {e}")
         return {"error": str(e)}
@@ -117,7 +120,7 @@ async def execute_blender_code(code: str, ctx: Context) -> Dict[str, Any]:
             await ctx.error(f"Code execution failed: {response.get('message', 'Unknown error')}")
             return {"error": response.get("message", "Unknown error")}
         
-        return response.get("result", {"message": "Code executed successfully"})
+        return cast(Dict[str, Any], response.get("result", {"message": "Code executed successfully"}))
     except Exception as e:
         await ctx.error(f"Failed to execute code: {e}")
         return {"error": str(e)}
@@ -137,7 +140,7 @@ async def get_object_info(object_name: str, ctx: Context) -> Dict[str, Any]:
             await ctx.error(f"Failed to get object info: {response.get('message', 'Unknown error')}")
             return {"error": response.get("message", "Unknown error")}
         
-        return response.get("result", {})
+        return cast(Dict[str, Any], response.get("result", {}))
     except Exception as e:
         await ctx.error(f"Failed to get object info: {e}")
         return {"error": str(e)}
@@ -271,7 +274,7 @@ def blender_workflow_start() -> str:
 
 What would you like to do with your Blender scene?"""
 
-def main():
+def main() -> None:
     """Main entry point for uvx execution."""
     logger.info("🚀 Starting Blender Remote MCP Server...")
     logger.info("📡 This server connects to BLD_Remote_MCP service in Blender (port 6688)")

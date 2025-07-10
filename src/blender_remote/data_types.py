@@ -4,10 +4,21 @@ Data types and structures for Blender Remote Control Library.
 
 import numpy as np
 import attrs
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Callable, Union
 from scipy.spatial.transform import Rotation
+from numpy.typing import NDArray
 
 from .exceptions import BlenderRemoteError
+
+
+def _convert_to_float64_array(x: Any) -> NDArray[np.float64]:
+    """Convert input to float64 numpy array."""
+    return np.asarray(x, dtype=np.float64)
+
+
+def _convert_to_int32_array(x: Any) -> NDArray[np.int32]:
+    """Convert input to int32 numpy array."""
+    return np.asarray(x, dtype=np.int32)
 
 
 @attrs.define(kw_only=True, eq=False)
@@ -32,22 +43,22 @@ class SceneObject:
     """
     name: str
     type: str
-    location: np.ndarray = attrs.field(
-        converter=lambda x: np.asarray(x, dtype=np.float64),
+    location: NDArray[np.float64] = attrs.field(
+        converter=_convert_to_float64_array,
         factory=lambda: np.zeros(3, dtype=np.float64)
     )
-    rotation: np.ndarray = attrs.field(
-        converter=lambda x: np.asarray(x, dtype=np.float64),
+    rotation: NDArray[np.float64] = attrs.field(
+        converter=_convert_to_float64_array,
         factory=lambda: np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float64)  # w, x, y, z
     )
-    scale: np.ndarray = attrs.field(
-        converter=lambda x: np.asarray(x, dtype=np.float64),
+    scale: NDArray[np.float64] = attrs.field(
+        converter=_convert_to_float64_array,
         factory=lambda: np.ones(3, dtype=np.float64)
     )
     visible: bool = True
     
     @property
-    def world_transform(self) -> np.ndarray:
+    def world_transform(self) -> NDArray[np.float64]:
         """
         Get the 4x4 world transformation matrix.
         
@@ -73,7 +84,7 @@ class SceneObject:
         
         return transform
     
-    def set_world_transform(self, transform: np.ndarray) -> None:
+    def set_world_transform(self, transform: NDArray[np.float64]) -> None:
         """
         Set object properties from a 4x4 world transformation matrix.
         
@@ -208,8 +219,8 @@ class RenderSettings:
     output_path : str
         Output file path.
     """
-    resolution: np.ndarray = attrs.field(
-        converter=lambda x: np.asarray(x, dtype=np.int32),
+    resolution: NDArray[np.int32] = attrs.field(
+        converter=_convert_to_int32_array,
         factory=lambda: np.array([1920, 1080], dtype=np.int32)
     )
     samples: int = 128
@@ -248,19 +259,19 @@ class CameraSettings:
     lens : float
         Lens focal length in mm.
     """
-    location: np.ndarray = attrs.field(
-        converter=lambda x: np.asarray(x, dtype=np.float64),
+    location: NDArray[np.float64] = attrs.field(
+        converter=_convert_to_float64_array,
         factory=lambda: np.array([7.0, -7.0, 5.0], dtype=np.float64)
     )
-    target: np.ndarray = attrs.field(
-        converter=lambda x: np.asarray(x, dtype=np.float64),
+    target: NDArray[np.float64] = attrs.field(
+        converter=_convert_to_float64_array,
         factory=lambda: np.zeros(3, dtype=np.float64)
     )
     fov: float = 50.0
     lens: float = 50.0
     
     @property
-    def direction(self) -> np.ndarray:
+    def direction(self) -> NDArray[np.float64]:
         """
         Get the direction vector from camera to target.
         
@@ -309,14 +320,14 @@ class MaterialSettings:
         Emission strength.
     """
     name: str
-    color: np.ndarray = attrs.field(
-        converter=lambda x: np.asarray(x, dtype=np.float64),
+    color: NDArray[np.float64] = attrs.field(
+        converter=_convert_to_float64_array,
         factory=lambda: np.array([0.8, 0.8, 0.8, 1.0], dtype=np.float64)  # r, g, b, a
     )
     metallic: float = 0.0
     roughness: float = 0.5
-    emission: np.ndarray = attrs.field(
-        converter=lambda x: np.asarray(x, dtype=np.float64),
+    emission: NDArray[np.float64] = attrs.field(
+        converter=_convert_to_float64_array,
         factory=lambda: np.zeros(3, dtype=np.float64)  # r, g, b
     )
     emission_strength: float = 0.0
@@ -324,7 +335,7 @@ class MaterialSettings:
     @property
     def is_emissive(self) -> bool:
         """Check if material is emissive."""
-        return self.emission_strength > 0.0 and np.any(self.emission > 0.0)
+        return bool(self.emission_strength > 0.0 and np.any(self.emission > 0.0))
 
 
 @attrs.define(kw_only=True, eq=False)

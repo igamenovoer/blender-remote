@@ -2,7 +2,7 @@
 Blender Asset Manager for accessing and managing asset libraries.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, cast
 
 from .client import BlenderMCPClient
 from .data_types import AssetLibrary, AssetCollection
@@ -256,7 +256,7 @@ else:
         for line in result.split('\n'):
             if line.startswith("CATALOGS_JSON:"):
                 import ast
-                return ast.literal_eval(line[14:])
+                return cast(Dict[str, Any], ast.literal_eval(line[14:]))
         
         return {}
     
@@ -414,7 +414,7 @@ print("COLLECTION_INFO:" + str(collection_info))
                 import ast
                 info_str = line[16:]
                 if info_str != "None":
-                    return ast.literal_eval(info_str)
+                    return cast(Dict[str, Any], ast.literal_eval(info_str))
         
         return None
     
@@ -470,7 +470,7 @@ print("BLEND_FILES:" + str(blend_files))
         for line in result.split('\n'):
             if line.startswith("BLEND_FILES:"):
                 import ast
-                return ast.literal_eval(line[12:])
+                return cast(List[str], ast.literal_eval(line[12:]))
         
         return []
     
@@ -563,7 +563,7 @@ print("VALIDATION:" + str(validation))
         for line in result.split('\n'):
             if line.startswith("VALIDATION:"):
                 import ast
-                return ast.literal_eval(line[11:])
+                return cast(Dict[str, Any], ast.literal_eval(line[11:]))
         
         return {
             "valid": False,
