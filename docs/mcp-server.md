@@ -497,33 +497,6 @@ export BLD_REMOTE_MCP_PORT=9999
 2. Find "BLD Remote MCP"
 3. Set custom port in addon preferences
 
-### Integration with Build Systems
-
-**Docker Integration:**
-```dockerfile
-FROM blender:4.4.3
-
-# Install addon
-COPY blender_addon/bld_remote_mcp/ /opt/blender/scripts/addons/
-
-# Set environment
-ENV BLD_REMOTE_MCP_PORT=6688
-ENV BLD_REMOTE_MCP_START_NOW=1
-
-# Start Blender in background
-CMD ["blender", "--background", "--python-exit-code", "1"]
-```
-
-**CI/CD Integration:**
-```yaml
-# GitHub Actions example
-- name: Setup Blender MCP
-  run: |
-    export BLD_REMOTE_MCP_START_NOW=1
-    blender --background &
-    sleep 10
-    uvx blender-remote status
-```
 
 ## Best Practices
 

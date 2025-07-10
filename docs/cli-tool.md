@@ -1,6 +1,6 @@
 # CLI Configuration Tool
 
-**New in v1.2.0:** `blender-remote-cli` provides comprehensive configuration management, addon installation, and Blender process control for the blender-remote ecosystem.
+`blender-remote-cli` provides comprehensive configuration management, addon installation, and Blender process control for the blender-remote ecosystem.
 
 ## Overview
 
@@ -239,37 +239,6 @@ blender-remote-cli init /usr/bin/blender --backup
 ```
 
 ## Advanced Usage
-
-### CI/CD Integration
-
-```bash
-# Automated setup for CI environments
-blender-remote-cli init $BLENDER_PATH
-blender-remote-cli install
-blender-remote-cli start --background &
-
-# Wait for service startup
-sleep 10
-
-# Run automation
-python automation_script.py
-```
-
-### Docker Integration
-
-```dockerfile
-FROM blender:4.4.3
-
-# Install blender-remote
-RUN pip install blender-remote
-
-# Setup configuration
-RUN blender-remote-cli init /usr/local/blender/blender
-RUN blender-remote-cli install
-
-# Start with background service
-CMD ["blender-remote-cli", "start", "--background"]
-```
 
 ### Development Workflow
 

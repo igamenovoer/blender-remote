@@ -135,51 +135,28 @@ Python Control API ←──┘                               Blender Python API
 
 ## Documentation
 
-### User Guides
-- **[CLI Configuration Tool](cli-tool.md)** - Setup and management
-- **[MCP Server Guide](mcp-server.md)** - Server configuration
-- **[LLM Integration Guide](llm-integration.md)** - IDE setup
-- **[Python Control API](python-control-api.md)** - Python usage
-- **[API Reference](api-reference.md)** - Tool documentation
+### Quick Start Guides
+- **[Installation & Setup](cli-tool.md)** - Get started with CLI tools and addon installation
+- **[LLM Integration](llm-integration.md)** - Connect to Claude, VSCode, Cursor, and other AI IDEs
+- **[Python API Usage](python-control-api.md)** - Control Blender programmatically with Python
 
-### Developer Resources
-- **[Development Guide](development.md)** - Architecture and contributing
+### Reference Documentation
+- **[MCP Server Reference](mcp-server.md)** - Complete server setup and tool documentation
+- **[API Reference](api-reference.md)** - Detailed tool parameters and examples
 
-## Socket-Level Communication
+### Advanced Topics
+- **[Development Guide](development.md)** - Architecture, contributing, and extending the system
 
-```python
-import socket, json
-
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect(('127.0.0.1', 6688))
-command = {"type": "execute_code", "params": {"code": "bpy.ops.mesh.primitive_cube_add()"}}
-sock.send(json.dumps(command).encode())
-response = json.loads(sock.recv(4096).decode())
-sock.close()
-```
-
-## CLI Configuration Tool
+## CLI Tools
 
 ```bash
-# Setup and management
+# One-time setup
 blender-remote-cli init /path/to/blender
 blender-remote-cli install
+
+# Start and manage service
 blender-remote-cli start --background
-blender-remote-cli config set mcp_service.default_port=7777
 blender-remote-cli status
-```
-
-## Testing
-
-```bash
-# Full test suite
-pixi run python tests/run_dual_service_tests.py
-
-# Quick verification
-pixi run python tests/smoke_test.py
-
-# MCP server functionality
-pixi run python tests/mcp-server/test_fastmcp_server.py
 ```
 
 ## Troubleshooting
@@ -193,16 +170,6 @@ pixi run python tests/mcp-server/test_fastmcp_server.py
 
 **MCP server not found:**
 - Install with uvx: `uvx blender-remote`
-
-### Debug Mode
-
-```bash
-# Test MCP server directly
-pixi run python -m blender_remote.mcp_server
-
-# Use FastMCP inspector
-pixi run fastmcp dev src/blender_remote/mcp_server.py
-```
 
 ## License
 
