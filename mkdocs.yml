@@ -48,6 +48,7 @@ theme:
 nav:
   - Home: index.md
   - User Guide:
+    - CLI Configuration Tool: cli-tool.md
     - MCP Server Setup: mcp-server.md
     - LLM IDE Integration: llm-integration.md
     - API Reference: api-reference.md

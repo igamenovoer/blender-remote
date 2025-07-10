@@ -29,7 +29,15 @@ uvx blender-remote  # Standard MCP protocol
 **Compatible with**: VSCode Claude, Claude Desktop, Cursor, and other LLM IDEs
 
 ### 4. **🐍 Python Control Classes**
-Direct Python API for programmatic Blender control *(coming soon)*
+Direct Python API for programmatic Blender control
+
+### 5. **⚙️ CLI Configuration Tool**
+```bash
+blender-remote-cli init /path/to/blender  # Auto-setup
+blender-remote-cli install               # Install addon
+blender-remote-cli start --background    # Launch service
+```
+**Perfect for**: Automated setup, configuration management, CI/CD integration
 
 ## 🚀 Quick Start
 
@@ -70,13 +78,22 @@ python your_automation_script.py
 
 1. **Install Blender Add-on**
    
+   **Option A: Automated Setup (Recommended)**
+   ```bash
+   pip install blender-remote
+   blender-remote-cli init /path/to/blender
+   blender-remote-cli install
+   ```
+   
+   **Option B: Manual Setup**
+   
    **Create the zip file:**
    ```bash
    cd blender-remote/blender_addon/
    zip -r bld_remote_mcp.zip bld_remote_mcp/
    ```
    
-   **Install via Blender GUI (Recommended):**
+   **Install via Blender GUI:**
    1. Open Blender → `Edit > Preferences > Add-ons`
    2. Click `Install...` and select `bld_remote_mcp.zip`
    3. Search for "BLD Remote MCP" and enable it ✓
@@ -90,6 +107,15 @@ python your_automation_script.py
    **Note**: The `bld_remote_mcp.zip` file must be created from the `blender_addon/bld_remote_mcp/` directory.
 
 2. **Start Blender with Auto-Service**
+   
+   **Option A: Using CLI Tool (Recommended)**
+   ```bash
+   blender-remote-cli start  # GUI mode
+   # or
+   blender-remote-cli start --background  # Headless mode
+   ```
+   
+   **Option B: Manual Environment Setup**
    ```bash
    export BLD_REMOTE_MCP_PORT=6688
    export BLD_REMOTE_MCP_START_NOW=1
@@ -134,6 +160,7 @@ pixi run python tests/mcp-server/test_fastmcp_server.py
 ## 📚 Documentation
 
 ### User Guides
+- **[CLI Configuration Tool](cli-tool.md)** - Complete setup and management with the CLI tool
 - **[MCP Server Guide](mcp-server.md)** - Complete server setup and configuration
 - **[LLM Integration Guide](llm-integration.md)** - VSCode, Claude Desktop, and other IDE setup
 - **[API Reference](api-reference.md)** - Comprehensive tool documentation

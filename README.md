@@ -70,6 +70,19 @@ libraries = asset_manager.list_asset_libraries()
 
 **Enables**: Native Python integration, custom automation tools, scripted workflows
 
+### 5. **⚙️ CLI Configuration Tool**
+**New in v1.2.0:** Comprehensive setup and management tool:
+
+```bash
+# Automated setup and configuration
+blender-remote-cli init /path/to/blender  # Auto-detect paths and create config
+blender-remote-cli install               # Install addon automatically
+blender-remote-cli start --background    # Launch with service
+blender-remote-cli config set mcp_service.default_port=7777  # Configure settings
+```
+
+**Perfect for**: Automated setup, configuration management, CI/CD integration, development workflows
+
 ## 🚀 Quick Start
 
 ### For Automation Users
@@ -109,7 +122,28 @@ python your_automation_script.py
 
 ### 1. Install Blender Add-on
 
-#### Create the Add-on Zip File
+#### Option A: Automated Installation (Recommended)
+
+**New in v1.2.0:** Use the CLI tool for automatic setup:
+
+```bash
+# Install blender-remote
+pip install blender-remote
+
+# Initialize configuration and install addon automatically
+blender-remote-cli init /path/to/blender
+blender-remote-cli install
+```
+
+The CLI tool will:
+- Auto-detect Blender version and addon directories
+- Create proper configuration file
+- Install and enable the addon automatically
+- Verify installation success
+
+#### Option B: Manual Installation
+
+**Create the Add-on Zip File:**
 
 ```bash
 # Navigate to the blender_addon directory from project root
@@ -120,7 +154,7 @@ zip -r bld_remote_mcp.zip bld_remote_mcp/
 
 **Note**: The `bld_remote_mcp.zip` file is not included in the repository and must be created by users from the `blender_addon/bld_remote_mcp/` directory.
 
-#### Install via Blender GUI (Recommended)
+**Install via Blender GUI:**
 
 1. **Open Blender**
 2. Go to `Edit > Preferences` from the top menu bar
@@ -130,7 +164,7 @@ zip -r bld_remote_mcp.zip bld_remote_mcp/
 6. Click `Install Add-on`
 7. **Search for "BLD Remote MCP" and enable it by ticking the checkbox**
 
-#### Alternative: Manual Installation
+**Alternative: Manual Installation**
 
 ```bash
 # Copy directly to Blender addons directory
@@ -162,6 +196,21 @@ Server is now listening for connections on 127.0.0.1:6688
 ```
 
 ### 2. Start Blender with Auto-Service
+
+#### Option A: Using CLI Tool (Recommended)
+
+```bash
+# Start with GUI (automatic service startup)
+blender-remote-cli start
+
+# Start in background mode for headless operation
+blender-remote-cli start --background
+
+# Override default port
+blender-remote-cli start --port=7777
+```
+
+#### Option B: Manual Environment Setup
 
 ```bash
 # Set environment variables and start Blender
@@ -268,20 +317,51 @@ cd blender-remote
 pixi install  # or pip install -e .
 ```
 
-### CLI Tools (for testing)
+### CLI Configuration Tool
+
+**New in v1.2.0:** `blender-remote-cli` - Comprehensive configuration and management tool
 
 ```bash
-# Check connection to BLD_Remote_MCP service
-blender-remote status
+# Initialize configuration with auto-detection
+blender-remote-cli init /path/to/blender
 
-# Execute Blender Python code
-blender-remote exec "bpy.ops.mesh.primitive_cube_add()"
+# Automatically install BLD Remote MCP addon
+blender-remote-cli install
 
-# Get scene information
-blender-remote scene
+# Configure service settings
+blender-remote-cli config set mcp_service.default_port=7777
+blender-remote-cli config get
 
-# Capture viewport screenshot
-blender-remote screenshot
+# Start Blender with service (GUI mode)
+blender-remote-cli start
+
+# Start in background mode for headless operation
+blender-remote-cli start --background
+
+# Execute custom scripts before service startup
+blender-remote-cli start --pre-file=setup.py
+blender-remote-cli start --pre-code="print('Custom startup')"
+
+# Check service connection status
+blender-remote-cli status
+```
+
+**Configuration Management:**
+- Auto-detects Blender version and paths
+- Creates `~/.config/blender-remote/bld-remote-config.yaml`
+- Supports backup and restore operations
+- Dot notation for nested settings
+
+**Advanced Options:**
+```bash
+# Override default port
+blender-remote-cli start --port=8888
+
+# Pass additional arguments to Blender
+blender-remote-cli start -- --factory-startup
+
+# Initialize with backup of existing config
+blender-remote-cli init /path/to/blender --backup
 ```
 
 ### Python Control API (for custom scripts)
