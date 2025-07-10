@@ -44,20 +44,20 @@ theme:
   icon:
     repo: fontawesome/brands/github
 
-# Comprehensive navigation
+# Navigation
 nav:
   - Home: index.md
-  - User Guide:
-    - CLI Configuration Tool: cli-tool.md
-    - MCP Server Setup: mcp-server.md
-    - LLM IDE Integration: llm-integration.md
+  - Quick Start:
+    - Installation & Setup: cli-tool.md
+    - LLM Integration: llm-integration.md
+    - Python API: python-control-api.md
+  - Reference:
+    - MCP Server: mcp-server.md
     - API Reference: api-reference.md
-  - Developer Guide:
+  - Advanced:
     - Development: development.md
-    - Test Suite: ../tests/README.md
-    - Examples: ../examples/README.md
   - Examples:
-    - MCP Usage: ../examples/mcp-usage/README.md
+    - MCP Usage Guide: ../examples/mcp-usage/README.md
     - Basic Operations: ../examples/mcp-usage/01_basic_operations.md
     - Object Creation: ../examples/mcp-usage/02_object_creation.md
     - Screenshot Workflows: ../examples/mcp-usage/03_screenshot_workflows.md
@@ -107,8 +107,6 @@ markdown_extensions:
 plugins:
   - search:
       separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
-  - minify:
-      minify_html: true
 
 # Additional configuration
 extra:
