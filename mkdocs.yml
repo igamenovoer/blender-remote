@@ -56,11 +56,6 @@ nav:
     - API Reference: api-reference.md
   - Advanced:
     - Development: development.md
-  - Examples:
-    - MCP Usage Guide: ../examples/mcp-usage/README.md
-    - Basic Operations: ../examples/mcp-usage/01_basic_operations.md
-    - Object Creation: ../examples/mcp-usage/02_object_creation.md
-    - Screenshot Workflows: ../examples/mcp-usage/03_screenshot_workflows.md
 
 # Enhanced extensions
 markdown_extensions:

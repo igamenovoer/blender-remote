@@ -13,15 +13,7 @@ The MCP server acts as a bridge between your LLM IDE and Blender, allowing AI as
 
 ## Architecture
 
-```
-LLM IDE (VSCode/Claude Desktop)
-    ↓ MCP Protocol (stdio)
-uvx blender-remote (FastMCP Server)
-    ↓ JSON-TCP (port 6688)
-BLD_Remote_MCP (Blender Addon)
-    ↓ Blender Python API
-Blender Application
-```
+![Blender Remote Architecture](architecture-simple.svg)
 
 ## Installation & Setup
 

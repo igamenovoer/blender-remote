@@ -116,15 +116,7 @@ result = client.execute_python("bpy.ops.mesh.primitive_sphere_add()")
 
 ## How It Works
 
-```
-External Python ←─────┐
-                      │
-LLM (Claude/VSCode) ←─┼─→ MCP/JSON-TCP (port 6688) ←─ BLD_Remote_MCP (addon)
-                      │                                      ↓
-Python Control API ←──┘                               Blender Python API
-                                                             ↓
-                                                     Blender (GUI/background)
-```
+![Blender Remote Full Architecture](architecture-full.svg)
 
 ## Example: LLM-Assisted API Development
 
