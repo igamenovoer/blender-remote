@@ -172,3 +172,6 @@ pixi.lock
 
 # pixi environments
 .pixi
+
+# Magic Context - separate repo for reusable AI prompts
+.magic-context/
