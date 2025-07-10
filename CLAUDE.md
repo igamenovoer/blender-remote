@@ -306,3 +306,8 @@ Bash(command="blender &", timeout=120000)  # 2 minutes = 120000ms
 ## Magic Context Project Memory
 
 - **`magic-context` project is in `<workspace_root>/.magic-context`, which is used for collecting reusable prompts, in the future I will refer to this project as `magic-context`, such as `add this xxx.md into magic-context`, and you shall add the xxx.md into `.magic-context`, find appropriate places for the given file if not specified explicitly**
+
+## Project Memories
+
+### Documentation Visualization Techniques
+- In documentation, you can use graphviz and plantuml to generate good looking svg for visualization, avoid using ascii diagram
