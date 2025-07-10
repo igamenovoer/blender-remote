@@ -30,6 +30,7 @@ classifiers = [
 dependencies = [
     "fastmcp>=2.0.0",  # FastMCP framework for Model Context Protocol
     "click>=8.0.0", "pydantic>=2.11.7",  # for CLI tools
+    "pyyaml>=6.0.0",  # for configuration files
 ]
 
 [project.optional-dependencies]
@@ -55,6 +56,7 @@ Repository = "https://github.com/igamenovoer/blender-remote.git"
 
 [project.scripts]
 blender-remote = "blender_remote.mcp_server:main"
+blender-remote-cli = "blender_remote.cli:cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -139,6 +141,7 @@ requests = ">=2.32.4"
 attrs = ">=25.3.0"
 # Type checking stubs
 scipy-stubs = "*"
+fastmcp = ">=2.10.4,<3"
 
 # PyPI-only dependencies that don't have conda equivalents
 [tool.pixi.pypi-dependencies]
