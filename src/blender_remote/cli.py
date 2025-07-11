@@ -469,7 +469,7 @@ signal.signal(signal.SIGTERM, signal_handler)  # Termination
 print("Blender running in background mode. Press Ctrl+C to exit.")
 print("MCP service should be starting on the configured port...")
 
-# Keep the main thread alive by driving the async loop
+# Keep the main thread alive with simple sleep loop (sync version)
 # This prevents Blender from exiting after the script finishes
 try:
     # Give the MCP service time to start up
@@ -478,19 +478,22 @@ try:
     
     print("✅ Starting main background loop...")
     
-    # Import the async loop module to drive the event loop
+    # Import BLD Remote module for status checking
     import bld_remote
-    from bld_remote_mcp import async_loop
     
-    # Main keep-alive loop - drive the async event loop
+    # Verify service started successfully
+    status = bld_remote.get_status()
+    if status.get('running'):
+        print(f"✅ MCP service is running on port {status.get('port')}")
+    else:
+        print("⚠️ Warning: MCP service may not have started properly")
+    
+    # Main keep-alive loop - simple sleep for sync version
     while _keep_running:
-        # This is the heart of the background mode operation.
-        # It drives the asyncio event loop, allowing the server to run.
-        if async_loop.kick_async_loop():
-            # The loop has no more tasks and wants to stop.
-            print("Async loop completed, exiting...")
-            break
-        time.sleep(0.05)  # 50ms sleep to prevent high CPU usage
+        # Simple keep-alive loop for synchronous threading-based server
+        # The server runs in its own daemon threads, we just need to prevent
+        # the main thread from exiting
+        time.sleep(0.05)  # 50ms sleep for responsive signal handling
             
 except KeyboardInterrupt:
     print("Interrupted by user, shutting down...")

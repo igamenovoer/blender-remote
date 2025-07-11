@@ -137,11 +137,13 @@ mkdocs-material = "*"
 # Core API dependencies
 numpy = ">=1.24.0"
 scipy = ">=1.16.0"
-requests = ">=2.32.4"
+requests = ">=2.32.4,<3"
 attrs = ">=25.3.0"
 # Type checking stubs
 scipy-stubs = "*"
 fastmcp = ">=2.10.4,<3"
+uvicorn = ">=0.35.0,<0.36"
+mcp = ">=1.10.1,<2"
 
 # PyPI-only dependencies that don't have conda equivalents
 [tool.pixi.pypi-dependencies]
@@ -183,4 +185,4 @@ test-blender = "python tests/manual_test_example.py"
 mcp-server = "python -m blender_remote.mcp_server"
 
 [dependency-groups]
-dev = ["blender-mcp>=1.2,<2"]
+dev = ["blender-mcp>=1.2,<2", "mcp[cli]"]

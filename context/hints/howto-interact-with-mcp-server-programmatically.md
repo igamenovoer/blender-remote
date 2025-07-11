@@ -1,12 +1,122 @@
 # How to Interact with an MCP Server Programmatically
 
-This guide explains two different ways to start and interact with an MCP server (like the `blender-mcp` server):
-1.  **Programmatically with a Python Script**: This method involves writing a Python script that launches, controls, and communicates with the server. It's ideal for automated testing and building custom clients.
-2.  **Manually with `curl`**: This method involves starting the server from the command line and using a tool like `curl` to send HTTP requests. It's great for manual debugging and exploring the API.
+This guide explains different ways to start and interact with an MCP server (like the `blender-mcp` server):
+1.  **Using MCP CLI Tools**: The standard way to interact with MCP servers using the official `mcp[cli]` package.
+2.  **Programmatically with a Python Script**: Writing a Python script that launches, controls, and communicates with the server. Ideal for automated testing and building custom clients.
+3.  **Manually with `curl`**: Starting the server from the command line and using `curl` to send HTTP requests. Great for manual debugging and exploring the API.
 
 ---
 
-## Section 1: Programmatic Interaction with a Python Script
+## Section 1: Using MCP CLI Tools (Recommended)
+
+The `blender-mcp` server is a proper MCP-compliant server built with `FastMCP`, which means it works perfectly with the official MCP CLI tools. This is the **recommended approach** for most use cases.
+
+### Installation
+
+```bash
+# Install the MCP CLI tools
+pip install "mcp[cli]"
+# or using uv (recommended)
+uv add "mcp[cli]"
+```
+
+### Usage Examples
+
+#### Development and Testing with MCP Inspector
+
+The MCP Inspector provides an interactive web interface for testing your server:
+
+```bash
+# Test the server with MCP Inspector
+uv run mcp dev context/refcode/blender-mcp/src/blender_mcp/server.py
+
+# With additional dependencies if needed
+uv run mcp dev context/refcode/blender-mcp/src/blender_mcp/server.py --with tempfile --with pathlib
+```
+
+This opens a web interface where you can:
+- See all available tools and their schemas
+- Test tools interactively
+- View real-time logs
+- Debug issues easily
+
+#### Direct Server Execution
+
+```bash
+# Run the server directly
+uv run mcp run context/refcode/blender-mcp/src/blender_mcp/server.py
+
+# With specific transport (stdio is default)
+uv run mcp run context/refcode/blender-mcp/src/blender_mcp/server.py --transport stdio
+```
+
+#### Claude Desktop Integration
+
+```bash
+# Install in Claude Desktop
+uv run mcp install context/refcode/blender-mcp/src/blender_mcp/server.py --name "Blender MCP Server"
+
+# With environment variables if needed
+uv run mcp install context/refcode/blender-mcp/src/blender_mcp/server.py \
+  --name "Blender MCP Server" \
+  -v BLENDER_HOST=localhost \
+  -v BLENDER_PORT=9876
+```
+
+#### Programmatic MCP Client
+
+You can also create a custom MCP client to interact with the server:
+
+```python
+import asyncio
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+async def interact_with_blender_mcp():
+    # Configure server parameters
+    server_params = StdioServerParameters(
+        command="python",
+        args=["/workspace/code/blender-remote/context/refcode/blender-mcp/src/blender_mcp/server.py"],
+        env=None,
+    )
+    
+    # Connect to server
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            # Initialize the connection
+            await session.initialize()
+            
+            # List available tools
+            tools = await session.list_tools()
+            print(f"Available tools: {[tool.name for tool in tools.tools]}")
+            
+            # Call get_scene_info tool
+            scene_result = await session.call_tool("get_scene_info", {})
+            print(f"Scene info: {scene_result}")
+            
+            # Execute Blender code
+            code_result = await session.call_tool("execute_blender_code", {
+                "code": "import bpy; bpy.ops.mesh.primitive_cube_add(location=(2, 2, 2))"
+            })
+            print(f"Code execution result: {code_result}")
+
+# Run the client
+asyncio.run(interact_with_blender_mcp())
+```
+
+### Why Use MCP CLI Tools?
+
+1. **Standard Protocol**: Uses the official MCP protocol for maximum compatibility
+2. **Built-in Tools**: MCP Inspector, Claude Desktop integration, etc.
+3. **Proper Error Handling**: Better error messages and debugging
+4. **Type Safety**: Full schema validation and type checking
+5. **Ecosystem Integration**: Works with all MCP-compatible clients
+
+---
+
+## Section 2: Programmatic Interaction with a Python Script (HTTP)
+
+**Note**: This approach is less common since the server is MCP-compliant and works better with the official MCP CLI tools. However, it's useful for specific HTTP-based integration scenarios.
 
 This approach encapsulates the entire server lifecycle within a single "client" script, which launches the server as a subprocess and communicates with it via HTTP requests.
 
@@ -141,11 +251,13 @@ if __name__ == "__main__":
 
 ---
 
-## Section 2: Manual Interaction with `curl`
+## Section 3: Manual Interaction with `curl`
 
 This method is great for quick, manual tests and for exploring the server's API without writing any Python code.
 
 ### Step 1: Start the Server Manually with Uvicorn
+**Note**: For regular development, use `uv run mcp dev` instead. This manual approach is for specific HTTP testing scenarios.
+
 First, you need to start the MCP server from your terminal so that it listens for HTTP requests.
 
 1.  **Navigate to the server's source directory**:
@@ -197,4 +309,20 @@ http://127.0.0.1:8000/tools/download_polyhaven_asset
 
 ## Conclusion
 
-Both methods allow you to interact with the MCP server over HTTP. The programmatic Python approach is best for building automated tests and clients, while the manual `curl` approach is excellent for quick debugging and API exploration.
+You now have three different ways to interact with the `blender-mcp` server:
+
+1. **MCP CLI Tools (Recommended)**: Use `uv run mcp dev` for development, `uv run mcp install` for Claude Desktop integration, and create MCP clients using the official SDK. This is the standard, most compatible approach.
+
+2. **HTTP/REST API**: Use the programmatic Python approach for building automated tests and custom HTTP clients, or the manual `curl` approach for quick debugging and API exploration.
+
+3. **Custom Integration**: Build your own clients using the MCP Python SDK for maximum flexibility and type safety.
+
+### Project-Specific Notes for `blender-mcp`
+
+- **Prerequisites**: Always ensure Blender is running with the addon enabled (listening on port 9876) before starting the MCP server
+- **Server Location**: The server is located at `context/refcode/blender-mcp/src/blender_mcp/server.py`
+- **Available Tools**: The server provides tools like `get_scene_info`, `execute_blender_code`, `get_viewport_screenshot`, and various asset management tools
+- **Development**: Use the MCP Inspector (`uv run mcp dev`) for the best development experience
+- **Production**: Use Claude Desktop integration (`uv run mcp install`) for end-user deployment
+
+The MCP CLI approach is recommended as it provides the best developer experience and full compatibility with the MCP ecosystem.

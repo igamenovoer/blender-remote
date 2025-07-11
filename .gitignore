@@ -167,7 +167,7 @@ htmltest-output/
 htmltest.log
 
 # pixi lock
-pixi.lock
+*.lock
 *.zip
 
 # pixi environments
