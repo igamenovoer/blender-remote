@@ -28,8 +28,4 @@ we also want this feature, we want to use `uvx blender-remote` to startup our se
 - MCP server module implemented in `src/blender_remote/mcp_server.py`
 - Command launches standalone MCP server for IDE integration
 
-⏳ **NOT YET TESTED**: Integration testing with LLM-assisted IDEs pending
-- VS Code MCP configuration not yet validated
-- Claude Desktop integration not yet verified
-- End-to-end workflow testing needed
-- **REQUIRES MANUAL TESTING**: Automated testing not feasible for IDE integration
+**REQUIRES MANUAL TESTING**: Need to verify that the command works as expected in various environments and integrates with LLM-assisted IDEs like VSCode, manually.
