@@ -30,7 +30,7 @@ classifiers = [
 dependencies = [
     "fastmcp>=2.0.0",  # FastMCP framework for Model Context Protocol
     "click>=8.0.0", "pydantic>=2.11.7",  # for CLI tools
-    "pyyaml>=6.0.0",  # for configuration files
+    "omegaconf>=2.3.0",  # Advanced configuration management with YAML support
 ]
 
 [project.optional-dependencies]

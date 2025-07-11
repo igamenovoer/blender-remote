@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any, cast, Union
 
 import click
-import yaml  # type: ignore[import-untyped]
+from omegaconf import OmegaConf, DictConfig
 
 CONFIG_DIR = Path.home() / ".config" / "blender-remote"
 CONFIG_FILE = CONFIG_DIR / "bld-remote-config.yaml"
@@ -23,65 +23,52 @@ DEFAULT_PORT = 6688
 
 
 class BlenderRemoteConfig:
-    """Configuration manager for blender-remote"""
+    """OmegaConf-based configuration manager for blender-remote"""
 
     def __init__(self) -> None:
         self.config_path = CONFIG_FILE
-        self.config: Dict[str, Any] = {}
+        self.config: Optional[DictConfig] = None
 
-    def load(self) -> Dict[str, Any]:
+    def load(self) -> DictConfig:
         """Load configuration from file"""
         if not self.config_path.exists():
             raise click.ClickException(
                 f"Configuration file not found: {self.config_path}\nRun 'blender-remote-cli init <blender_path>' first"
             )
 
-        with open(self.config_path, "r") as f:
-            loaded_config = yaml.safe_load(f)
-            if loaded_config is not None:
-                self.config = loaded_config
+        self.config = OmegaConf.load(self.config_path)
         return self.config
 
-    def save(self, config: Dict[str, Any]) -> None:
+    def save(self, config: Union[Dict[str, Any], DictConfig]) -> None:
         """Save configuration to file"""
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
-        with open(self.config_path, "w") as f:
-            yaml.dump(config, f, default_flow_style=False)
-
+        # Convert dict to DictConfig if needed
+        if isinstance(config, dict):
+            config = OmegaConf.create(config)
+        
+        # Save to file
+        OmegaConf.save(config, self.config_path)
         self.config = config
 
     def get(self, key: str) -> Any:
         """Get configuration value using dot notation"""
-        if not self.config:
+        if self.config is None:
             self.load()
 
-        keys = key.split(".")
-        value = self.config
-
-        for k in keys:
-            if isinstance(value, dict) and k in value:
-                value = value[k]
-            else:
-                return None
-
-        return value
+        # Use OmegaConf.select for safe access with None default
+        return OmegaConf.select(self.config, key)
 
     def set(self, key: str, value: Any) -> None:
         """Set configuration value using dot notation"""
-        if not self.config:
+        if self.config is None:
             self.load()
 
-        keys = key.split(".")
-        current = self.config
-
-        for k in keys[:-1]:
-            if k not in current:
-                current[k] = {}
-            current = current[k]
-
-        current[keys[-1]] = value
-        self.save(self.config)
+        # Use OmegaConf.update for dot notation setting
+        OmegaConf.update(self.config, key, value, merge=True)
+        
+        # Save the updated configuration
+        OmegaConf.save(self.config, self.config_path)
 
 
 def detect_blender_info(blender_path: Union[str, Path]) -> Dict[str, Any]:
@@ -247,7 +234,13 @@ def init(blender_path: str, backup: bool) -> None:
     blender_info = detect_blender_info(blender_path)
 
     # Create config
-    config = {"blender": blender_info, "mcp_service": {"default_port": DEFAULT_PORT}}
+    config = {
+        "blender": blender_info, 
+        "mcp_service": {
+            "default_port": DEFAULT_PORT,
+            "log_level": "INFO"
+        }
+    }
 
     # Save config
     config_manager = BlenderRemoteConfig()
@@ -261,6 +254,7 @@ def init(blender_path: str, backup: bool) -> None:
     click.echo(f"📂 Blender root directory: {blender_info['root_dir']}")
     click.echo(f"📂 Plugin directory: {blender_info['plugin_dir']}")
     click.echo(f"🔌 Default MCP port: {DEFAULT_PORT}")
+    click.echo(f"📊 Default log level: INFO")
 
 
 @cli.command()
@@ -361,7 +355,7 @@ def get(key: Optional[str]) -> None:
             click.echo(f"{key} = {value}")
     else:
         config_manager.load()
-        click.echo(yaml.dump(config_manager.config, default_flow_style=False))
+        click.echo(OmegaConf.to_yaml(config_manager.config))
 
 
 @cli.command()
@@ -373,12 +367,24 @@ def get(key: Optional[str]) -> None:
 )
 @click.option("--pre-code", help="Python code to execute before startup")
 @click.option("--port", type=int, help="Override default MCP port")
+@click.option(
+    "--scene",
+    type=click.Path(exists=True),
+    help="Open specified .blend scene file",
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
+    help="Override logging level for BLD_Remote_MCP",
+)
 @click.argument("blender_args", nargs=-1, type=click.UNPROCESSED)
 def start(
     background: bool,
     pre_file: Optional[str],
     pre_code: Optional[str],
     port: Optional[int],
+    scene: Optional[str],
+    log_level: Optional[str],
     blender_args: tuple,
 ) -> Optional[int]:
     """Start Blender with BLD_Remote_MCP service"""
@@ -395,6 +401,7 @@ def start(
 
     blender_path = blender_config.get("exec_path")
     mcp_port = port or config.get("mcp_service.default_port") or DEFAULT_PORT
+    mcp_log_level = log_level or config.get("mcp_service.log_level") or "INFO"
 
     # Prepare startup code
     startup_code = []
@@ -413,11 +420,12 @@ def start(
 import os
 os.environ['BLD_REMOTE_MCP_PORT'] = '{mcp_port}'
 os.environ['BLD_REMOTE_MCP_START_NOW'] = '1'
+os.environ['BLD_REMOTE_LOG_LEVEL'] = '{mcp_log_level.upper()}'
 
 try:
     import bld_remote
     bld_remote.start_mcp_service()
-    print(f"✅ BLD Remote MCP service started on port {mcp_port}")
+    print(f"✅ BLD Remote MCP service started on port {mcp_port} (log level: {mcp_log_level.upper()})")
 except Exception as e:
     print(f"❌ Failed to start BLD Remote MCP service: {{e}}")
 """
@@ -456,6 +464,10 @@ print("Blender running in background mode. Press Ctrl+C to exit.")
         # Build command
         cmd = [blender_path]
 
+        # Add scene file if provided (must come before --background for background mode)
+        if scene:
+            cmd.append(scene)
+
         if background:
             cmd.append("--background")
 
@@ -466,6 +478,12 @@ print("Blender running in background mode. Press Ctrl+C to exit.")
             cmd.extend(blender_args)
 
         click.echo(f"🚀 Starting Blender with BLD_Remote_MCP on port {mcp_port}...")
+        
+        if scene:
+            click.echo(f"📁 Opening scene: {scene}")
+            
+        if log_level:
+            click.echo(f"📊 Log level override: {mcp_log_level.upper()}")
 
         if background:
             click.echo(f"🔧 Background mode: Blender will run headless")
