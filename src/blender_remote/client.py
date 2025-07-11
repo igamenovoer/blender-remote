@@ -5,6 +5,7 @@ Blender MCP Client for communication with BLD Remote MCP service.
 import json
 import socket
 import os
+import signal
 from typing import Dict, Any, Optional, cast
 
 from .exceptions import (
@@ -423,3 +424,141 @@ class BlenderMCPClient:
                 "timeout": self.timeout,
                 "error": str(e),
             }
+
+    def send_exit_request(self) -> bool:
+        """
+        Send a request to the BLD_Remote_MCP server to exit gracefully.
+
+        This method sends Python code to raise SystemExit, which will cause
+        the MCP server to exit gracefully.
+
+        Returns
+        -------
+        bool
+            True if exit request was sent successfully, False otherwise.
+
+        Raises
+        ------
+        BlenderMCPError
+            If the exit request fails to send.
+        """
+        try:
+            # Send code to raise SystemExit for graceful shutdown
+            code = "import sys; sys.exit(0)"
+            response = self.execute_command("execute_code", {"code": code})
+            return response.get("status") == "success"
+        except Exception as e:
+            raise BlenderMCPError(f"Failed to send exit request: {str(e)}")
+
+    def get_blender_pid(self) -> int:
+        """
+        Retrieve the Blender process ID (PID) of the running BLD_Remote_MCP server.
+
+        This is useful for users to know which Blender instance is running the MCP server,
+        especially when multiple instances are involved.
+
+        Returns
+        -------
+        int
+            The process ID of the Blender instance running the MCP server.
+
+        Raises
+        ------
+        BlenderMCPError
+            If the PID retrieval fails.
+        """
+        try:
+            # Since BLD Remote MCP doesn't capture print output or return values,
+            # we'll write the PID to a temporary file and then read it
+            import tempfile
+            import time
+            
+            temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
+            temp_path = temp_file.name
+            temp_file.close()
+            
+            # Execute code to write PID to temporary file
+            code = f"""
+import os
+import tempfile
+
+# Write PID to temporary file
+with open('{temp_path}', 'w') as f:
+    f.write(str(os.getpid()))
+"""
+            self.execute_command("execute_code", {"code": code})
+            
+            # Wait a moment for the file to be written
+            time.sleep(0.1)
+            
+            # Read PID from temporary file
+            try:
+                with open(temp_path, 'r') as f:
+                    pid_str = f.read().strip()
+                
+                # Clean up temporary file
+                os.unlink(temp_path)
+                
+                if pid_str.isdigit():
+                    pid = int(pid_str)
+                    if pid > 0:
+                        return pid
+                    else:
+                        raise BlenderMCPError(f"Invalid PID value: {pid}")
+                else:
+                    raise BlenderMCPError(f"Invalid PID format: {pid_str}")
+                    
+            except FileNotFoundError:
+                raise BlenderMCPError("PID file not found - code execution may have failed")
+                
+        except Exception as e:
+            # Clean up temporary file if it exists
+            try:
+                if 'temp_path' in locals():
+                    os.unlink(temp_path)
+            except:
+                pass
+            raise BlenderMCPError(f"Failed to get Blender PID: {str(e)}")
+
+    def kill_blender_process(self) -> bool:
+        """
+        Kill the Blender process running the BLD_Remote_MCP server.
+
+        This method uses the PID obtained from get_blender_pid() to terminate
+        the Blender process, effectively stopping the MCP server. This is a
+        forceful way to stop the server and should be used with caution, as
+        it does not allow for graceful shutdown procedures.
+
+        Returns
+        -------
+        bool
+            True if the process was killed successfully, False otherwise.
+
+        Raises
+        ------
+        BlenderMCPError
+            If the process termination fails.
+        """
+        try:
+            # Get the Blender PID
+            pid = self.get_blender_pid()
+
+            # Try to kill the process
+            try:
+                os.kill(pid, signal.SIGTERM)  # Try graceful termination first
+                return True
+            except ProcessLookupError:
+                # Process already terminated
+                return True
+            except PermissionError:
+                # Try with SIGKILL if SIGTERM fails due to permissions
+                try:
+                    os.kill(pid, signal.SIGKILL)
+                    return True
+                except ProcessLookupError:
+                    # Process already terminated
+                    return True
+                except Exception as e:
+                    raise BlenderMCPError(f"Permission denied and SIGKILL failed: {str(e)}")
+        except Exception as e:
+            raise BlenderMCPError(f"Failed to kill Blender process: {str(e)}")

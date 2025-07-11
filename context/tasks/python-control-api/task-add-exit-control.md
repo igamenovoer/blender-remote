@@ -1,0 +1,8 @@
+**IMPORTANT**: we change the path from `context/refcode/auto_mcp_remote` to `src/blender_remote`, previous path is WRONG, now fix it.
+
+When we talk about python client apis, we mean those in `src/blender_remote/client.py` which controls the `BLD_Remote_MCP` server running in Blender via python. These APIs are used to interact with the MCP server, allowing users to send commands, retrieve data, and manage the state of the MCP server from a Python environment.
+
+We want the python client APIs to include an exit feature, add these methods to the `BlenderMCPClient` class in `src/blender_remote/client.py`:
+- `send_exit_request()`, which sends a request to the `BLD_Remote_MCP` addon to exit. To do so, it will send code to raise `SystemExit` in the `BLD_Remote_MCP` server, which will cause the server to exit gracefully.
+- `get_blender_pid()`, which retrieves the Blender process ID (PID) of the running `BLD_Remote_MCP` server. This is useful for users to know which Blender instance is running the MCP server, especially when multiple instances are involved, so that they can manage or terminate the correct process if needed.
+- `kill_blender_process()`, which kills the Blender process running the `BLD_Remote_MCP` server. This method will use the PID obtained from `get_blender_pid()` to terminate the Blender process, effectively stopping the MCP server. This is a forceful way to stop the server and should be used with caution, as it does not allow for graceful shutdown procedures.
