@@ -17,6 +17,7 @@ import atexit
 from bpy.props import BoolProperty
 
 from . import async_loop
+from . import persist
 from .utils import log_info, log_warning, log_error
 
 bl_info = {
@@ -388,6 +389,46 @@ def process_message(data):
         elif cmd_type == "get_polyhaven_status":
             # Asset provider not supported - return disabled status
             return {"status": "success", "result": {"enabled": False, "reason": "Asset providers not supported"}}
+        
+        elif cmd_type == "put_persist_data":
+            try:
+                key = params.get("key")
+                data = params.get("data")
+                if key is None:
+                    return {"status": "error", "message": "Missing 'key' parameter"}
+                if data is None:
+                    return {"status": "error", "message": "Missing 'data' parameter"}
+                
+                persist.put_data(key, data)
+                return {"status": "success", "message": f"Data stored under key '{key}'"}
+            except Exception as e:
+                log_error(f"Error putting persist data: {e}")
+                return {"status": "error", "message": str(e)}
+        
+        elif cmd_type == "get_persist_data":
+            try:
+                key = params.get("key")
+                default = params.get("default")
+                if key is None:
+                    return {"status": "error", "message": "Missing 'key' parameter"}
+                
+                data = persist.get_data(key, default)
+                return {"status": "success", "result": {"data": data, "found": key in persist.get_keys()}}
+            except Exception as e:
+                log_error(f"Error getting persist data: {e}")
+                return {"status": "error", "message": str(e)}
+        
+        elif cmd_type == "remove_persist_data":
+            try:
+                key = params.get("key")
+                if key is None:
+                    return {"status": "error", "message": "Missing 'key' parameter"}
+                
+                removed = persist.remove_data(key)
+                return {"status": "success", "result": {"removed": removed}}
+            except Exception as e:
+                log_error(f"Error removing persist data: {e}")
+                return {"status": "error", "message": str(e)}
         
         else:
             # Unknown command type
@@ -1010,6 +1051,9 @@ class BldRemoteAPI:
     is_mcp_service_up = staticmethod(is_mcp_service_up)
     set_mcp_service_port = staticmethod(set_mcp_service_port)
     get_mcp_service_port = staticmethod(get_mcp_service_port)
+    
+    # Persistence functionality
+    persist = persist
 
 # Register the API in sys.modules so it can be imported as 'import bld_remote'
 sys.modules['bld_remote'] = BldRemoteAPI()

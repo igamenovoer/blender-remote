@@ -153,7 +153,28 @@ result = client.execute_python("bpy.ops.mesh.primitive_sphere_add()")
 | `get_object_info(name)` | Get detailed object properties |
 | `execute_blender_code(code)` | Run Python code in Blender context |
 | `get_viewport_screenshot()` | Capture viewport image (GUI mode only) |
+| `put_persist_data(key, data)` | Store data for later use in the session |
+| `get_persist_data(key, default)` | Retrieve stored data by key |
+| `remove_persist_data(key)` | Remove stored data |
 | `check_connection_status()` | Verify service health |
+
+## Data Persistence
+
+Store and retrieve data across multiple commands for stateful workflows:
+
+```python
+# Inside Blender scripts
+import bld_remote
+bld_remote.persist.put_data("mesh_analysis", {"vertices": 1540, "faces": 2980})
+result = bld_remote.persist.get_data("mesh_analysis")
+```
+
+**LLM Example:**
+- "Calculate mesh complexity and store the results"
+- "Retrieve the previous mesh analysis and create a report"
+- "Store this camera position for later use"
+
+Perfect for multi-step operations, caching expensive calculations, and maintaining state between commands.
 
 ## How It Works
 

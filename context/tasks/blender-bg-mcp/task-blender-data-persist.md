@@ -39,4 +39,7 @@ On the Python client side, `context/refcode/auto_mcp_remote/blender_mcp_client.p
 - `remove_persist_data(key) -> True/False`, remove data by key, if not found, do nothing, return `True` if the data is removed, `False` if the data is not found.
 
 ## Reference
-- `context/hints/howto-persist-data-in-blender.md`, how to persist data in Blender, we prefer using a simple Python pattern. Note that blender's python environment is pretty barebone, things like `pydantic`, `attrs` are not available, python builtin libraries are ok. Advanced libraries can be used on the MCP server side or python client side.
+- `context/hints/howto-persist-data-in-blender.md`, how to persist data in Blender, we prefer using a simple Python pattern. 
+  
+## Notes
+- blender's python environment is pretty barebone, things like `pydantic`, `attrs` are not available, python builtin libraries are ok. Advanced libraries can be used on the MCP server side or python client side.

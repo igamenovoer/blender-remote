@@ -6,6 +6,7 @@ This directory contains comprehensive examples showing how to use the blender-re
 
 These examples demonstrate:
 - **Basic Operations**: Scene inspection, object creation, code execution
+- **Data Persistence**: Stateful workflows and cross-command data storage
 - **Advanced Workflows**: Complex scene creation, animation setup, material creation
 - **LLM Integration**: Effective prompting patterns and interaction examples
 - **Error Handling**: How to handle errors gracefully in LLM workflows
@@ -39,19 +40,25 @@ Before running these examples, ensure you have:
 - Handling GUI vs background mode
 - Visual feedback loops
 
-### 4. Complex Scene Creation (`04_complex_scenes.md`)
+### 4. Data Persistence (`04_data_persistence.md`)
+- Storing data across multiple commands
+- Multi-step workflow state management
+- Caching expensive operations
+- Cross-session data sharing
+
+### 5. Complex Scene Creation (`05_complex_scenes.md`)
 - Multi-object scenes
 - Complete workflow examples
 - Architecture and product visualization
 - Animation setup
 
-### 5. LLM Interaction Patterns (`05_llm_patterns.md`)
+### 6. LLM Interaction Patterns (`06_llm_patterns.md`)
 - Effective prompting strategies
 - Multi-step workflows
 - Error recovery patterns
 - Context management
 
-### 6. Error Handling (`06_error_handling.md`)
+### 7. Error Handling (`07_error_handling.md`)
 - Common error scenarios
 - Graceful degradation
 - Background mode limitations

@@ -303,6 +303,102 @@ async def get_viewport_screenshot(
 
 
 @mcp.tool()
+async def put_persist_data(key: str, data: Any, ctx: Context) -> Dict[str, Any]:
+    """Store data with a key in Blender's persistent storage."""
+    await ctx.info(f"Storing data with key: {key}")
+
+    if blender_conn is None:
+        await ctx.error("Blender connection not initialized")
+        return {"error": "Blender connection not initialized"}
+
+    try:
+        response = await blender_conn.send_command(
+            {"type": "put_persist_data", "params": {"key": key, "data": data}}
+        )
+
+        if response.get("status") == "error":
+            await ctx.error(
+                f"Failed to store data: {response.get('message', 'Unknown error')}"
+            )
+            return {"error": response.get("message", "Unknown error")}
+
+        await ctx.info(f"Data successfully stored with key: {key}")
+        return {"success": True, "message": response.get("message", "Data stored")}
+    except Exception as e:
+        await ctx.error(f"Failed to store data: {e}")
+        return {"error": str(e)}
+
+
+@mcp.tool()
+async def get_persist_data(key: str, ctx: Context, default: Any = None) -> Dict[str, Any]:
+    """Retrieve data by key from Blender's persistent storage."""
+    await ctx.info(f"Retrieving data with key: {key}")
+
+    if blender_conn is None:
+        await ctx.error("Blender connection not initialized")
+        return {"error": "Blender connection not initialized"}
+
+    try:
+        response = await blender_conn.send_command(
+            {"type": "get_persist_data", "params": {"key": key, "default": default}}
+        )
+
+        if response.get("status") == "error":
+            await ctx.error(
+                f"Failed to retrieve data: {response.get('message', 'Unknown error')}"
+            )
+            return {"error": response.get("message", "Unknown error")}
+
+        result = response.get("result", {})
+        data = result.get("data")
+        found = result.get("found", False)
+        
+        if found:
+            await ctx.info(f"Data retrieved for key: {key}")
+        else:
+            await ctx.info(f"No data found for key: {key}, returning default")
+            
+        return {"data": data, "found": found}
+    except Exception as e:
+        await ctx.error(f"Failed to retrieve data: {e}")
+        return {"error": str(e)}
+
+
+@mcp.tool()
+async def remove_persist_data(key: str, ctx: Context) -> Dict[str, Any]:
+    """Remove data by key from Blender's persistent storage."""
+    await ctx.info(f"Removing data with key: {key}")
+
+    if blender_conn is None:
+        await ctx.error("Blender connection not initialized")
+        return {"error": "Blender connection not initialized"}
+
+    try:
+        response = await blender_conn.send_command(
+            {"type": "remove_persist_data", "params": {"key": key}}
+        )
+
+        if response.get("status") == "error":
+            await ctx.error(
+                f"Failed to remove data: {response.get('message', 'Unknown error')}"
+            )
+            return {"error": response.get("message", "Unknown error")}
+
+        result = response.get("result", {})
+        removed = result.get("removed", False)
+        
+        if removed:
+            await ctx.info(f"Data removed for key: {key}")
+        else:
+            await ctx.info(f"No data found to remove for key: {key}")
+            
+        return {"removed": removed}
+    except Exception as e:
+        await ctx.error(f"Failed to remove data: {e}")
+        return {"error": str(e)}
+
+
+@mcp.tool()
 async def check_connection_status(ctx: Context) -> Dict[str, Any]:
     """Check the connection status to Blender's BLD_Remote_MCP service."""
     await ctx.info("Checking connection to Blender...")
@@ -374,6 +470,10 @@ def blender_workflow_start() -> str:
 3. **Get Object Info**: Inspect specific objects in detail
 4. **Take Screenshots**: Capture viewport images (GUI mode only)
 5. **Check Status**: Monitor connection to Blender
+6. **Data Persistence**: Store and retrieve data across commands
+   - `put_persist_data(key, data)`: Store data with a key
+   - `get_persist_data(key, default)`: Retrieve data by key
+   - `remove_persist_data(key)`: Remove data by key
 
 What would you like to do with your Blender scene?"""
 

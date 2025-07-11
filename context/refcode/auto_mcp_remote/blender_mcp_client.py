@@ -5,6 +5,8 @@ Raw Blender MCP Client for low-level communication with Blender MCP server.
 import json
 import socket
 import os
+import pickle
+import base64
 from typing import Dict, Any
 from .data_types import BlenderMCPError
 
@@ -324,6 +326,122 @@ class BlenderMCPClient:
         }
         response = self.execute_command("get_viewport_screenshot", params)
         return response.get("result", {})
+    
+    def put_persist_data(self, key: str, data: Any) -> bool:
+        """
+        Store data with a key in Blender's persistent storage.
+        
+        Parameters
+        ----------
+        key : str
+            Key to store the data under.
+        data : Any
+            Data to store (will be pickled and base64 encoded).
+            
+        Returns
+        -------
+        bool
+            True if data was stored successfully, False otherwise.
+        
+        Raises
+        ------
+        BlenderMCPError
+            If storage fails.
+        """
+        try:
+            # Serialize data with pickle and encode with base64
+            pickled_data = pickle.dumps(data)
+            encoded_data = base64.b64encode(pickled_data).decode('utf-8')
+            
+            response = self.execute_command("put_persist_data", {
+                "key": key,
+                "data": encoded_data
+            })
+            
+            return response.get("status") == "success"
+        except Exception as e:
+            raise BlenderMCPError(f"Failed to store data: {str(e)}")
+    
+    def get_persist_data(self, key: str, default: Any = None) -> Any:
+        """
+        Retrieve data by key from Blender's persistent storage.
+        
+        Parameters
+        ----------
+        key : str
+            Key to retrieve data for.
+        default : Any, optional
+            Default value if key not found.
+            
+        Returns
+        -------
+        Any
+            The stored data (unpickled) or default value if not found.
+        
+        Raises
+        ------
+        BlenderMCPError
+            If retrieval fails.
+        """
+        try:
+            response = self.execute_command("get_persist_data", {
+                "key": key,
+                "default": default
+            })
+            
+            result = response.get("result", {})
+            found = result.get("found", False)
+            
+            if found:
+                encoded_data = result.get("data")
+                if encoded_data and isinstance(encoded_data, str):
+                    # Decode from base64 and unpickle
+                    try:
+                        pickled_data = base64.b64decode(encoded_data.encode('utf-8'))
+                        return pickle.loads(pickled_data)
+                    except Exception as decode_error:
+                        raise BlenderMCPError(f"Failed to decode stored data: {str(decode_error)}")
+                else:
+                    # Data is not encoded (was stored directly), return as is
+                    return result.get("data", default)
+            else:
+                return default
+                
+        except BlenderMCPError:
+            # Re-raise BlenderMCPError as is
+            raise
+        except Exception as e:
+            raise BlenderMCPError(f"Failed to retrieve data: {str(e)}")
+    
+    def remove_persist_data(self, key: str) -> bool:
+        """
+        Remove data by key from Blender's persistent storage.
+        
+        Parameters
+        ----------
+        key : str
+            Key to remove.
+            
+        Returns
+        -------
+        bool
+            True if data was removed, False if key was not found.
+        
+        Raises
+        ------
+        BlenderMCPError
+            If removal fails.
+        """
+        try:
+            response = self.execute_command("remove_persist_data", {
+                "key": key
+            })
+            
+            result = response.get("result", {})
+            return result.get("removed", False)
+            
+        except Exception as e:
+            raise BlenderMCPError(f"Failed to remove data: {str(e)}")
     
     def test_connection(self) -> bool:
         """
