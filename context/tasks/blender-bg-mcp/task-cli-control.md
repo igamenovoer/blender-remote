@@ -37,3 +37,7 @@ mcp_service:
 
 - - `start --scene=<scene.blend>` will open the specified scene file in Blender (see `context/hints/howto-start-blender-with-scene.md` for details)
 - - `start --log-level=<log_level>` will set the logging level for `BLD_Remote_MCP`, overriding the default in the config file. Valid values are `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` (case insensitive).
+
+**NEW**
+- `blender-remote-cli export --content=addon -o <output_dir>`, will export the addon source code to the specified output directory. This is useful for users who want to inspect or modify the addon code, or install it manually in Blender. The command will copy the addon files to the specified directory, preserving the directory structure.
+- `blender-remote-cli export --content=keep-alive.py -o <output_dir>`, will export the keep-alive script to the specified output directory. This script is used to keep Blender running in background mode and can be modified by users if needed, you can use `blender --background --python keep-alive.py` to run it. This is the same script used by the `start --background` command.

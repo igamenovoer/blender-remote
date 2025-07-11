@@ -431,27 +431,72 @@ except Exception as e:
 """
     )
 
-    # In background mode, add event loop to prevent immediate exit
+    # In background mode, add proper keep-alive mechanism
     if background:
         startup_code.append(
             """
 # Keep Blender running in background mode
-import asyncio
+import time
+import signal
+import sys
 import threading
 
-def run_forever():
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_forever()
-    except KeyboardInterrupt:
-        pass
+# Global flag to control the keep-alive loop
+_keep_running = True
 
-# Start background thread
-thread = threading.Thread(target=run_forever, daemon=True)
-thread.start()
+def signal_handler(signum, frame):
+    global _keep_running
+    print(f"Received signal {signum}, shutting down...")
+    _keep_running = False
+    
+    # Try to gracefully shutdown the MCP service
+    try:
+        import bld_remote
+        if bld_remote.is_mcp_service_up():
+            bld_remote.stop_mcp_service()
+            print("MCP service stopped")
+    except Exception as e:
+        print(f"Error stopping MCP service: {e}")
+    
+    # Allow a moment for cleanup
+    time.sleep(0.5)
+    sys.exit(0)
+
+# Install signal handlers
+signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+signal.signal(signal.SIGTERM, signal_handler)  # Termination
 
 print("Blender running in background mode. Press Ctrl+C to exit.")
+print("MCP service should be starting on the configured port...")
+
+# Keep the main thread alive by driving the async loop
+# This prevents Blender from exiting after the script finishes
+try:
+    # Give the MCP service time to start up
+    print("Waiting for MCP service to fully initialize...")
+    time.sleep(2)
+    
+    print("✅ Starting main background loop...")
+    
+    # Import the async loop module to drive the event loop
+    import bld_remote
+    from bld_remote_mcp import async_loop
+    
+    # Main keep-alive loop - drive the async event loop
+    while _keep_running:
+        # This is the heart of the background mode operation.
+        # It drives the asyncio event loop, allowing the server to run.
+        if async_loop.kick_async_loop():
+            # The loop has no more tasks and wants to stop.
+            print("Async loop completed, exiting...")
+            break
+        time.sleep(0.05)  # 50ms sleep to prevent high CPU usage
+            
+except KeyboardInterrupt:
+    print("Interrupted by user, shutting down...")
+    _keep_running = False
+
+print("Background mode keep-alive loop finished, Blender will exit.")
 """
         )
 
