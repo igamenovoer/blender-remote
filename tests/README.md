@@ -28,6 +28,17 @@ tests/
 │   ├── test_base64_screenshot.py        # Base64 screenshot tests
 │   ├── test_viewport_screenshot.py      # Viewport screenshot tests
 │   └── (see mcp-server/README.md)       # Full MCP server test suite
+├── blocking/                             # Blocking and concurrency tests
+│   ├── test_multi_client.py             # Multi-client blocking functionality
+│   ├── test_blocking_simple.py          # Simple blocking mechanism test
+│   ├── test_blocking_execute.py         # Execute code blocking tests
+│   ├── test_debug_blocking.py           # Debug blocking mechanism
+│   ├── test_precise_blocking.py         # Precise timing blocking tests
+│   └── (see blocking/README.md)         # Blocking tests documentation
+├── python_control_api/                   # Python control API tests
+│   ├── test_basic_connection.py         # Basic connection tests
+│   ├── test_scene_operations.py         # Scene manipulation tests
+│   └── (see python_control_api/README.md) # Python API test suite
 ├── others/                               # Miscellaneous test scripts
 │   ├── simple_test.py                   # Basic connection test
 │   ├── start_bld_remote.py              # Service startup helper
