@@ -31,3 +31,4 @@ mcp_service:
 - - `start --pre-code="user-python-code"` is like the above, but the user specified stuff is now presented as source code. Note that, this conficts with `--pre-file` options
 - - `start [OPTIONS] -- (arguments to blender)`, will pass other arguments to blender
 - - `start --port=xxx` will override the default port to start `BLD_Remote_MCP`
+- - `start --scene=<scene.blend>` will open the specified scene file in Blender
