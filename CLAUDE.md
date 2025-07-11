@@ -311,3 +311,4 @@ Bash(command="blender &", timeout=120000)  # 2 minutes = 120000ms
 
 ### Documentation Visualization Techniques
 - In documentation, you can use graphviz and plantuml to generate good looking svg for visualization, avoid using ascii diagram
+- To start blender for testing, use `blender-remote-cli` developed in this project, you can look at `src/blender_remote/cli.py` for implementation detail.
