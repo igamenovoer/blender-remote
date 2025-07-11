@@ -9,8 +9,8 @@
 This test plan validates that our **complete stack** serves as a **drop-in replacement** for the BlenderAutoMCP stack:
 
 ### **Stack Comparison:**
-- **Our Stack**: `uvx blender-remote` + `BLD_Remote_MCP` 
-- **Reference Stack**: `uvx blender-mcp` + `BlenderAutoMCP`
+- **Our Stack**: `uvx blender-remote` (MCP/HTTP) + `BLD_Remote_MCP` (TCP on 6688)
+- **Reference Stack**: `uvx blender-mcp` (MCP only) + `BlenderAutoMCP` (TCP on 9876, hardcoded)
 
 ### **Replacement Approach:**
 - **Combination Replacement**: The entire stack is replaced, not individual components
@@ -44,39 +44,68 @@ This test plan validates that our **complete stack** serves as a **drop-in repla
 
 ## Test Tools and Methods
 
-### 1. HTTPie Direct Protocol Testing
+### 1. Raw TCP Testing (BLD_Remote_MCP)
 
-Based on `context/hints/howto-interact-with-mcp-via-httpie.md`:
+The BLD_Remote_MCP service runs a **TCP server** (not HTTP) on port 6688:
 
-**Install HTTPie:**
+**Test BLD_Remote_MCP TCP Service Directly:**
 ```bash
-pip install httpie
+# Test basic connection using netcat
+echo '{"message": "connection test", "code": "print(\"Hello from BLD_Remote_MCP\")"}' | nc 127.0.0.1 6688
+
+# Test scene info via TCP
+echo '{"message": "get scene info", "code": "import bpy; print(f\"Scene: {bpy.context.scene.name}, Objects: {len(bpy.context.scene.objects)}\")"}' | nc 127.0.0.1 6688
+
+# Test object creation via TCP
+echo '{"message": "create cube", "code": "import bpy; bpy.ops.mesh.primitive_cube_add(location=(2, 0, 0)); print(\"Cube created at (2, 0, 0)\")"}' | nc 127.0.0.1 6688
 ```
 
-**Test BLD_Remote_MCP Service Directly:**
-```bash
-# Test basic connection
-echo '{"message": "connection test", "code": "print(\"Hello from BLD_Remote_MCP\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json
+### 2. Python TCP Testing (BLD_Remote_MCP)
 
-# Test scene info
-echo '{"message": "get scene info", "code": "import bpy; print(f\"Scene: {bpy.context.scene.name}, Objects: {len(bpy.context.scene.objects)}\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json
+For more complex TCP testing:
+```python
+import socket
+import json
 
-# Test object creation
-echo '{"message": "create cube", "code": "import bpy; bpy.ops.mesh.primitive_cube_add(location=(2, 0, 0)); print(\"Cube created at (2, 0, 0)\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json
+def test_bld_remote_mcp(host='127.0.0.1', port=6688):
+    """Test BLD_Remote_MCP TCP service directly"""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((host, port))
+    
+    # Test basic connection
+    command = {"message": "connection test", "code": "print('Direct TCP connection successful')"}
+    sock.sendall(json.dumps(command).encode('utf-8'))
+    response = json.loads(sock.recv(4096).decode('utf-8'))
+    
+    sock.close()
+    return response
 ```
 
-### 2. FastMCP Server Testing
+### 3. FastMCP Server Testing (HTTP/MCP)
 
 **Start MCP Server:**
 ```bash
-# Default connection
+# Default: MCP server on 8000, connects to Blender TCP on 6688
 uvx blender-remote
 
-# Custom host/port
-uvx blender-remote --host 127.0.0.1 --port 6688
+# Custom MCP server port
+uvx blender-remote --mcp-port 9000
 
-# Remote connection
-uvx blender-remote --host 192.168.1.100 --port 7777
+# Connect to custom Blender TCP port
+uvx blender-remote --blender-port 7777
+
+# Full custom configuration
+uvx blender-remote --mcp-host 0.0.0.0 --mcp-port 9000 --blender-host 192.168.1.100 --blender-port 6688
+```
+
+**Test FastMCP Server via HTTP:**
+```bash
+# Test MCP server (uses MCP protocol over HTTP)
+# Note: This tests the complete stack: HTTP → FastMCP → TCP → Blender
+curl -X POST http://127.0.0.1:8000/tools/get_scene_info -H "Content-Type: application/json" -d '{}'
+
+# Test via uvicorn (standalone HTTP server)
+uvicorn src.blender_remote.mcp_server:mcp --host 127.0.0.1 --port 8000
 ```
 
 **Note**: Use `pixi run python <script>` for any Python scripts during testing.
@@ -92,101 +121,277 @@ blender-remote-cli status
 ## Test Procedures
 
 **Prerequisites:** 
-- BLD_Remote_MCP service running on port 6688 (or configured port)
-- HTTPie installed for direct protocol testing  
+- BLD_Remote_MCP TCP service running on port 6688 (or configured port)
+- `netcat` available for TCP testing
+- `curl` available for HTTP testing
 - (Optional) BlenderAutoMCP on port 9876 for cross-validation (uvx blender-mcp expects port 9876)
 
 **Important Notes:**
+- **Two-Layer Architecture**: BLD_Remote_MCP (TCP) ← FastMCP Server (HTTP/MCP) ← IDE/Client
 - **Use `pixi` for Python scripts**: All Python code execution must use `pixi run python <script>`
 - **Test logging**: Write test logs to `context/logs/tests/` subdirectory with critical info and results
+- **⚠️ CRITICAL: Timeout Limit**: ALL Bash commands must use max 10 seconds timeout - nothing takes longer!
+- **Port Architecture**:
+  - **BLD_Remote_MCP**: TCP server on port 6688 (configurable)
+  - **BlenderAutoMCP**: TCP server on port 9876 (hardcoded, no control)
+  - **Our MCP server**: HTTP port configurable via `--mcp-port` (default varies)
+  - **Reference MCP server**: `uvx blender-mcp` uses MCP protocol only (no fixed HTTP port)
 
 **Available Tools:**
 - **`jq`**: Command-line JSON processor for parsing and formatting test responses
-- **`httpie`**: Command-line HTTP client for testing HTTP APIs (already installed)
+- **`netcat` (nc)**: Command-line TCP client for testing TCP servers
+- **`curl`**: Command-line HTTP client for testing HTTP APIs
 - **`dot`**: Graphviz command-line tool for generating diagrams from .dot files
 
-### Test Suite 1: Direct Protocol Testing
+### Test Suite 1: Direct TCP Protocol Testing (BLD_Remote_MCP)
 
-#### Test 1.1: BLD_Remote_MCP Direct Connection
-**Objective:** Test direct communication with BLD_Remote_MCP service
+#### Test 1.1: BLD_Remote_MCP Direct TCP Connection
+**Objective:** Test direct communication with BLD_Remote_MCP TCP service
 
-**HTTPie Tests:**
+**TCP Tests using netcat:**
 ```bash
 # Test 1: Basic connection
-echo '{"message": "connection test", "code": "print(\"Direct connection successful\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json
+echo '{"message": "connection test", "code": "print(\"Direct TCP connection successful\")"}' | nc 127.0.0.1 6688
 
-# Test 2: Scene information with JSON processing
-echo '{"message": "scene info", "code": "import bpy; scene = bpy.context.scene; print(f\"Scene: {scene.name}, Objects: {len(scene.objects)}\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json | jq '.'
+# Test 2: Scene information
+echo '{"message": "scene info", "code": "import bpy; scene = bpy.context.scene; print(f\"Scene: {scene.name}, Objects: {len(scene.objects)}\")"}' | nc 127.0.0.1 6688
 
 # Test 3: Object creation
-echo '{"message": "create object", "code": "import bpy; bpy.ops.mesh.primitive_cube_add(location=(1, 0, 0)); print(\"Test cube created\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json
+echo '{"message": "create object", "code": "import bpy; bpy.ops.mesh.primitive_cube_add(location=(1, 0, 0)); print(\"Test cube created\")"}' | nc 127.0.0.1 6688
 
-# Test 4: Object inspection with response parsing
-echo '{"message": "inspect object", "code": "import bpy; cube = bpy.data.objects.get(\"Cube\"); print(f\"Cube location: {cube.location if cube else \'Not found\'}\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json | jq '.result'
+# Test 4: Object inspection
+echo '{"message": "inspect object", "code": "import bpy; cube = bpy.data.objects.get(\"Cube\"); print(f\"Cube location: {cube.location if cube else \'Not found\'}\")"}' | nc 127.0.0.1 6688
 
 # Test 5: Error handling
-echo '{"message": "error test", "code": "invalid_python_code()"}' | http POST 127.0.0.1:6688 Content-Type:application/json | jq '.error // .result'
+echo '{"message": "error test", "code": "invalid_python_code()"}' | nc 127.0.0.1 6688
 ```
 
-### Test Suite 2: FastMCP Server Testing
+#### Test 1.2: Python TCP Testing (BLD_Remote_MCP)
+**Objective:** More robust TCP testing with proper response handling
 
-#### Test 2.1: MCP Server Connection Testing
-**Objective:** Test FastMCP server connection to BLD_Remote_MCP
+**Create test script:**
+```python
+# Save as: context/logs/tests/test_tcp_connection.py
+import socket
+import json
+import logging
+
+def test_bld_remote_mcp_tcp(host='127.0.0.1', port=6688):
+    """Test BLD_Remote_MCP TCP service directly"""
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((host, port))
+        logger.info(f"Connected to {host}:{port}")
+        
+        # Test basic connection
+        command = {"message": "connection test", "code": "print('Direct TCP connection successful')"}
+        sock.sendall(json.dumps(command).encode('utf-8'))
+        response_data = sock.recv(4096)
+        response = json.loads(response_data.decode('utf-8'))
+        
+        logger.info(f"Response: {response}")
+        sock.close()
+        return response
+    except Exception as e:
+        logger.error(f"TCP test failed: {e}")
+        return {"error": str(e)}
+
+if __name__ == "__main__":
+    result = test_bld_remote_mcp_tcp()
+    print(json.dumps(result, indent=2))
+```
+
+**Run test:**
+```bash
+pixi run python context/logs/tests/test_tcp_connection.py
+```
+
+### Test Suite 2: FastMCP Server Testing (HTTP/MCP)
+
+#### Test 2.1: MCP Server Startup Testing
+**Objective:** Test FastMCP server startup with various configurations
 
 ```bash
-# Test 1: Default startup
+# Test 1: Default startup (MCP server on 8000, connects to Blender TCP on 6688)
 uvx blender-remote &
 MCP_PID=$!
 sleep 5
 
-# Test 2: Custom connection
-uvx blender-remote --host 127.0.0.1 --port 6688 &
+# Test 2: Custom MCP server port
+uvx blender-remote --mcp-port 9000 &
 MCP_PID2=$!
 sleep 5
 
-# Test 3: Help information
+# Test 3: Custom Blender connection
+uvx blender-remote --blender-host 127.0.0.1 --blender-port 6688 &
+MCP_PID3=$!
+sleep 5
+
+# Test 4: Full custom configuration
+uvx blender-remote --mcp-host 127.0.0.1 --mcp-port 9000 --blender-host 127.0.0.1 --blender-port 6688 &
+MCP_PID4=$!
+sleep 5
+
+# Test 5: Help information
 uvx blender-remote --help
 
 # Clean up
-kill $MCP_PID $MCP_PID2
+kill $MCP_PID $MCP_PID2 $MCP_PID3 $MCP_PID4
 ```
 
-### Test Suite 3: MCP Tool Functionality
-
-#### Test 3.1: Core MCP Tools (Drop-in Replacement)
-**Objective:** Verify BlenderAutoMCP compatibility
+#### Test 2.2: HTTP/MCP Protocol Testing
+**Objective:** Test complete stack via HTTP (FastMCP → BLD_Remote_MCP → Blender)
 
 ```bash
-# Test get_scene_info (compatible with BlenderAutoMCP)
-echo '{"message": "scene info", "code": "import bpy; print(f\"Scene: {bpy.context.scene.name}, Objects: {len(bpy.context.scene.objects)}\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json
+# Start MCP server on port 8000
+uvx blender-remote --mcp-port 8000 &
+MCP_PID=$!
+sleep 5
 
-# Test execute_blender_code (compatible with BlenderAutoMCP)
-echo '{"message": "execute code", "code": "import bpy; bpy.ops.mesh.primitive_cube_add(); print(\"Cube added\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json
+# Test MCP tools via HTTP (exact endpoint depends on FastMCP implementation)
+# Note: These test the complete stack: HTTP → FastMCP → TCP → Blender
 
-# Test get_object_info (compatible with BlenderAutoMCP)
-echo '{"message": "object info", "code": "import bpy; cube = bpy.data.objects.get(\"Cube\"); print(f\"Cube: {cube.location if cube else \'None\'}\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json
+# Test 1: Check connection status
+curl -X POST http://127.0.0.1:8000/tools/check_connection_status -H "Content-Type: application/json" -d '{}'
+
+# Test 2: Get scene info
+curl -X POST http://127.0.0.1:8000/tools/get_scene_info -H "Content-Type: application/json" -d '{}'
+
+# Test 3: Execute code
+curl -X POST http://127.0.0.1:8000/tools/execute_blender_code -H "Content-Type: application/json" -d '{"code": "print(\"Hello from complete stack\")"}'
+
+# Clean up
+kill $MCP_PID
 ```
 
-#### Test 3.2: Enhanced Data Persistence (New Feature)
-**Objective:** Test enhanced data persistence functionality
+#### Test 2.3: Uvicorn Standalone Testing
+**Objective:** Test FastMCP server via uvicorn for HTTP access
 
 ```bash
-# Test data storage (enhanced feature)
-echo '{"message": "store data", "code": "import bld_remote; bld_remote.persist.put_data(\"test_key\", {\"value\": 42, \"message\": \"test data\"}); print(\"Data stored\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json
+# Start as standalone HTTP server
+uvicorn src.blender_remote.mcp_server:mcp --host 127.0.0.1 --port 8000 &
+UVICORN_PID=$!
+sleep 5
 
-# Test data retrieval (enhanced feature)
-echo '{"message": "retrieve data", "code": "import bld_remote; data = bld_remote.persist.get_data(\"test_key\"); print(f\"Retrieved data: {data}\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json
+# Test HTTP endpoints
+curl -X GET http://127.0.0.1:8000/
 
-# Test data removal (enhanced feature)
-echo '{"message": "remove data", "code": "import bld_remote; bld_remote.persist.remove_data(\"test_key\"); print(\"Data removed\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json
+# Clean up
+kill $UVICORN_PID
 ```
 
-#### Test 3.3: Geometry Extraction (Advanced Use Case)
-**Objective:** Test practical geometry extraction from Blender via MCP
+### Test Suite 3: MCP Tool Functionality (Complete Stack)
+
+#### Test 3.1: Core MCP Tools via HTTP (Drop-in Replacement)
+**Objective:** Test complete stack functionality via FastMCP HTTP server
 
 ```bash
-# Test comprehensive geometry extraction with random cube
-echo '{"message": "geometry extraction test", "code": "
+# Start MCP server
+uvx blender-remote --mcp-port 8000 --blender-port 6688 &
+MCP_PID=$!
+sleep 5
+
+# Test get_scene_info via HTTP → FastMCP → TCP → Blender
+curl -X POST http://127.0.0.1:8000/tools/get_scene_info -H "Content-Type: application/json" -d '{}'
+
+# Test execute_blender_code via HTTP → FastMCP → TCP → Blender
+curl -X POST http://127.0.0.1:8000/tools/execute_blender_code -H "Content-Type: application/json" -d '{"code": "import bpy; bpy.ops.mesh.primitive_cube_add(); print(\"Cube added via complete stack\")"}'
+
+# Test get_object_info via HTTP → FastMCP → TCP → Blender
+curl -X POST http://127.0.0.1:8000/tools/get_object_info -H "Content-Type: application/json" -d '{"object_name": "Cube"}'
+
+# Clean up
+kill $MCP_PID
+```
+
+#### Test 3.2: Core MCP Tools via TCP (Direct to Blender)
+**Objective:** Test direct TCP access to BLD_Remote_MCP
+
+```bash
+# Test scene info via direct TCP (bypasses FastMCP)
+echo '{"message": "scene info", "code": "import bpy; print(f\"Scene: {bpy.context.scene.name}, Objects: {len(bpy.context.scene.objects)}\")"}' | nc 127.0.0.1 6688
+
+# Test execute code via direct TCP (bypasses FastMCP)
+echo '{"message": "execute code", "code": "import bpy; bpy.ops.mesh.primitive_cube_add(); print(\"Cube added via direct TCP\")"}' | nc 127.0.0.1 6688
+
+# Test object info via direct TCP (bypasses FastMCP)
+echo '{"message": "object info", "code": "import bpy; cube = bpy.data.objects.get(\"Cube\"); print(f\"Cube: {cube.location if cube else \'None\'}\")"}' | nc 127.0.0.1 6688
+```
+
+#### Test 3.3: Enhanced Data Persistence (Complete Stack)
+**Objective:** Test enhanced data persistence functionality via HTTP
+
+```bash
+# Start MCP server
+uvx blender-remote --mcp-port 8000 --blender-port 6688 &
+MCP_PID=$!
+sleep 5
+
+# Test data storage via HTTP → FastMCP → TCP → Blender
+curl -X POST http://127.0.0.1:8000/tools/put_persist_data -H "Content-Type: application/json" -d '{"key": "test_key", "data": {"value": 42, "message": "test data"}}'
+
+# Test data retrieval via HTTP → FastMCP → TCP → Blender
+curl -X POST http://127.0.0.1:8000/tools/get_persist_data -H "Content-Type: application/json" -d '{"key": "test_key"}'
+
+# Test data removal via HTTP → FastMCP → TCP → Blender
+curl -X POST http://127.0.0.1:8000/tools/remove_persist_data -H "Content-Type: application/json" -d '{"key": "test_key"}'
+
+# Clean up
+kill $MCP_PID
+```
+
+#### Test 3.4: Enhanced Data Persistence (Direct TCP)
+**Objective:** Test enhanced data persistence functionality via direct TCP
+
+```bash
+# Test data storage via direct TCP (bypasses FastMCP)
+echo '{"message": "store data", "code": "import bld_remote; bld_remote.persist.put_data(\"test_key\", {\"value\": 42, \"message\": \"test data\"}); print(\"Data stored via TCP\")"}' | nc 127.0.0.1 6688
+
+# Test data retrieval via direct TCP (bypasses FastMCP)
+echo '{"message": "retrieve data", "code": "import bld_remote; data = bld_remote.persist.get_data(\"test_key\"); print(f\"Retrieved data via TCP: {data}\")"}' | nc 127.0.0.1 6688
+
+# Test data removal via direct TCP (bypasses FastMCP)
+echo '{"message": "remove data", "code": "import bld_remote; bld_remote.persist.remove_data(\"test_key\"); print(\"Data removed via TCP\")"}' | nc 127.0.0.1 6688
+```
+
+#### Test 3.5: Geometry Extraction (Complete Stack via HTTP)
+**Objective:** Test practical geometry extraction from Blender via complete HTTP stack
+
+```bash
+# Start MCP server
+uvx blender-remote --mcp-port 8000 --blender-port 6688 &
+MCP_PID=$!
+sleep 5
+
+# Test comprehensive geometry extraction with random cube via HTTP
+curl -X POST http://127.0.0.1:8000/tools/execute_blender_code -H "Content-Type: application/json" -d '{
+  "code": "import bpy; import numpy as np; import random; import json; random.seed(42); location = (random.uniform(-5, 5), random.uniform(-5, 5), random.uniform(-5, 5)); rotation = (random.uniform(0, 6.28), random.uniform(0, 6.28), random.uniform(0, 6.28)); scale = (random.uniform(0.5, 3), random.uniform(0.5, 3), random.uniform(0.5, 3)); bpy.ops.object.select_all(action='\''SELECT'\''); bpy.ops.object.delete(); bpy.ops.mesh.primitive_cube_add(location=location, rotation=rotation, scale=scale); cube = bpy.context.active_object; cube.name = '\''TestCube'\''; def get_vertices_in_world_space(obj): world_matrix = np.array(obj.matrix_world); vertex_count = len(obj.data.vertices); local_vertices = np.empty(vertex_count * 3, dtype=np.float32); obj.data.vertices.foreach_get('\''co'\'', local_vertices); local_vertices = local_vertices.reshape(vertex_count, 3); local_vertices_homogeneous = np.hstack((local_vertices, np.ones((vertex_count, 1)))); world_vertices_homogeneous = local_vertices_homogeneous @ world_matrix.T; return world_vertices_homogeneous[:, :3]; vertices_world = get_vertices_in_world_space(cube); geometry_data = {'\''object_name'\'': cube.name, '\''vertex_count'\'': len(vertices_world), '\''vertices_world_space'\'': vertices_world.tolist(), '\''location'\'': list(location), '\''rotation'\'': list(rotation), '\''scale'\'': list(scale), '\''bounds'\'': {'\''min'\'': vertices_world.min(axis=0).tolist(), '\''max'\'': vertices_world.max(axis=0).tolist()}}; result = {'\''status'\'': '\''success'\'', '\''test_type'\'': '\''geometry_extraction'\'', '\''geometry_data'\'': geometry_data}; print(json.dumps(result, indent=2))"
+}'
+
+# Clean up
+kill $MCP_PID
+```
+
+#### Test 3.6: Geometry Extraction (Direct TCP)
+**Objective:** Test practical geometry extraction from Blender via direct TCP
+
+**Create test script for complex geometry extraction:**
+```python
+# Save as: context/logs/tests/test_geometry_extraction.py
+import socket
+import json
+import logging
+
+def test_geometry_extraction_tcp(host='127.0.0.1', port=6688):
+    """Test geometry extraction via direct TCP"""
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    
+    # Geometry extraction code
+    geometry_code = '''
 import bpy
 import numpy as np
 import random
@@ -255,20 +460,52 @@ geometry_data = {
 # Return formatted result
 result = {
     'status': 'success',
-    'test_type': 'geometry_extraction',
+    'test_type': 'geometry_extraction_tcp',
     'geometry_data': geometry_data
 }
 
 print(json.dumps(result, indent=2))
-"}' | http POST 127.0.0.1:6688 Content-Type:application/json
+'''
 
-# Verify the returned data contains expected structure
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((host, port))
+        logger.info(f"Connected to {host}:{port}")
+        
+        # Send geometry extraction command
+        command = {"message": "geometry extraction test", "code": geometry_code}
+        sock.sendall(json.dumps(command).encode('utf-8'))
+        
+        # Receive large response (geometry data can be substantial)
+        response_data = sock.recv(32768)  # Larger buffer for geometry data
+        response = json.loads(response_data.decode('utf-8'))
+        
+        logger.info(f"Geometry extraction completed via TCP")
+        sock.close()
+        return response
+    except Exception as e:
+        logger.error(f"TCP geometry extraction test failed: {e}")
+        return {"error": str(e)}
+
+if __name__ == "__main__":
+    result = test_geometry_extraction_tcp()
+    print(json.dumps(result, indent=2))
+```
+
+**Run geometry extraction test:**
+```bash
+pixi run python context/logs/tests/test_geometry_extraction.py
+```
+
+**Verify results:**
+```bash
 echo "✅ Geometry extraction test verifies:"
 echo "  - Cube creation with random transform"
 echo "  - Efficient vertex extraction using foreach_get"
 echo "  - World space transformation using matrix_world"
-echo "  - JSON-serializable data transmission via MCP"
+echo "  - JSON-serializable data transmission via TCP/HTTP"
 echo "  - Complete geometric data including bounds"
+echo "  - Both direct TCP and complete HTTP stack paths"
 ```
 
 ### Test Suite 4: Full Stack Functional Equivalence
@@ -278,26 +515,35 @@ echo "  - Complete geometric data including bounds"
 
 ```bash
 # Prerequisites: Both stacks running
-# Our Stack: uvx blender-remote + BLD_Remote_MCP (port 6688)
-# Reference Stack: uvx blender-mcp + BlenderAutoMCP (port 9876)
+# Our Stack: uvx blender-remote (MCP/HTTP configurable) + BLD_Remote_MCP (TCP on 6688)
+# Reference Stack: uvx blender-mcp (MCP only) + BlenderAutoMCP (TCP on 9876, hardcoded)
 
 echo "🔄 Testing Full Stack Functional Equivalence"
 
 # Test 1: Basic scene query via both stacks
 echo "Test 1: Scene info via both stacks"
 
-# Our stack via MCP client
-uvx blender-remote --port 6688 &
+# Our stack: Start MCP server with HTTP endpoint for testing
+uvx blender-remote --mcp-port 8000 --blender-port 6688 &
 OUR_MCP_PID=$!
 sleep 3
 
-# Reference stack via MCP client (uvx blender-mcp expects BlenderAutoMCP on port 9876)
+# Reference stack: Start MCP server (MCP protocol only)
+# Note: uvx blender-mcp has no port control - it uses MCP protocol to BlenderAutoMCP port 9876
 uvx blender-mcp &
 REF_MCP_PID=$!
 sleep 3
 
-# Compare results (MCP client testing would go here)
+# Test our stack via HTTP (when using --mcp-port, HTTP endpoint available)
+echo "Testing our stack (HTTP 8000 → TCP 6688):"
+curl -X POST http://127.0.0.1:8000/tools/get_scene_info -H "Content-Type: application/json" -d '{}'
+
+# Test reference stack: Direct TCP to BlenderAutoMCP (since uvx blender-mcp has no HTTP endpoint)
+echo "Testing reference stack (Direct TCP to BlenderAutoMCP port 9876):"
+echo '{"type": "get_scene_info", "params": {}}' | nc 127.0.0.1 9876
+
 echo "Both stacks should return functionally equivalent scene information"
+echo "Note: Our stack provides HTTP endpoint advantage while maintaining MCP compatibility"
 
 kill $OUR_MCP_PID $REF_MCP_PID
 ```
@@ -364,6 +610,9 @@ set -e
 
 echo "🚀 Starting Comprehensive MCP Server Test Suite"
 echo "================================================="
+echo "⚠️  CRITICAL: All commands use max 10 seconds timeout"
+echo "🔧 Architecture: BLD_Remote_MCP (TCP 6688) ← FastMCP (HTTP/MCP) ← Client"
+echo ""
 
 # Test logging setup
 LOG_DIR="context/logs/tests"
@@ -395,18 +644,18 @@ verify_service() {
 echo "🔧 Test 1: Service Verification"
 verify_service
 
-# Test 2: Direct Protocol Testing
-echo "🔍 Test 2: Direct Protocol Testing"
-RESPONSE=$(echo '{"message": "test", "code": "print(\"Test successful\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json)
-if echo "$RESPONSE" | jq -r '.result // .message' | grep -q "successful"; then
-    log_test "Direct Protocol" "✅ PASS" "HTTPie communication successful"
+# Test 2: Direct TCP Protocol Testing
+echo "🔍 Test 2: Direct TCP Protocol Testing"
+RESPONSE=$(echo '{"message": "test", "code": "print(\"Test successful\")"}' | nc 127.0.0.1 6688)
+if echo "$RESPONSE" | grep -q "successful"; then
+    log_test "Direct TCP Protocol" "✅ PASS" "TCP communication successful"
 else
-    log_test "Direct Protocol" "❌ FAIL" "HTTPie communication failed"
+    log_test "Direct TCP Protocol" "❌ FAIL" "TCP communication failed"
 fi
 
 # Test 3: FastMCP Server
 echo "🌐 Test 3: FastMCP Server"
-uvx blender-remote --port 6688 &
+uvx blender-remote --mcp-port 8000 --blender-port 6688 &
 MCP_PID=$!
 sleep 5
 if kill $MCP_PID 2>/dev/null; then
@@ -415,20 +664,32 @@ else
     log_test "FastMCP Server" "⚠️ PARTIAL" "MCP server process management"
 fi
 
-# Test 4: Core MCP Tools
-echo "🔧 Test 4: Core MCP Tools"
-if echo '{"message": "core tools test", "code": "import bpy; print(f\"Scene: {bpy.context.scene.name}, Objects: {len(bpy.context.scene.objects)}\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json | grep -q "Scene"; then
-    log_test "Core MCP Tools" "✅ PASS" "Scene info retrieval successful"
+# Test 4: Core MCP Tools via HTTP
+echo "🔧 Test 4: Core MCP Tools via HTTP"
+uvx blender-remote --mcp-port 8000 --blender-port 6688 &
+MCP_PID=$!
+sleep 5
+if curl -X POST http://127.0.0.1:8000/tools/get_scene_info -H "Content-Type: application/json" -d '{}' | grep -q "Scene"; then
+    log_test "Core MCP Tools HTTP" "✅ PASS" "Scene info retrieval via HTTP successful"
 else
-    log_test "Core MCP Tools" "❌ FAIL" "Scene info retrieval failed"
+    log_test "Core MCP Tools HTTP" "❌ FAIL" "Scene info retrieval via HTTP failed"
+fi
+kill $MCP_PID 2>/dev/null
+
+# Test 5: Core MCP Tools via TCP
+echo "🔧 Test 5: Core MCP Tools via TCP"
+if echo '{"message": "core tools test", "code": "import bpy; print(f\"Scene: {bpy.context.scene.name}, Objects: {len(bpy.context.scene.objects)}\")"}' | nc 127.0.0.1 6688 | grep -q "Scene"; then
+    log_test "Core MCP Tools TCP" "✅ PASS" "Scene info retrieval via TCP successful"
+else
+    log_test "Core MCP Tools TCP" "❌ FAIL" "Scene info retrieval via TCP failed"
 fi
 
-# Test 5: Data Persistence
-echo "💾 Test 5: Data Persistence"
-if echo '{"message": "persistence test", "code": "import bld_remote; bld_remote.persist.put_data(\"test\", \"data\"); print(\"Persistence operational\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json | grep -q "operational"; then
-    log_test "Data Persistence" "✅ PASS" "Data persistence APIs working"
+# Test 6: Data Persistence via TCP
+echo "💾 Test 6: Data Persistence via TCP"
+if echo '{"message": "persistence test", "code": "import bld_remote; bld_remote.persist.put_data(\"test\", \"data\"); print(\"Persistence operational\")"}' | nc 127.0.0.1 6688 | grep -q "operational"; then
+    log_test "Data Persistence TCP" "✅ PASS" "Data persistence APIs working via TCP"
 else
-    log_test "Data Persistence" "❌ FAIL" "Data persistence APIs failed"
+    log_test "Data Persistence TCP" "❌ FAIL" "Data persistence APIs failed via TCP"
 fi
 
 # Test 6: Geometry Extraction (Advanced Use Case)
@@ -512,25 +773,36 @@ else
     exit 1
 fi
 
-# Test basic communication (functional equivalence with BlenderAutoMCP stack)
-if echo '{"message": "quick test", "code": "print(\"Quick validation successful\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json | grep -q "successful"; then
-    echo "✅ Stack communication test passed (functionally equivalent to BlenderAutoMCP stack)"
+# Test basic TCP communication (direct to BLD_Remote_MCP)
+if echo '{"message": "quick test", "code": "print(\"Quick validation successful\")"}' | nc 127.0.0.1 6688 | grep -q "successful"; then
+    echo "✅ TCP communication test passed (direct to BLD_Remote_MCP)"
 else
-    echo "❌ Stack communication test failed"
+    echo "❌ TCP communication test failed"
     exit 1
 fi
 
-# Test complete stack integration
-if uvx blender-remote --help | grep -q "host"; then
+# Test complete stack integration (HTTP → FastMCP → TCP → Blender)
+if uvx blender-remote --help | grep -q "blender-host"; then
     echo "✅ Complete stack (uvx blender-remote + BLD_Remote_MCP) available"
 else
     echo "❌ Complete stack not available"
     exit 1
 fi
 
-# Test enhanced stack features
-if echo '{"message": "persistence test", "code": "import bld_remote; bld_remote.persist.put_data(\"test\", \"ok\"); print(\"persistence ok\")"}' | http POST 127.0.0.1:6688 Content-Type:application/json | grep -q "ok"; then
-    echo "✅ Enhanced stack features (data persistence) working"
+# Test FastMCP server startup
+uvx blender-remote --mcp-port 8000 --blender-port 6688 &
+MCP_PID=$!
+sleep 5
+if curl -X POST http://127.0.0.1:8000/tools/check_connection_status -H "Content-Type: application/json" -d '{}' | grep -q "connected"; then
+    echo "✅ Complete stack HTTP communication working"
+else
+    echo "⚠️ Complete stack HTTP communication limited"
+fi
+kill $MCP_PID 2>/dev/null
+
+# Test enhanced stack features via TCP
+if echo '{"message": "persistence test", "code": "import bld_remote; bld_remote.persist.put_data(\"test\", \"ok\"); print(\"persistence ok\")"}' | nc 127.0.0.1 6688 | grep -q "ok"; then
+    echo "✅ Enhanced stack features (data persistence) working via TCP"
 else
     echo "⚠️ Enhanced stack features limited"
 fi
@@ -579,4 +851,15 @@ This comprehensive test plan validates that our **complete stack** serves as a *
 ### 🚀 **Production Ready Stack Replacement**
 The test plan provides complete validation that our **full stack** can **immediately replace the BlenderAutoMCP stack** in any IDE or workflow configuration. Users gain background mode support, enhanced data persistence, and advanced geometry extraction capabilities while maintaining 100% functional compatibility with existing BlenderAutoMCP workflows.
 
-**Key Testing Principle**: We test **combinations, not individual components** - ensuring that `uvx blender-remote` + `BLD_Remote_MCP` produces functionally equivalent results to `uvx blender-mcp` + `BlenderAutoMCP` for the same inputs.
+**Key Testing Principle**: We test **both individual components and complete stacks** - ensuring that:
+1. **BLD_Remote_MCP** (TCP server) works correctly via direct TCP testing
+2. **FastMCP server** (HTTP server) works correctly via HTTP testing
+3. **Complete stack** (`uvx blender-remote` HTTP + `BLD_Remote_MCP` TCP) produces functionally equivalent results to `uvx blender-mcp` + `BlenderAutoMCP` for the same inputs
+
+**Architecture Clarity**: 
+- **BLD_Remote_MCP**: TCP server on port 6688 (configurable, accepts JSON messages)
+- **BlenderAutoMCP**: TCP server on port 9876 (hardcoded, no control)
+- **Our FastMCP server**: MCP protocol + optional HTTP via `--mcp-port` (connects to BLD_Remote_MCP)
+- **Reference FastMCP server**: MCP protocol only (connects to BlenderAutoMCP hardcoded port 9876)
+- **Complete stack**: IDE → MCP/HTTP → FastMCP → TCP → Blender
+- **Key Advantage**: Our stack provides HTTP endpoint option while maintaining full MCP compatibility

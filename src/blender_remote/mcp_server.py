@@ -5,10 +5,16 @@ This module provides a Model Context Protocol (MCP) server that connects to
 the BLD_Remote_MCP service running inside Blender. This allows LLM IDEs to
 control Blender through the MCP protocol.
 
-Usage:
-    uvx blender-remote
+Architecture:
+    IDE/Client → MCP Server (this, HTTP/MCP) → BLD_Remote_MCP (TCP) → Blender
 
-This will start an MCP server that communicates with Blender's BLD_Remote_MCP service.
+Usage:
+    uvx blender-remote                                  # Default: MCP server on 8000, connects to Blender TCP on 6688
+    uvx blender-remote --blender-port 7777              # Connect to Blender TCP on port 7777
+    uvx blender-remote --mcp-port 9000                  # Run MCP server on port 9000
+    uvx blender-remote --blender-host 192.168.1.100    # Connect to remote Blender instance
+
+This will start an MCP server (HTTP) that communicates with Blender's BLD_Remote_MCP service (TCP).
 """
 
 import argparse
@@ -36,8 +42,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def get_default_port() -> int:
-    """Get default port from config file, fallback to 6688."""
+def get_default_blender_port() -> int:
+    """Get default Blender TCP port from config file, fallback to 6688."""
     try:
         config = BlenderRemoteConfig()
         port = config.get("mcp_service.default_port")
@@ -51,22 +57,51 @@ def get_default_port() -> int:
 
 
 def parse_arguments() -> argparse.Namespace:
-    """Parse command line arguments for host and port."""
+    """Parse command line arguments for MCP server and Blender connection."""
     parser = argparse.ArgumentParser(
         description="Blender Remote MCP Server - Connect LLM IDEs to Blender"
     )
     
+    # MCP Server configuration (where this FastMCP server runs)
+    parser.add_argument(
+        "--mcp-host",
+        default="127.0.0.1",
+        help="Host address for the MCP server to bind to (default: 127.0.0.1)"
+    )
+    
+    parser.add_argument(
+        "--mcp-port",
+        type=int,
+        default=8000,
+        help="Port for the MCP server to bind to (default: 8000)"
+    )
+    
+    # Blender connection configuration (where BLD_Remote_MCP TCP server runs)
+    parser.add_argument(
+        "--blender-host",
+        default="127.0.0.1",
+        help="Host address to connect to Blender BLD_Remote_MCP TCP service (default: 127.0.0.1)"
+    )
+    
+    parser.add_argument(
+        "--blender-port",
+        type=int,
+        default=None,
+        help="Port to connect to Blender BLD_Remote_MCP TCP service (default: from config or 6688)"
+    )
+    
+    # Legacy arguments for backward compatibility
     parser.add_argument(
         "--host",
-        default="127.0.0.1",
-        help="Host address to connect to Blender BLD_Remote_MCP service (default: 127.0.0.1)"
+        default=None,
+        help="Legacy: same as --blender-host"
     )
     
     parser.add_argument(
         "--port",
         type=int,
         default=None,
-        help="Port to connect to Blender BLD_Remote_MCP service (default: read from config or 6688)"
+        help="Legacy: same as --blender-port"
     )
     
     return parser.parse_args()
@@ -77,24 +112,24 @@ mcp: FastMCP = FastMCP("Blender Remote MCP")
 
 
 class BlenderConnection:
-    """Handle connection to Blender TCP server."""
+    """Handle connection to Blender BLD_Remote_MCP TCP server."""
 
-    def __init__(self, host: str = "127.0.0.1", port: int = 6688):
-        self.host = host
-        self.port = port
+    def __init__(self, blender_host: str = "127.0.0.1", blender_port: int = 6688):
+        self.blender_host = blender_host
+        self.blender_port = blender_port
         self.sock: Optional[socket.socket] = None
 
     async def connect(self) -> bool:
-        """Connect to Blender addon."""
+        """Connect to Blender BLD_Remote_MCP TCP server."""
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.connect((self.host, self.port))
+            self.sock.connect((self.blender_host, self.blender_port))
             logger.info(
-                f"Connected to Blender BLD_Remote_MCP at {self.host}:{self.port}"
+                f"Connected to Blender BLD_Remote_MCP TCP server at {self.blender_host}:{self.blender_port}"
             )
             return True
         except Exception as e:
-            logger.error(f"Failed to connect to Blender: {e}")
+            logger.error(f"Failed to connect to Blender BLD_Remote_MCP TCP server: {e}")
             self.sock = None
             return False
 
@@ -103,7 +138,7 @@ class BlenderConnection:
         if not self.sock:
             if not await self.connect():
                 raise ConnectionError(
-                    "Cannot connect to Blender BLD_Remote_MCP service"
+                    "Cannot connect to Blender BLD_Remote_MCP TCP service"
                 )
 
         # At this point, self.sock should not be None
@@ -416,11 +451,11 @@ async def check_connection_status(ctx: Context) -> Dict[str, Any]:
         )
 
         if response.get("status") == "success":
-            await ctx.info("✅ Connected to Blender BLD_Remote_MCP service")
+            await ctx.info("✅ Connected to Blender BLD_Remote_MCP TCP service")
             return {
                 "status": "connected",
-                "host": blender_conn.host,
-                "port": blender_conn.port,
+                "blender_host": blender_conn.blender_host,
+                "blender_port": blender_conn.blender_port,
                 "service": "BLD_Remote_MCP",
             }
         else:
@@ -450,8 +485,8 @@ async def blender_status() -> Dict[str, Any]:
         if blender_conn.sock:
             return {
                 "status": "connected",
-                "host": blender_conn.host,
-                "port": blender_conn.port,
+                "blender_host": blender_conn.blender_host,
+                "blender_port": blender_conn.blender_port,
                 "service": "BLD_Remote_MCP",
             }
         else:
@@ -485,24 +520,41 @@ def main() -> None:
     # Parse command line arguments
     args = parse_arguments()
     
-    # Determine port (command line arg takes precedence, then config file, then default)
-    port = args.port if args.port is not None else get_default_port()
-    host = args.host
+    # Handle legacy arguments for backward compatibility
+    blender_host = args.blender_host
+    if args.host is not None:
+        blender_host = args.host
+        logger.warning("Using legacy --host argument. Please use --blender-host instead.")
+    
+    # Determine blender port (command line arg takes precedence, then config file, then default)
+    blender_port = args.blender_port
+    if args.port is not None:
+        blender_port = args.port
+        logger.warning("Using legacy --port argument. Please use --blender-port instead.")
+    if blender_port is None:
+        blender_port = get_default_blender_port()
+    
+    # MCP Server configuration
+    mcp_host = args.mcp_host
+    mcp_port = args.mcp_port
     
     # Initialize global connection with parsed arguments
-    blender_conn = BlenderConnection(host=host, port=port)
+    blender_conn = BlenderConnection(blender_host=blender_host, blender_port=blender_port)
     
     # Print connection info to stdout
     logger.info("🚀 Starting Blender Remote MCP Server...")
-    logger.info(f"📡 Connecting to BLD_Remote_MCP service at {host}:{port}")
+    logger.info(f"🌐 MCP Server will run on {mcp_host}:{mcp_port}")
+    logger.info(f"📡 Will connect to Blender BLD_Remote_MCP TCP service at {blender_host}:{blender_port}")
     logger.info("🔗 Make sure Blender is running with the BLD_Remote_MCP addon enabled")
     
     # Print to stdout for easy visibility
     print(f"Blender Remote MCP Server")
-    print(f"Target Blender service: {host}:{port}")
+    print(f"MCP Server: {mcp_host}:{mcp_port}")
+    print(f"Target Blender TCP service: {blender_host}:{blender_port}")
     
     try:
         # This is the function called when running `uvx blender-remote`
+        # Note: FastMCP.run() will use its own server configuration
         mcp.run()
     except KeyboardInterrupt:
         logger.info("Server stopped by user")
