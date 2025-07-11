@@ -307,7 +307,9 @@ class BLD_REMOTE_OT_async_loop(bpy.types.Operator):
         # Log progress periodically to avoid spam but provide visibility
         should_log = (self._modal_call_count % 1000 == 1) or (self._modal_call_count <= 10)
         if should_log:
-            log_info(f"Modal operator processing timer event (call #{self._modal_call_count})")
+            # Commented out verbose timer logging per user request
+            # log_info(f"Modal operator processing timer event (call #{self._modal_call_count})")
+            pass
 
         # Process asyncio loop
         try:

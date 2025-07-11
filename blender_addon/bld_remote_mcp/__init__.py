@@ -34,6 +34,7 @@ tcp_server = None
 server_task = None
 server_port = 0
 
+
 def _is_background_mode():
     """Check if Blender is running in background mode"""
     bg_mode = bpy.app.background
