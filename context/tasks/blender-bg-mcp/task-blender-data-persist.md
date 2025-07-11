@@ -37,3 +37,6 @@ On the Python client side, `context/refcode/auto_mcp_remote/blender_mcp_client.p
 - `put_persist_data(key, data: Any)`, store or update data (of any type) with a key, the data will be sent to `BLD_Remote_MCP`. Data will be serialized with pickle and base64 encoded before sending.
 - `get_persist_data(key, default=None)`, retrieve data by key, if not found, return `default` value. Data will be deserialized from base64 and de-pickle and returned. If the data is not found, it will return `None` by default.
 - `remove_persist_data(key) -> True/False`, remove data by key, if not found, do nothing, return `True` if the data is removed, `False` if the data is not found.
+
+## Reference
+- `context/hints/howto-persist-data-in-blender.md`, how to persist data in Blender, we prefer using a simple Python pattern. Note that blender's python environment is pretty barebone, things like `pydantic`, `attrs` are not available, python builtin libraries are ok. Advanced libraries can be used on the MCP server side or python client side.
