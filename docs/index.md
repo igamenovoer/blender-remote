@@ -32,6 +32,33 @@ blender &
 blender --background --python start_service.py &
 ```
 
+### 3. **Flexible Connection Management**
+Connect to Blender instances on different hosts and ports.
+
+```bash
+# Connect to local Blender on custom port
+uvx blender-remote --port 7777
+
+# Connect to remote Blender instance
+uvx blender-remote --host 192.168.1.100 --port 6688
+
+# Multiple configurations for different projects
+uvx blender-remote --host 127.0.0.1 --port 6688  # Development
+uvx blender-remote --host 10.0.0.5 --port 6688   # Production
+```
+
+### 4. **Advanced CLI Control**
+Comprehensive command-line interface with scene loading and logging control.
+
+```bash
+# Start with specific scene and logging level
+blender-remote-cli start --scene=assets.blend --log-level=DEBUG
+
+# Configure service settings
+blender-remote-cli config set mcp_service.log_level=INFO
+blender-remote-cli config set mcp_service.default_port=7777
+```
+
 ## Installation
 
 ```bash
@@ -98,6 +125,18 @@ result = client.execute_python("bpy.ops.mesh.primitive_sphere_add()")
 }
 ```
 
+**Advanced Configuration (Custom Host/Port):**
+```json
+{
+  "mcpServers": {
+    "blender-remote": {
+      "command": "uvx",
+      "args": ["blender-remote", "--host", "127.0.0.1", "--port", "6688"]
+    }
+  }
+}
+```
+
 **Then ask your LLM:**
 - "What objects are in the current Blender scene?"
 - "Create a blue metallic cube at position (2, 0, 0)"
@@ -148,7 +187,12 @@ blender-remote-cli install
 
 # Start and manage service
 blender-remote-cli start --background
+blender-remote-cli start --scene=my_project.blend --log-level=DEBUG
 blender-remote-cli status
+
+# Configuration management
+blender-remote-cli config set mcp_service.log_level=DEBUG
+blender-remote-cli config get mcp_service.default_port
 ```
 
 ## Troubleshooting

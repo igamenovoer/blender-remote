@@ -42,6 +42,21 @@ uvx blender-remote --help
 }
 ```
 
+**Advanced Configuration (Custom Host/Port):**
+```json
+{
+  "mcp": {
+    "servers": {
+      "blender-remote": {
+        "type": "stdio",
+        "command": "uvx",
+        "args": ["blender-remote", "--host", "127.0.0.1", "--port", "6688"]
+      }
+    }
+  }
+}
+```
+
 3. **Restart VSCode**
 
 ## Claude Desktop
@@ -65,6 +80,18 @@ uvx blender-remote --help
 }
 ```
 
+**Advanced Configuration (Custom Host/Port):**
+```json
+{
+  "mcpServers": {
+    "blender-remote": {
+      "command": "uvx",
+      "args": ["blender-remote", "--host", "192.168.1.100", "--port", "7777"]
+    }
+  }
+}
+```
+
 3. **Restart Claude Desktop**
 
 ## Cursor IDE
@@ -80,6 +107,22 @@ uvx blender-remote --help
     "blender-remote": {
       "command": "uvx",
       "args": ["blender-remote"]
+    }
+  }
+}
+```
+
+**Advanced Configuration (Multiple Instances):**
+```json
+{
+  "mcpServers": {
+    "blender-remote-dev": {
+      "command": "uvx",
+      "args": ["blender-remote", "--host", "127.0.0.1", "--port", "6688"]
+    },
+    "blender-remote-prod": {
+      "command": "uvx", 
+      "args": ["blender-remote", "--host", "192.168.1.100", "--port", "7777"]
     }
   }
 }
@@ -121,6 +164,67 @@ uvx blender-remote --help
 | `get_viewport_screenshot()` | Capture viewport image | **Yes** |
 | `check_connection_status()` | Verify service health | No |
 
+## Advanced Configuration
+
+### Multiple Blender Instances
+
+Configure multiple MCP servers to connect to different Blender instances:
+
+```json
+{
+  "mcpServers": {
+    "blender-modeling": {
+      "command": "uvx",
+      "args": ["blender-remote", "--port", "6688"]
+    },
+    "blender-animation": {
+      "command": "uvx",
+      "args": ["blender-remote", "--port", "6689"]
+    },
+    "blender-rendering": {
+      "command": "uvx",
+      "args": ["blender-remote", "--host", "192.168.1.100", "--port", "6688"]
+    }
+  }
+}
+```
+
+### Remote Blender Connection
+
+Connect to Blender running on a different machine:
+
+1. **Start Blender on Remote Machine:**
+```bash
+# On remote machine (192.168.1.100)
+export BLD_REMOTE_MCP_START_NOW=1
+export BLD_REMOTE_MCP_PORT=6688
+blender &
+```
+
+2. **Configure IDE to Connect Remotely:**
+```json
+{
+  "mcpServers": {
+    "blender-remote": {
+      "command": "uvx",
+      "args": ["blender-remote", "--host", "192.168.1.100", "--port", "6688"]
+    }
+  }
+}
+```
+
+### Server Arguments Reference
+
+| Argument | Description | Default |
+|----------|-------------|---------|
+| `--host` | Target host for BLD_Remote_MCP service | `127.0.0.1` |
+| `--port` | Target port for BLD_Remote_MCP service | Read from config or `6688` |
+
+**Priority Order:**
+1. Command line arguments (highest)
+2. Config file (`~/.config/blender-remote/bld-remote-config.yaml`)
+3. Default values (lowest)
+
 ## Troubleshooting
 
 ### MCP Server Not Found
@@ -134,18 +238,44 @@ uvx --version
 ```
 
 ### Connection Issues
+
+**Test MCP Server Arguments:**
 ```bash
-# Check Blender service
+# Test with specific host and port
+uvx blender-remote --host 127.0.0.1 --port 6688
+
+# Check if custom port is accessible
 netstat -tlnp | grep 6688
 
-# Test direct connection
+# Test direct connection to custom host/port
 python -c "
 import socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect(('127.0.0.1', 6688))
+sock.connect(('127.0.0.1', 6688))  # Use your custom host/port
 print('Connected successfully')
 sock.close()
 "
+```
+
+**Remote Connection Issues:**
+```bash
+# Check network connectivity
+ping 192.168.1.100
+
+# Test port accessibility
+telnet 192.168.1.100 6688
+
+# Check firewall settings on remote machine
+sudo ufw status
+```
+
+**Configuration Validation:**
+```bash
+# Check MCP server arguments
+uvx blender-remote --help
+
+# Test connection with verbose output
+uvx blender-remote --host 127.0.0.1 --port 6688 2>&1 | head -20
 ```
 
 ### IDE Not Detecting MCP

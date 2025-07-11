@@ -110,6 +110,7 @@ echo '{"type": "get_scene_info", "params": {}}' | nc localhost 6688
 |----------|---------|-------------|
 | `BLD_REMOTE_MCP_PORT` | `6688` | TCP port for the service |
 | `BLD_REMOTE_MCP_START_NOW` | `0` | Auto-start service on Blender launch |
+| `BLD_REMOTE_LOG_LEVEL` | `INFO` | Control logging verbosity (DEBUG, INFO, WARNING, ERROR, CRITICAL) |
 
 ### Service Configuration
 
@@ -118,6 +119,39 @@ The BLD_Remote_MCP service can be configured through Blender's addon preferences
 1. **Edit → Preferences → Add-ons**
 2. **Search for "BLD Remote MCP"**
 3. **Configure port and auto-start settings**
+
+### MCP Server Configuration
+
+The MCP server (`uvx blender-remote`) supports command-line arguments for flexible connection configuration:
+
+**Usage:**
+```bash
+uvx blender-remote [OPTIONS]
+```
+
+**Arguments:**
+- `--host <HOST>` - Target host for BLD_Remote_MCP service (default: 127.0.0.1)
+- `--port <PORT>` - Target port for BLD_Remote_MCP service (default: read from config or 6688)
+
+**Configuration Priority:**
+1. **Command line arguments** (highest priority)
+2. **Config file** (`~/.config/blender-remote/bld-remote-config.yaml`)
+3. **Default values** (127.0.0.1:6688)
+
+**Examples:**
+```bash
+# Use default settings
+uvx blender-remote
+
+# Connect to remote Blender instance
+uvx blender-remote --host 192.168.1.100 --port 7777
+
+# Override just the port
+uvx blender-remote --port 8888
+
+# Help information
+uvx blender-remote --help
+```
 
 ## MCP Tools Reference
 
@@ -488,6 +522,44 @@ export BLD_REMOTE_MCP_PORT=9999
 1. Edit → Preferences → Add-ons
 2. Find "BLD Remote MCP"
 3. Set custom port in addon preferences
+
+### Remote Blender Connection
+
+**Connect to Blender on Different Host:**
+```bash
+# Start Blender on remote machine (192.168.1.100)
+export BLD_REMOTE_MCP_START_NOW=1
+export BLD_REMOTE_MCP_PORT=6688
+blender &
+
+# Connect MCP server from development machine
+uvx blender-remote --host 192.168.1.100 --port 6688
+```
+
+**Multiple Blender Instances:**
+```bash
+# Instance 1 on port 6688
+uvx blender-remote --port 6688
+
+# Instance 2 on port 6689  
+uvx blender-remote --port 6689
+```
+
+**IDE Configuration for Remote/Custom Ports:**
+```json
+{
+  "mcpServers": {
+    "blender-remote-dev": {
+      "command": "uvx",
+      "args": ["blender-remote", "--host", "192.168.1.100", "--port", "7777"]
+    },
+    "blender-remote-prod": {
+      "command": "uvx", 
+      "args": ["blender-remote", "--host", "127.0.0.1", "--port", "6688"]
+    }
+  }
+}
+```
 
 
 ## Best Practices

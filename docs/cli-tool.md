@@ -84,6 +84,7 @@ blender:
 
 mcp_service:
   default_port: 6688
+  log_level: INFO  # Control BLD_Remote_MCP logging verbosity
 ```
 
 ### `install` - Install Addon
@@ -126,6 +127,9 @@ blender-remote-cli config get
 # Change default port
 blender-remote-cli config set mcp_service.default_port=7777
 
+# Set logging level
+blender-remote-cli config set mcp_service.log_level=DEBUG
+
 # Get Blender version
 blender-remote-cli config get blender.version
 
@@ -153,6 +157,8 @@ blender-remote-cli start [OPTIONS] [-- blender_args...]
 - `--pre-file=<path>` - Execute Python file before service startup
 - `--pre-code=<code>` - Execute Python code before service startup
 - `--port=<port>` - Override default MCP service port
+- `--scene=<path>` - Open specified .blend scene file
+- `--log-level=<level>` - Set BLD_Remote_MCP logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
 **Examples:**
 ```bash
@@ -165,6 +171,12 @@ blender-remote-cli start --background
 # Custom port
 blender-remote-cli start --port=8888
 
+# Open specific scene file
+blender-remote-cli start --scene=my_project.blend
+
+# Set logging level
+blender-remote-cli start --log-level=DEBUG
+
 # Execute setup script
 blender-remote-cli start --pre-file=setup.py
 
@@ -175,7 +187,7 @@ blender-remote-cli start --pre-code="print('Custom startup')"
 blender-remote-cli start -- --factory-startup --no-addons
 
 # Combine options
-blender-remote-cli start --background --port=7777 -- --factory-startup
+blender-remote-cli start --background --port=7777 --scene=assets.blend --log-level=WARNING -- --factory-startup
 ```
 
 **Pre-execution Scripts:**
@@ -227,6 +239,7 @@ blender:
 
 mcp_service:
   default_port: 6688                  # Default MCP service port
+  log_level: INFO                     # BLD_Remote_MCP logging level
 ```
 
 ### Backup and Restore
@@ -238,6 +251,49 @@ blender-remote-cli init /usr/bin/blender --backup
 # ~/.config/blender-remote/bld-remote-config.yaml.bak
 ```
 
+### Advanced Configuration Features
+
+**OmegaConf Integration:** Configuration management uses [OmegaConf](https://omegaconf.readthedocs.io/) for enhanced features:
+
+- **Type Safety**: Automatic type conversion and validation
+- **Deep Nesting**: Unlimited nested configuration levels
+- **Dot Notation**: Safe access to nested values like `mcp_service.advanced.timeout`
+- **Error Handling**: Graceful handling of missing keys and invalid values
+- **Clean YAML**: Properly formatted output with consistent structure
+
+**Example Advanced Configuration:**
+```yaml
+blender:
+  version: "4.4.3"
+  exec_path: "/usr/bin/blender"
+  advanced:
+    startup_timeout: 30.0
+    use_factory_settings: false
+
+mcp_service:
+  default_port: 6688
+  log_level: INFO
+  features:
+    auto_start: true
+    background_support: true
+    scene_loading: true
+  advanced:
+    connection_timeout: 30.0
+    retry_attempts: 3
+    debug_mode: false
+```
+
+**Advanced Configuration Commands:**
+```bash
+# Set deeply nested values
+blender-remote-cli config set mcp_service.advanced.connection_timeout=45.0
+blender-remote-cli config set mcp_service.features.debug_mode=true
+
+# Get nested values safely
+blender-remote-cli config get mcp_service.advanced.retry_attempts
+blender-remote-cli config get missing.key  # Returns "not found" instead of error
+```
+
 ## Advanced Usage
 
 ### Development Workflow
@@ -247,8 +303,8 @@ blender-remote-cli init /usr/bin/blender --backup
 blender-remote-cli init /usr/bin/blender
 blender-remote-cli install
 
-# Start with development script
-blender-remote-cli start --pre-file=dev_setup.py --port=7777
+# Start with development script and scene
+blender-remote-cli start --pre-file=dev_setup.py --port=7777 --scene=dev_scene.blend --log-level=DEBUG
 
 # Test connection
 blender-remote-cli status
@@ -353,6 +409,7 @@ The CLI tool respects these environment variables:
 
 - `BLD_REMOTE_MCP_PORT` - Default service port (overridden by config)
 - `BLD_REMOTE_MCP_START_NOW` - Auto-start service (set by CLI)
+- `BLD_REMOTE_LOG_LEVEL` - Control BLD_Remote_MCP logging verbosity (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
 ## Examples
 
@@ -368,8 +425,9 @@ blender-remote-cli init /usr/bin/blender
 # 3. Install addon
 blender-remote-cli install
 
-# 4. Configure custom port
+# 4. Configure custom port and logging
 blender-remote-cli config set mcp_service.default_port=7777
+blender-remote-cli config set mcp_service.log_level=DEBUG
 
 # 5. Start service
 blender-remote-cli start --background
@@ -391,8 +449,8 @@ python asset_generation.py
 ### Development Testing
 
 ```bash
-# Start with development settings
-blender-remote-cli start --port=9999 --pre-code="
+# Start with development settings and scene
+blender-remote-cli start --port=9999 --scene=test_scene.blend --log-level=DEBUG --pre-code="
 import bpy
 bpy.context.preferences.view.show_splash = False
 print('Development mode active')
