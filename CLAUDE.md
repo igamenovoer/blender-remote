@@ -205,12 +205,14 @@ These guides should be updated when improved patterns or practices are discovere
 
 ## BLD Remote MCP Service Status
 
-**Service Status**: ✅ FULLY OPERATIONAL (as of 2025-07-08)
+**Current Implementation**: BLD_Remote_MCP_Async (asynchronous execution)  
+**Service Status**: ⚠️ DEPRECATED - Fully operational but deprecated, will be removed in the future (as of 2025-07-08)
 
 **Installation**: 
 - Plugin permanently installed at `/home/igamenovoer/.config/blender/4.4/scripts/addons/bld_remote_mcp/`
 - Auto-loads on Blender startup
 - Available as `import bld_remote` API
+- **Note**: This is the async version, will be renamed to `bld_remote_mcp_async` in future updates
 
 **Key Fix Applied**: 
 - Issue: `start_mcp_service()` scheduled asyncio task but modal operator wasn't started
@@ -241,7 +243,7 @@ status = bld_remote.get_status()  # Check if running
 
 ## Multiple MCP Services Overview
 
-This project now involves **TWO separate MCP services**:
+This project now involves **THREE separate MCP services**:
 
 ### 1. BlenderAutoMCP (3rd Party - Reference)
 - **Location**: Installed system-wide in Blender
@@ -251,19 +253,29 @@ This project now involves **TWO separate MCP services**:
 - **Limitation**: Cannot run in `blender --background`
 - **Features**: Full-featured with 3rd party asset providers
 
-### 2. BLD Remote MCP (Our Implementation) 
-- **Location**: `blender_addon/bld_remote_mcp/`
+### 2. BLD_Remote_MCP_Async (Our Async Implementation) 
+- **Location**: `blender_addon/bld_remote_mcp_async/` (formerly `bld_remote_mcp/`)
 - **Port**: 6688 
-- **Status**: ✅ Operational, both GUI and background modes
-- **Purpose**: Minimal essential MCP service
-- **Goal**: Background mode compatibility for headless applications
+- **Status**: ⚠️ DEPRECATED - Operational but deprecated, will be removed in future
+- **Purpose**: Asynchronous MCP service with timer-based execution
+- **Execution Model**: Commands scheduled via Blender timer system
 - **Features**: Essential handlers only (no 3rd party assets)
+
+### 3. BLD_Remote_MCP (Our Sync Implementation) 
+- **Location**: `blender_addon/bld_remote_mcp/` (planned)
+- **Port**: 6688 (configurable)
+- **Status**: 🚧 **PLANNED** - Implementation pending
+- **Purpose**: Synchronous MCP service with immediate result return
+- **Execution Model**: Threading-based with direct execution and result capture
+- **Goal**: Immediate response with captured output for better debugging and API completeness
 
 ### Development Strategy
 - **Use BlenderAutoMCP** as architectural reference (`server.py`)
-- **Build BLD Remote MCP** with same client interaction patterns
+- **⚠️ Phase out BLD_Remote_MCP_Async** - Deprecated, left for reference only
+- **Build BLD_Remote_MCP** (sync version) with threading-based architecture
 - **Focus on minimal essential functions** for background mode compatibility
-- **Test both services** to ensure they don't conflict (different ports)
+- **Test all services** to ensure they don't conflict (different ports)
+- **Migration Plan**: Move from deprecated async to new sync implementation
 
 ## Development Guidance
 
@@ -277,8 +289,14 @@ This project now involves **TWO separate MCP services**:
   - Source code: `context/refcode/blender-mcp/`
 - **`BlenderAutoMCP`**: The enhanced and modularized version of `blender-mcp`, breaking down different parts into different python files, and added features like auto-start and default-port setting via env variable, also a 3rd party library
   - Source code: `context/refcode/blender_auto_mcp/`
-- **`BLD_Remote_MCP`**: Model context service developed in this project, based on `BlenderAutoMCP`, with auto-start and port-setting via env control, and added background mode to allow it working in `blender --background`, maintains compatibility with `BlenderAutoMCP` and `blender-mcp` when interfacing with LLM, but drops the 3rd party asset repository APIs
-  - Source code: `blender_addon/bld_remote_mcp/`
+- **`BLD_Remote_MCP_Async`**: Asynchronous model context service developed in this project, based on `BlenderAutoMCP`, with auto-start and port-setting via env control, and added background mode to allow it working in `blender --background`, maintains compatibility with `BlenderAutoMCP` and `blender-mcp` when interfacing with LLM, but drops the 3rd party asset repository APIs
+  - Source code: `blender_addon/bld_remote_mcp_async/` (formerly `bld_remote_mcp/`)
+  - **Execution Model**: Asynchronous via Blender timer system
+  - **⚠️ DEPRECATED**: This async version is deprecated and will be removed in the future, currently left for reference only
+- **`BLD_Remote_MCP`**: **NEW** - Synchronous model context service (planned), threading-based implementation with immediate result return
+  - Source code: `blender_addon/bld_remote_mcp/` (to be implemented)
+  - **Execution Model**: Synchronous with threading-based client handling
+  - **Key Advantage**: Direct result capture and immediate response
 
 ## CRITICAL: Blender Process Management Rules
 

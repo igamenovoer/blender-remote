@@ -158,8 +158,6 @@ test = { features = ["test"], solve-group = "default" }
 # Additional dev-specific conda packages
 jupyter = "*"
 ipython = "*"
-
-[tool.pixi.feature.dev.pypi-dependencies]
 # Additional dev-specific PyPI packages if needed
 
 [tool.pixi.feature.test.dependencies]
@@ -183,3 +181,6 @@ check = { depends-on = ["format", "lint", "type-check", "test"] }
 # Blender-specific tasks
 test-blender = "python tests/manual_test_example.py"
 mcp-server = "python -m blender_remote.mcp_server"
+
+[dependency-groups]
+dev = ["blender-mcp>=1.2,<2"]

@@ -3,6 +3,10 @@
 **DO NOT READ THIS FILE UNLESS YOU ARE TOLD TO DO**
 **It contains many outdated and temporary information**
 
+about how to keep blender alive in background, see `blender-remote-cli` command implemented in `src/blender_remote/cli.py`, it creates startup script to keep Blender alive in background.
+
+----
+
 in the test plan, note these:
 - you will use `pixi` to run python scripts
 - you shall write test logs to `context/logs/tests` subdir, to keep a memo about what you did and what happens, be concise, just some critical info.
