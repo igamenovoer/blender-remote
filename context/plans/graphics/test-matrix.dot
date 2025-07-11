@@ -1,0 +1,65 @@
+digraph TestMatrix {
+    rankdir=TB;
+    node [shape=box, style=filled];
+    
+    // Test Categories
+    subgraph cluster_categories {
+        label="Test Categories";
+        style=filled;
+        color=lightgrey;
+        
+        Startup [label="Service Startup", fillcolor=lightblue];
+        Protocol [label="Direct Protocol", fillcolor=lightgreen];
+        FastMCP [label="FastMCP Server", fillcolor=lightyellow];
+        Tools [label="MCP Tools", fillcolor=lightcoral];
+        CrossVal [label="Cross-Validation", fillcolor=lightpink];
+        Performance [label="Performance", fillcolor=lightcyan];
+    }
+    
+    // Test Environments
+    subgraph cluster_environments {
+        label="Test Environments";
+        style=filled;
+        color=lightsteelblue;
+        
+        GUI_Single [label="GUI Mode\nSingle Service", fillcolor=white];
+        GUI_Dual [label="GUI Mode\nDual Service", fillcolor=white];
+        BG_Single [label="Background Mode\nSingle Service", fillcolor=white];
+    }
+    
+    // Results Matrix
+    subgraph cluster_results {
+        label="Expected Results";
+        style=filled;
+        color=lightyellow;
+        
+        Pass [label="✅ Pass", fillcolor=lightgreen];
+        Limited [label="⚠️ Limited", fillcolor=yellow];
+        Fail [label="❌ Expected Fail", fillcolor=lightcoral];
+    }
+    
+    // Connections showing expected outcomes
+    Startup -> GUI_Single -> Pass;
+    Startup -> GUI_Dual -> Pass;
+    Startup -> BG_Single -> Pass;
+    
+    Protocol -> GUI_Single -> Pass;
+    Protocol -> GUI_Dual -> Pass;
+    Protocol -> BG_Single -> Pass;
+    
+    FastMCP -> GUI_Single -> Pass;
+    FastMCP -> GUI_Dual -> Pass;
+    FastMCP -> BG_Single -> Pass;
+    
+    Tools -> GUI_Single -> Pass;
+    Tools -> GUI_Dual -> Pass;
+    Tools -> BG_Single -> Limited [label="Screenshot fails"];
+    
+    CrossVal -> GUI_Dual -> Pass;
+    CrossVal -> GUI_Single -> Limited [label="No reference"];
+    CrossVal -> BG_Single -> Limited [label="No reference"];
+    
+    Performance -> GUI_Single -> Pass;
+    Performance -> GUI_Dual -> Pass;
+    Performance -> BG_Single -> Pass;
+}

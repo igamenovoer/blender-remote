@@ -1,3 +1,5 @@
+**IMPORTANT**: this task is **OUTDATED** and is no longer relevant, we shall use `fastmcp` client for python-to-mcp-server interaction.
+
 in `scripts` dir, create a script name `mcp-server-cli.py`, which is a cli python script, which will start the mcp server `src/blender_remote/mcp_server.py`, and communicate with it using `stdio` method, just like how `uvx blender-remote` works. This script mimics the process an LLM talks to the MCP server, allowing users to control the MCP server as if it were an LLM tool, for testing.
 
 This script is intended to be used like this:

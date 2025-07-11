@@ -1,0 +1,37 @@
+digraph Benefits {
+    rankdir=LR;
+    node [shape=box, style=filled];
+    
+    // Core Benefits
+    subgraph cluster_benefits {
+        label="Test Plan Benefits";
+        style=filled;
+        color=lightgreen;
+        
+        Comprehensive [label="Comprehensive\nCoverage", fillcolor=lightblue];
+        Multiple [label="Multiple Testing\nMethods", fillcolor=lightyellow];
+        CrossVal [label="Cross-Validation", fillcolor=lightcoral];
+        Automated [label="Automation\nSupport", fillcolor=lightpink];
+        Production [label="Production\nReady", fillcolor=lightcyan];
+    }
+    
+    // Detailed Benefits
+    subgraph cluster_details {
+        label="Detailed Features";
+        style=filled;
+        color=lightsteelblue;
+        
+        AllTools [label="• All MCP tools tested\n• Protocol compliance\n• Error handling", fillcolor=white];
+        HTTPie [label="• HTTPie direct testing\n• CLI validation\n• Socket communication", fillcolor=white];
+        Dual [label="• BlenderAutoMCP reference\n• State consistency\n• Cross-service validation", fillcolor=white];
+        Scripts [label="• Complete test runner\n• Quick validation\n• Cleanup procedures", fillcolor=white];
+        Realistic [label="• GUI and background modes\n• Error scenarios\n• Performance testing", fillcolor=white];
+    }
+    
+    // Connections
+    Comprehensive -> AllTools;
+    Multiple -> HTTPie;
+    CrossVal -> Dual;
+    Automated -> Scripts;
+    Production -> Realistic;
+}

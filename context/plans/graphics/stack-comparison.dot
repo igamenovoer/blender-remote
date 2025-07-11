@@ -1,0 +1,50 @@
+digraph StackComparison {
+    rankdir=TB;
+    node [shape=box, style=filled];
+    
+    // Test Input
+    Input [label="Test Input\n(MCP Commands)", shape=ellipse, fillcolor=lightyellow];
+    
+    // Our Stack
+    subgraph cluster_our_stack {
+        label="Our Stack";
+        style=filled;
+        color=lightgreen;
+        
+        Our_MCP [label="uvx blender-remote\n(FastMCP Server)", fillcolor=lightblue];
+        Our_Service [label="BLD_Remote_MCP\n(port 6688)", fillcolor=lightgreen];
+        Our_Blender [label="Blender\n(GUI + Background)", fillcolor=white];
+        
+        Our_MCP -> Our_Service [label="JSON/TCP"];
+        Our_Service -> Our_Blender [label="Python API"];
+    }
+    
+    // Reference Stack  
+    subgraph cluster_ref_stack {
+        label="Reference Stack";
+        style=filled;
+        color=lightcoral;
+        
+        Ref_MCP [label="uvx blender-mcp\n(expects port 9876)", fillcolor=lightpink];
+        Ref_Service [label="BlenderAutoMCP\n(port 9876)", fillcolor=lightcoral];
+        Ref_Blender [label="Blender\n(GUI only)", fillcolor=white];
+        
+        Ref_MCP -> Ref_Service [label="connects to :9876"];
+        Ref_Service -> Ref_Blender [label="Python API"];
+    }
+    
+    // Outputs
+    Our_Output [label="Our Result\n(Enhanced)", shape=ellipse, fillcolor=lightgreen];
+    Ref_Output [label="Reference Result\n(Baseline)", shape=ellipse, fillcolor=lightcoral];
+    
+    // Comparison
+    Comparison [label="Functional Equivalence\nValidation", shape=diamond, fillcolor=yellow];
+    
+    // Flow
+    Input -> Our_MCP;
+    Input -> Ref_MCP;
+    Our_Blender -> Our_Output;
+    Ref_Blender -> Ref_Output;
+    Our_Output -> Comparison;
+    Ref_Output -> Comparison;
+}

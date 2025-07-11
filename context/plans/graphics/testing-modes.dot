@@ -1,0 +1,50 @@
+digraph TestingModes {
+    rankdir=TB;
+    node [shape=box, style=filled];
+    
+    // GUI Mode
+    subgraph cluster_gui {
+        label="GUI Mode Testing";
+        style=filled;
+        color=lightgreen;
+        
+        GUI_Blender [label="Blender GUI", fillcolor=white];
+        GUI_BLD [label="BLD_Remote_MCP\n(port 6688)", fillcolor=lightgreen];
+        GUI_Auto [label="BlenderAutoMCP\n(port 9876)", fillcolor=lightcoral];
+        
+        GUI_BLD -> GUI_Blender;
+        GUI_Auto -> GUI_Blender;
+    }
+    
+    // Background Mode
+    subgraph cluster_bg {
+        label="Background Mode Testing";
+        style=filled;
+        color=lightblue;
+        
+        BG_Blender [label="Blender --background", fillcolor=white];
+        BG_BLD [label="BLD_Remote_MCP\n(port 6688)", fillcolor=lightgreen];
+        BG_Auto [label="BlenderAutoMCP\n❌ Not Available", fillcolor=grey, style=dashed];
+        
+        BG_BLD -> BG_Blender;
+    }
+    
+    // Test Tools
+    TestTools [label="Test Tools\n• HTTPie\n• Socket\n• MCP Client", fillcolor=lightyellow];
+    
+    TestTools -> GUI_BLD;
+    TestTools -> GUI_Auto;
+    TestTools -> BG_BLD;
+    TestTools -> BG_Auto [style=dashed, color=red];
+    
+    // Legend
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        color=white;
+        
+        Available [label="✅ Available", fillcolor=lightgreen];
+        Limited [label="⚠️ Limited", fillcolor=lightyellow];
+        Unavailable [label="❌ Unavailable", fillcolor=grey];
+    }
+}

@@ -1,0 +1,40 @@
+digraph TestFlow {
+    rankdir=TB;
+    node [shape=box, style=filled];
+    
+    Start [label="Start Testing", shape=ellipse, fillcolor=lightgreen];
+    
+    // Setup Phase
+    Setup [label="Environment Setup\n• Verify service running\n• Find available ports\n• Verify prerequisites", fillcolor=lightblue];
+    
+    // Service Startup
+    Startup [label="Service Available\n• BLD_Remote_MCP running\n• Port configuration\n• Ready for testing", fillcolor=lightyellow];
+    
+    // Testing Phases
+    Direct [label="Direct Protocol Testing\n• HTTPie commands\n• Socket communication\n• JSON validation", fillcolor=lightcoral];
+    
+    MCP [label="FastMCP Server Testing\n• Server startup\n• Argument parsing\n• Connection management", fillcolor=lightpink];
+    
+    Tools [label="MCP Tools Testing\n• get_scene_info\n• execute_blender_code\n• get_object_info\n• data persistence", fillcolor=lightcyan];
+    
+    CrossVal [label="Cross-Validation\n• Dual service comparison\n• State consistency\n• Error handling", fillcolor=lightsteelblue];
+    
+    Performance [label="Performance Testing\n• Multiple clients\n• Concurrent requests\n• Stress testing", fillcolor=lightsalmon];
+    
+    // Results
+    Results [label="Generate Test Report\n• Pass/Fail summary\n• Issue documentation\n• Recommendations", fillcolor=lightgreen];
+    
+    End [label="Testing Complete", shape=ellipse, fillcolor=lightgreen];
+    
+    // Flow
+    Start -> Setup -> Startup;
+    Startup -> Direct -> MCP -> Tools -> CrossVal -> Performance -> Results -> End;
+    
+    // Decision points
+    ModeDecision [label="GUI or Background?", shape=diamond, fillcolor=yellow];
+    ServiceDecision [label="Single or Dual?", shape=diamond, fillcolor=yellow];
+    
+    Startup -> ModeDecision;
+    ModeDecision -> ServiceDecision;
+    ServiceDecision -> Direct;
+}

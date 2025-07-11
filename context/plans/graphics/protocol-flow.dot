@@ -1,0 +1,66 @@
+digraph ProtocolFlow {
+    rankdir=LR;
+    node [shape=box, style=filled];
+    
+    // HTTP/CLI Layer
+    subgraph cluster_http {
+        label="HTTP/CLI Layer";
+        style=filled;
+        color=lightblue;
+        
+        HTTPie [fillcolor=white];
+        Socket [label="Direct Socket", fillcolor=white];
+    }
+    
+    // MCP Layer  
+    subgraph cluster_mcp {
+        label="MCP Layer";
+        style=filled;
+        color=lightyellow;
+        
+        FastMCP [label="mcp_server.py\n(FastMCP)", fillcolor=white];
+        MCP_Tools [label="MCP Tools\n• get_scene_info\n• execute_blender_code\n• get_object_info", fillcolor=white];
+        
+        FastMCP -> MCP_Tools;
+    }
+    
+    // Service Layer
+    subgraph cluster_service {
+        label="Service Layer";
+        style=filled;
+        color=lightgreen;
+        
+        BLD_TCP [label="BLD_Remote_MCP\nTCP Server\n(port 6688)", fillcolor=white];
+        Auto_TCP [label="BlenderAutoMCP\nTCP Server\n(port 9876)", fillcolor=white];
+    }
+    
+    // Blender Layer
+    subgraph cluster_blender {
+        label="Blender Layer";
+        style=filled;
+        color=lightcyan;
+        
+        Python_API [label="Blender Python API\nbpy.context, bpy.ops", fillcolor=white];
+        Scene [label="Scene Objects\nMaterials, Meshes", fillcolor=white];
+        
+        Python_API -> Scene;
+    }
+    
+    // Connections
+    HTTPie -> BLD_TCP [label="JSON/TCP\nDirect"];
+    Socket -> BLD_TCP [label="Raw Socket\nDirect"];
+    
+    FastMCP -> BLD_TCP [label="JSON/TCP\nvia BlenderConnection"];
+    FastMCP -> Auto_TCP [label="Reference", style=dashed];
+    
+    BLD_TCP -> Python_API [label="exec(code)"];
+    Auto_TCP -> Python_API [label="MCP Protocol"];
+    
+    // Message format annotations
+    JSON_Msg [label="JSON Message:\n{\n  \"message\": \"...\",\n  \"code\": \"...\"\n}", shape=note, fillcolor=lightyellow];
+    
+    MCP_Msg [label="MCP Message:\n{\n  \"type\": \"tool_call\",\n  \"tool\": \"execute_blender_code\",\n  \"arguments\": {...}\n}", shape=note, fillcolor=lightcyan];
+    
+    HTTPie -> JSON_Msg [style=dotted];
+    FastMCP -> MCP_Msg [style=dotted];
+}
