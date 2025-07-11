@@ -44,11 +44,76 @@ This test plan validates that our **complete stack** serves as a **drop-in repla
 
 ## Test Tools and Methods
 
-### 1. Raw TCP Testing (BLD_Remote_MCP)
+This section documents **three comprehensive approaches** for testing MCP servers, based on the practical methods outlined in `context/hints/howto-call-mcp-server-via-python.md`:
+
+### 1. MCP CLI Tools Protocol Testing (RECOMMENDED) ✅
+
+**Approach**: Official MCP protocol using the `mcp[cli]` package and Python SDK
+
+**Benefits**:
+- ✅ Official protocol compliance
+- ✅ Type safety and validation  
+- ✅ Excellent debugging tools (MCP Inspector)
+- ✅ Claude Desktop integration
+- ✅ Future-proof compatibility
+
+**MCP Inspector Testing:**
+```bash
+# Interactive MCP testing (recommended for development)
+pixi run mcp dev src/blender_remote/mcp_server.py
+
+# Direct MCP execution
+pixi run mcp run src/blender_remote/mcp_server.py --transport stdio
+```
+
+**Python SDK Testing:**
+```python
+# Save as: context/logs/tests/test_mcp_cli_client.py
+import asyncio
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+async def test_mcp_server_via_sdk():
+    """Test MCP server using official Python SDK"""
+    server_params = StdioServerParameters(
+        command="pixi",
+        args=["run", "python", "src/blender_remote/mcp_server.py"],
+        env=None,
+    )
+    
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            
+            # List available tools
+            tools = await session.list_tools()
+            print(f"Available tools: {[tool.name for tool in tools.tools]}")
+            
+            # Call MCP tools
+            scene_result = await session.call_tool("get_scene_info", {})
+            print(f"Scene info result: {scene_result}")
+            
+            code_result = await session.call_tool("execute_blender_code", 
+                                                {"code": "print('Hello from MCP SDK')"})
+            print(f"Code execution result: {code_result}")
+
+if __name__ == "__main__":
+    asyncio.run(test_mcp_server_via_sdk())
+```
+
+### 2. Direct TCP Socket Connection Testing ✅
+
+**Approach**: Direct communication with MCP servers via socket connections
+
+**Use Cases**:
+- Low-level protocol control
+- Non-MCP-compliant servers  
+- Simple automation scripts
+
+**Raw TCP Testing (BLD_Remote_MCP):**
 
 The BLD_Remote_MCP service runs a **TCP server** (not HTTP) on port 6688:
 
-**Test BLD_Remote_MCP TCP Service Directly:**
 ```bash
 # Test basic connection using netcat
 echo '{"message": "connection test", "code": "print(\"Hello from BLD_Remote_MCP\")"}' | nc 127.0.0.1 6688
@@ -60,14 +125,12 @@ echo '{"message": "get scene info", "code": "import bpy; print(f\"Scene: {bpy.co
 echo '{"message": "create cube", "code": "import bpy; bpy.ops.mesh.primitive_cube_add(location=(2, 0, 0)); print(\"Cube created at (2, 0, 0)\")"}' | nc 127.0.0.1 6688
 ```
 
-### 2. Python TCP Testing (BLD_Remote_MCP)
-
-For more complex TCP testing:
+**Python TCP Testing:**
 ```python
 import socket
 import json
 
-def test_bld_remote_mcp(host='127.0.0.1', port=6688):
+def test_bld_remote_mcp_tcp(host='127.0.0.1', port=6688):
     """Test BLD_Remote_MCP TCP service directly"""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((host, port))
@@ -81,7 +144,48 @@ def test_bld_remote_mcp(host='127.0.0.1', port=6688):
     return response
 ```
 
-### 3. FastMCP Server Testing (HTTP/MCP)
+### 3. Direct Tool Import Testing (FastMCP Development) ✅
+
+**Approach**: Importing and calling FastMCP server tools directly in Python
+
+**Limitations**:
+- Only compatible with FastMCP framework
+- Requires server source code access
+- Development/testing use only
+
+**Direct Import Testing:**
+```python
+# Save as: context/logs/tests/test_direct_tool_import.py
+import sys
+sys.path.insert(0, "src")
+
+# Only works with FastMCP servers
+from blender_remote.mcp_server import app
+from mcp.server.fastmcp import Context
+
+def test_direct_tool_import():
+    """Test FastMCP tools by direct import (development only)"""
+    ctx = Context()
+    
+    # Test tools directly (if available)
+    try:
+        # Note: Exact tool names depend on FastMCP implementation
+        scene_result = app.get_scene_info(ctx)
+        print(f"Direct scene info: {scene_result}")
+        
+        code_result = app.execute_blender_code(ctx, "print('Direct import test')")
+        print(f"Direct code execution: {code_result}")
+        
+        return {"status": "success", "method": "direct_import"}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "method": "direct_import"}
+
+if __name__ == "__main__":
+    result = test_direct_tool_import()
+    print(result)
+```
+
+### 4. FastMCP Server Testing (HTTP/MCP)
 
 **Start MCP Server:**
 ```bash
@@ -142,6 +246,191 @@ blender-remote-cli status
 - **`netcat` (nc)**: Command-line TCP client for testing TCP servers
 - **`curl`**: Command-line HTTP client for testing HTTP APIs
 - **`dot`**: Graphviz command-line tool for generating diagrams from .dot files
+
+### Test Suite 0: MCP CLI Tools Protocol Testing (RECOMMENDED) ⭐
+
+#### Test 0.1: MCP Inspector Interactive Testing
+**Objective:** Test MCP server using the official MCP Inspector (recommended for development)
+
+**MCP Inspector Testing:**
+```bash
+# Start MCP Inspector for interactive testing (RECOMMENDED)
+pixi run mcp dev src/blender_remote/mcp_server.py
+
+# This launches an interactive web interface for testing MCP tools
+# Available at: http://localhost:3000 (or displayed URL)
+# Benefits:
+# - Interactive tool testing
+# - Real-time debugging
+# - Protocol validation
+# - JSON schema validation
+```
+
+#### Test 0.2: MCP SDK Python Client Testing  
+**Objective:** Test MCP server using official Python SDK for automated testing
+
+**Create MCP SDK test script:**
+```python
+# Save as: context/logs/tests/test_mcp_sdk_client.py
+import asyncio
+import logging
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+async def test_mcp_server_comprehensive():
+    """Comprehensive MCP server testing using official SDK"""
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    
+    server_params = StdioServerParameters(
+        command="pixi",
+        args=["run", "python", "src/blender_remote/mcp_server.py"],
+        env=None,
+    )
+    
+    try:
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                logger.info("MCP session initialized successfully")
+                
+                # Test 1: List available tools
+                tools = await session.list_tools()
+                tool_names = [tool.name for tool in tools.tools]
+                logger.info(f"Available tools: {tool_names}")
+                
+                # Test 2: Get scene info
+                scene_result = await session.call_tool("get_scene_info", {})
+                logger.info(f"Scene info: {scene_result}")
+                
+                # Test 3: Execute Blender code
+                code_result = await session.call_tool("execute_blender_code", {
+                    "code": "import bpy; print(f'Scene: {bpy.context.scene.name}'); print('MCP SDK test successful')"
+                })
+                logger.info(f"Code execution: {code_result}")
+                
+                # Test 4: Test object operations
+                create_result = await session.call_tool("execute_blender_code", {
+                    "code": "import bpy; bpy.ops.mesh.primitive_cube_add(location=(3, 0, 0)); print('Cube created via MCP SDK')"
+                })
+                logger.info(f"Object creation: {create_result}")
+                
+                # Test 5: Get object info
+                object_result = await session.call_tool("get_object_info", {
+                    "object_name": "Cube"
+                })
+                logger.info(f"Object info: {object_result}")
+                
+                return {
+                    "status": "success",
+                    "method": "mcp_sdk",
+                    "tools_available": tool_names,
+                    "tests_passed": ["scene_info", "code_execution", "object_operations"]
+                }
+                
+    except Exception as e:
+        logger.error(f"MCP SDK test failed: {e}")
+        return {"status": "error", "method": "mcp_sdk", "error": str(e)}
+
+if __name__ == "__main__":
+    result = asyncio.run(test_mcp_server_comprehensive())
+    print(f"MCP SDK Test Result: {result}")
+```
+
+**Run MCP SDK test:**
+```bash
+pixi run python context/logs/tests/test_mcp_sdk_client.py
+```
+
+#### Test 0.3: MCP Direct Execution Testing
+**Objective:** Test MCP server via direct stdio execution
+
+```bash
+# Direct MCP server execution with stdio transport
+pixi run mcp run src/blender_remote/mcp_server.py --transport stdio
+
+# This allows direct protocol testing via command line
+# Benefits:
+# - Protocol-level debugging
+# - Transport validation  
+# - Compatibility verification
+```
+
+#### Test 0.4: MCP Protocol Compliance Validation
+**Objective:** Validate full MCP protocol compliance
+
+**Create protocol compliance test:**
+```python
+# Save as: context/logs/tests/test_mcp_protocol_compliance.py
+import asyncio
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+async def test_protocol_compliance():
+    """Test MCP protocol compliance requirements"""
+    server_params = StdioServerParameters(
+        command="pixi",
+        args=["run", "python", "src/blender_remote/mcp_server.py"],
+        env=None,
+    )
+    
+    compliance_results = {
+        "initialization": False,
+        "tool_listing": False,
+        "tool_execution": False,
+        "error_handling": False,
+        "resource_management": False
+    }
+    
+    try:
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                
+                # Test 1: Protocol Initialization
+                await session.initialize()
+                compliance_results["initialization"] = True
+                
+                # Test 2: Tool Listing
+                tools = await session.list_tools()
+                if len(tools.tools) > 0:
+                    compliance_results["tool_listing"] = True
+                
+                # Test 3: Tool Execution  
+                result = await session.call_tool("get_scene_info", {})
+                if result:
+                    compliance_results["tool_execution"] = True
+                
+                # Test 4: Error Handling
+                try:
+                    await session.call_tool("nonexistent_tool", {})
+                except:
+                    compliance_results["error_handling"] = True
+                
+                # Test 5: Resource Management (successful cleanup)
+                compliance_results["resource_management"] = True
+                
+        return {
+            "status": "success",
+            "compliance_results": compliance_results,
+            "compliance_score": sum(compliance_results.values()) / len(compliance_results)
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error", 
+            "error": str(e),
+            "compliance_results": compliance_results
+        }
+
+if __name__ == "__main__":
+    result = asyncio.run(test_protocol_compliance())
+    print(f"MCP Protocol Compliance: {result}")
+```
+
+**Run protocol compliance test:**
+```bash
+pixi run python context/logs/tests/test_mcp_protocol_compliance.py
+```
 
 ### Test Suite 1: Direct TCP Protocol Testing (BLD_Remote_MCP)
 
@@ -209,9 +498,209 @@ if __name__ == "__main__":
 pixi run python context/logs/tests/test_tcp_connection.py
 ```
 
-### Test Suite 2: FastMCP Server Testing (HTTP/MCP)
+### Test Suite 2: Direct Tool Import Testing (FastMCP Development) 🔧
 
-#### Test 2.1: MCP Server Startup Testing
+#### Test 2.1: Direct FastMCP Tool Import
+**Objective:** Test FastMCP tools by direct import (development and debugging only)
+
+**Create direct import test script:**
+```python
+# Save as: context/logs/tests/test_direct_tool_import.py
+import sys
+import logging
+sys.path.insert(0, "src")
+
+def test_direct_tool_import():
+    """Test FastMCP tools by direct import (development only)"""
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Import FastMCP server components
+        from blender_remote.mcp_server import app
+        from mcp.server.fastmcp import Context
+        
+        logger.info("Successfully imported FastMCP components")
+        
+        # Create context for tool execution
+        ctx = Context()
+        
+        # Test available tools directly
+        results = []
+        
+        # Test 1: Check if tools are accessible
+        try:
+            # Note: Exact tool names depend on FastMCP implementation
+            # This is a development/debugging approach
+            
+            # Attempt to call tools directly if they exist
+            if hasattr(app, 'get_scene_info'):
+                scene_result = app.get_scene_info(ctx)
+                results.append({"tool": "get_scene_info", "status": "success", "result": scene_result})
+                logger.info(f"Direct scene info: {scene_result}")
+            
+            if hasattr(app, 'execute_blender_code'):
+                code_result = app.execute_blender_code(ctx, "print('Direct import test successful')")
+                results.append({"tool": "execute_blender_code", "status": "success", "result": code_result})
+                logger.info(f"Direct code execution: {code_result}")
+                
+        except Exception as tool_error:
+            logger.warning(f"Direct tool access failed: {tool_error}")
+            results.append({"tool": "direct_access", "status": "error", "error": str(tool_error)})
+        
+        return {
+            "status": "success", 
+            "method": "direct_import",
+            "import_successful": True,
+            "tool_results": results
+        }
+        
+    except ImportError as e:
+        logger.error(f"Failed to import FastMCP components: {e}")
+        return {
+            "status": "error", 
+            "method": "direct_import",
+            "import_successful": False,
+            "error": str(e)
+        }
+    except Exception as e:
+        logger.error(f"Direct tool import test failed: {e}")
+        return {
+            "status": "error", 
+            "method": "direct_import", 
+            "error": str(e)
+        }
+
+def test_fastmcp_server_inspection():
+    """Inspect FastMCP server structure for debugging"""
+    try:
+        from blender_remote.mcp_server import app
+        
+        # Inspect FastMCP app structure
+        app_info = {
+            "app_type": type(app).__name__,
+            "available_attributes": [attr for attr in dir(app) if not attr.startswith('_')],
+            "tools": [],
+            "handlers": []
+        }
+        
+        # Try to get tool information
+        if hasattr(app, 'list_tools'):
+            try:
+                tools = app.list_tools()
+                app_info["tools"] = tools
+            except:
+                app_info["tools"] = "Unable to list tools"
+        
+        return {
+            "status": "success",
+            "method": "inspection",
+            "app_info": app_info
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "method": "inspection", 
+            "error": str(e)
+        }
+
+if __name__ == "__main__":
+    print("=== Direct Tool Import Test ===")
+    import_result = test_direct_tool_import()
+    print(f"Import Test Result: {import_result}")
+    
+    print("\n=== FastMCP Server Inspection ===")
+    inspection_result = test_fastmcp_server_inspection()
+    print(f"Inspection Result: {inspection_result}")
+```
+
+**Run direct import test:**
+```bash
+pixi run python context/logs/tests/test_direct_tool_import.py
+```
+
+#### Test 2.2: FastMCP Development Debugging
+**Objective:** Debug FastMCP server implementation for development
+
+**Create debugging helper script:**
+```python
+# Save as: context/logs/tests/debug_fastmcp_server.py
+import sys
+sys.path.insert(0, "src")
+
+def debug_fastmcp_implementation():
+    """Debug FastMCP server implementation details"""
+    debug_info = {
+        "import_status": {},
+        "server_structure": {},
+        "tool_analysis": {}
+    }
+    
+    # Test 1: Import Analysis
+    try:
+        import blender_remote.mcp_server
+        debug_info["import_status"]["mcp_server"] = "success"
+        
+        from mcp.server.fastmcp import FastMCP, Context
+        debug_info["import_status"]["fastmcp"] = "success"
+        
+    except Exception as e:
+        debug_info["import_status"]["error"] = str(e)
+    
+    # Test 2: Server Structure Analysis
+    try:
+        from blender_remote.mcp_server import app
+        
+        debug_info["server_structure"] = {
+            "app_type": str(type(app)),
+            "app_attributes": [attr for attr in dir(app) if not attr.startswith('_')],
+            "callable_methods": [attr for attr in dir(app) if callable(getattr(app, attr)) and not attr.startswith('_')]
+        }
+        
+    except Exception as e:
+        debug_info["server_structure"]["error"] = str(e)
+    
+    # Test 3: Tool Analysis  
+    try:
+        # Try different approaches to get tool information
+        approaches = ["list_tools", "get_tools", "tools", "_tools"]
+        
+        for approach in approaches:
+            if hasattr(app, approach):
+                try:
+                    result = getattr(app, approach)()
+                    debug_info["tool_analysis"][approach] = str(result)
+                except:
+                    debug_info["tool_analysis"][approach] = "callable but failed"
+            else:
+                debug_info["tool_analysis"][approach] = "not available"
+                
+    except Exception as e:
+        debug_info["tool_analysis"]["error"] = str(e)
+    
+    return debug_info
+
+if __name__ == "__main__":
+    result = debug_fastmcp_implementation()
+    import json
+    print(json.dumps(result, indent=2))
+```
+
+**Run debugging script:**
+```bash
+pixi run python context/logs/tests/debug_fastmcp_server.py
+```
+
+**Note on Direct Import Testing:**
+- **Purpose**: Development and debugging only
+- **Limitation**: Only works with FastMCP framework
+- **Use Case**: Understanding server implementation during development
+- **Not Recommended**: For production testing (use MCP CLI Tools instead)
+
+### Test Suite 3: FastMCP Server Testing (HTTP/MCP)
+
+#### Test 3.1: MCP Server Startup Testing
 **Objective:** Test FastMCP server startup with various configurations
 
 ```bash
@@ -242,7 +731,7 @@ uvx blender-remote --help
 kill $MCP_PID $MCP_PID2 $MCP_PID3 $MCP_PID4
 ```
 
-#### Test 2.2: HTTP/MCP Protocol Testing
+#### Test 3.2: HTTP/MCP Protocol Testing
 **Objective:** Test complete stack via HTTP (FastMCP → BLD_Remote_MCP → Blender)
 
 ```bash
@@ -267,7 +756,7 @@ curl -X POST http://127.0.0.1:8000/tools/execute_blender_code -H "Content-Type: 
 kill $MCP_PID
 ```
 
-#### Test 2.3: Uvicorn Standalone Testing
+#### Test 3.3: Uvicorn Standalone Testing
 **Objective:** Test FastMCP server via uvicorn for HTTP access
 
 ```bash
@@ -283,9 +772,9 @@ curl -X GET http://127.0.0.1:8000/
 kill $UVICORN_PID
 ```
 
-### Test Suite 3: MCP Tool Functionality (Complete Stack)
+### Test Suite 4: MCP Tool Functionality (Complete Stack)
 
-#### Test 3.1: Core MCP Tools via HTTP (Drop-in Replacement)
+#### Test 4.1: Core MCP Tools via HTTP (Drop-in Replacement)
 **Objective:** Test complete stack functionality via FastMCP HTTP server
 
 ```bash
@@ -307,7 +796,7 @@ curl -X POST http://127.0.0.1:8000/tools/get_object_info -H "Content-Type: appli
 kill $MCP_PID
 ```
 
-#### Test 3.2: Core MCP Tools via TCP (Direct to Blender)
+#### Test 4.2: Core MCP Tools via TCP (Direct to Blender)
 **Objective:** Test direct TCP access to BLD_Remote_MCP
 
 ```bash
@@ -321,7 +810,7 @@ echo '{"message": "execute code", "code": "import bpy; bpy.ops.mesh.primitive_cu
 echo '{"message": "object info", "code": "import bpy; cube = bpy.data.objects.get(\"Cube\"); print(f\"Cube: {cube.location if cube else \'None\'}\")"}' | nc 127.0.0.1 6688
 ```
 
-#### Test 3.3: Enhanced Data Persistence (Complete Stack)
+#### Test 4.3: Enhanced Data Persistence (Complete Stack)
 **Objective:** Test enhanced data persistence functionality via HTTP
 
 ```bash
@@ -343,7 +832,7 @@ curl -X POST http://127.0.0.1:8000/tools/remove_persist_data -H "Content-Type: a
 kill $MCP_PID
 ```
 
-#### Test 3.4: Enhanced Data Persistence (Direct TCP)
+#### Test 4.4: Enhanced Data Persistence (Direct TCP)
 **Objective:** Test enhanced data persistence functionality via direct TCP
 
 ```bash
@@ -357,7 +846,7 @@ echo '{"message": "retrieve data", "code": "import bld_remote; data = bld_remote
 echo '{"message": "remove data", "code": "import bld_remote; bld_remote.persist.remove_data(\"test_key\"); print(\"Data removed via TCP\")"}' | nc 127.0.0.1 6688
 ```
 
-#### Test 3.5: Geometry Extraction (Complete Stack via HTTP)
+#### Test 4.5: Geometry Extraction (Complete Stack via HTTP)
 **Objective:** Test practical geometry extraction from Blender via complete HTTP stack
 
 ```bash
@@ -375,7 +864,7 @@ curl -X POST http://127.0.0.1:8000/tools/execute_blender_code -H "Content-Type: 
 kill $MCP_PID
 ```
 
-#### Test 3.6: Geometry Extraction (Direct TCP)
+#### Test 4.6: Geometry Extraction (Direct TCP)
 **Objective:** Test practical geometry extraction from Blender via direct TCP
 
 **Create test script for complex geometry extraction:**
@@ -508,9 +997,9 @@ echo "  - Complete geometric data including bounds"
 echo "  - Both direct TCP and complete HTTP stack paths"
 ```
 
-### Test Suite 4: Full Stack Functional Equivalence
+### Test Suite 5: Full Stack Functional Equivalence
 
-#### Test 4.1: Side-by-Side Stack Comparison
+#### Test 5.1: Side-by-Side Stack Comparison
 **Objective:** Validate functional equivalence between complete stacks
 
 ```bash
@@ -548,7 +1037,7 @@ echo "Note: Our stack provides HTTP endpoint advantage while maintaining MCP com
 kill $OUR_MCP_PID $REF_MCP_PID
 ```
 
-#### Test 4.2: Stack Integration Testing
+#### Test 5.2: Stack Integration Testing
 **Objective:** Test complete pipeline functionality
 
 ```bash
@@ -570,7 +1059,7 @@ echo "Reference Stack: Creating cube via uvx blender-mcp"
 echo "Both stacks should produce functionally equivalent results"
 ```
 
-#### Test 4.3: Enhanced Features Beyond Reference
+#### Test 5.3: Enhanced Features Beyond Reference
 **Objective:** Validate additional capabilities in our stack
 
 ```bash
@@ -639,6 +1128,14 @@ verify_service() {
         exit 1
     fi
 }
+
+# Test 0: MCP CLI Tools Protocol Testing (RECOMMENDED)
+echo "⭐ Test 0: MCP CLI Tools Protocol Testing (RECOMMENDED)"
+if pixi run mcp run src/blender_remote/mcp_server.py --transport stdio --help >/dev/null 2>&1; then
+    log_test "MCP CLI Tools" "✅ PASS" "MCP CLI tools available and functional"
+else
+    log_test "MCP CLI Tools" "❌ FAIL" "MCP CLI tools not available"
+fi
 
 # Test 1: Service Verification
 echo "🔧 Test 1: Service Verification"
@@ -764,6 +1261,13 @@ echo "📝 Test log written to: $LOG_FILE"
 
 echo "🔍 Quick Stack Replacement Validation"
 echo "======================================"
+
+# Test 0: MCP CLI Tools availability (RECOMMENDED approach)
+if pixi run mcp --help >/dev/null 2>&1; then
+    echo "✅ MCP CLI tools available (recommended testing approach)"
+else
+    echo "⚠️ MCP CLI tools not available (install with: pixi add mcp)"
+fi
 
 # Check if our stack components are available
 if netstat -tlnp | grep -q 6688; then
