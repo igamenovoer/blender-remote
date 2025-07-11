@@ -15,7 +15,6 @@ mcp_service:
     # port used when starting blender with `blender-remote-cli` without specifying port
     default_port: <port of `BLD_Remote_MCP`, default=6688>
 
-    # NEW
     # control logging level of `BLD_Remote_MCP`, default is INFO, same as `BLD_REMOTE_LOG_LEVEL`, case insensitive
     log_level: <log level of `BLD_Remote_MCP`, default=INFO>
 ```
@@ -36,6 +35,5 @@ mcp_service:
 - - `start [OPTIONS] -- (arguments to blender)`, will pass other arguments to blender
 - - `start --port=xxx` will override the default port to start `BLD_Remote_MCP`
 
-**NEW**
 - - `start --scene=<scene.blend>` will open the specified scene file in Blender (see `context/hints/howto-start-blender-with-scene.md` for details)
 - - `start --log-level=<log_level>` will set the logging level for `BLD_Remote_MCP`, overriding the default in the config file. Valid values are `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` (case insensitive).

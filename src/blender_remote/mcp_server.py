@@ -11,20 +11,66 @@ Usage:
 This will start an MCP server that communicates with Blender's BLD_Remote_MCP service.
 """
 
+import argparse
 import asyncio
 import json
 import logging
 import socket
 import sys
 import time
+from pathlib import Path
 from typing import Any, Dict, Optional, cast
 
 from fastmcp import FastMCP, Context
 from fastmcp.utilities.types import Image
 
+# Import config manager for reading default port
+try:
+    from .cli import BlenderRemoteConfig
+except ImportError:
+    # Handle case where we're running standalone
+    from blender_remote.cli import BlenderRemoteConfig
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def get_default_port() -> int:
+    """Get default port from config file, fallback to 6688."""
+    try:
+        config = BlenderRemoteConfig()
+        port = config.get("mcp_service.default_port")
+        if port and isinstance(port, int):
+            return port
+    except Exception as e:
+        logger.debug(f"Could not read config file: {e}")
+    
+    # Fallback to default
+    return 6688
+
+
+def parse_arguments() -> argparse.Namespace:
+    """Parse command line arguments for host and port."""
+    parser = argparse.ArgumentParser(
+        description="Blender Remote MCP Server - Connect LLM IDEs to Blender"
+    )
+    
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host address to connect to Blender BLD_Remote_MCP service (default: 127.0.0.1)"
+    )
+    
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help="Port to connect to Blender BLD_Remote_MCP service (default: read from config or 6688)"
+    )
+    
+    return parser.parse_args()
+
 
 # Create the FastMCP server instance
 mcp: FastMCP = FastMCP("Blender Remote MCP")
@@ -88,14 +134,18 @@ class BlenderConnection:
             raise
 
 
-# Global connection instance
-blender_conn = BlenderConnection()
+# Global connection instance (will be initialized in main())
+blender_conn: Optional[BlenderConnection] = None
 
 
 @mcp.tool()
 async def get_scene_info(ctx: Context) -> Dict[str, Any]:
     """Get information about the current Blender scene."""
     await ctx.info("Getting scene information from Blender...")
+
+    if blender_conn is None:
+        await ctx.error("Blender connection not initialized")
+        return {"error": "Blender connection not initialized"}
 
     try:
         response = await blender_conn.send_command(
@@ -118,6 +168,10 @@ async def get_scene_info(ctx: Context) -> Dict[str, Any]:
 async def execute_blender_code(code: str, ctx: Context) -> Dict[str, Any]:
     """Execute Python code in Blender."""
     await ctx.info(f"Executing code in Blender...")
+
+    if blender_conn is None:
+        await ctx.error("Blender connection not initialized")
+        return {"error": "Blender connection not initialized"}
 
     try:
         response = await blender_conn.send_command(
@@ -143,6 +197,10 @@ async def execute_blender_code(code: str, ctx: Context) -> Dict[str, Any]:
 async def get_object_info(object_name: str, ctx: Context) -> Dict[str, Any]:
     """Get detailed information about a specific object in Blender."""
     await ctx.info(f"Getting info for object: {object_name}")
+
+    if blender_conn is None:
+        await ctx.error("Blender connection not initialized")
+        return {"error": "Blender connection not initialized"}
 
     try:
         response = await blender_conn.send_command(
@@ -170,6 +228,10 @@ async def get_viewport_screenshot(
 ) -> Dict[str, Any]:
     """Capture a screenshot of the Blender viewport and return as base64 encoded data. Note: Only works in GUI mode."""
     await ctx.info("Capturing viewport screenshot...")
+
+    if blender_conn is None:
+        await ctx.error("Blender connection not initialized")
+        return {"error": "Blender connection not initialized"}
 
     try:
         response = await blender_conn.send_command(
@@ -245,6 +307,13 @@ async def check_connection_status(ctx: Context) -> Dict[str, Any]:
     """Check the connection status to Blender's BLD_Remote_MCP service."""
     await ctx.info("Checking connection to Blender...")
 
+    if blender_conn is None:
+        await ctx.error("Blender connection not initialized")
+        return {
+            "status": "error",
+            "message": "Blender connection not initialized"
+        }
+
     try:
         response = await blender_conn.send_command(
             {"type": "get_scene_info", "params": {}}
@@ -279,6 +348,9 @@ async def check_connection_status(ctx: Context) -> Dict[str, Any]:
 async def blender_status() -> Dict[str, Any]:
     """Get the current status of the Blender connection."""
     try:
+        if blender_conn is None:
+            return {"status": "not_initialized", "message": "Blender connection not initialized"}
+        
         if blender_conn.sock:
             return {
                 "status": "connected",
@@ -308,12 +380,27 @@ What would you like to do with your Blender scene?"""
 
 def main() -> None:
     """Main entry point for uvx execution."""
+    global blender_conn
+    
+    # Parse command line arguments
+    args = parse_arguments()
+    
+    # Determine port (command line arg takes precedence, then config file, then default)
+    port = args.port if args.port is not None else get_default_port()
+    host = args.host
+    
+    # Initialize global connection with parsed arguments
+    blender_conn = BlenderConnection(host=host, port=port)
+    
+    # Print connection info to stdout
     logger.info("🚀 Starting Blender Remote MCP Server...")
-    logger.info(
-        "📡 This server connects to BLD_Remote_MCP service in Blender (port 6688)"
-    )
+    logger.info(f"📡 Connecting to BLD_Remote_MCP service at {host}:{port}")
     logger.info("🔗 Make sure Blender is running with the BLD_Remote_MCP addon enabled")
-
+    
+    # Print to stdout for easy visibility
+    print(f"Blender Remote MCP Server")
+    print(f"Target Blender service: {host}:{port}")
+    
     try:
         # This is the function called when running `uvx blender-remote`
         mcp.run()
