@@ -4,3 +4,6 @@
 [submodule "context/refcode/modelcontextprotocol"]
 	path = context/refcode/modelcontextprotocol
 	url = https://github.com/modelcontextprotocol/modelcontextprotocol.git
+[submodule "context/refcode/mcp-sdk"]
+	path = context/refcode/mcp-sdk
+	url = https://github.com/modelcontextprotocol/python-sdk.git

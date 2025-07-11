@@ -1,7 +1,26 @@
 #!/bin/bash
 
 # Test script for Gemini API
-API_KEY="AIzaSyBPd6aDW67XVxM8Qc1BmXp1ChKTDWxcqKY"
+# Usage: ./test_gemini_api.sh <API_KEY>
+# or: GEMINI_API_KEY=your_key ./test_gemini_api.sh
+
+# Get API key from argument or environment variable
+if [ $# -eq 1 ]; then
+    API_KEY="$1"
+elif [ -n "$GEMINI_API_KEY" ]; then
+    API_KEY="$GEMINI_API_KEY"
+else
+    echo "❌ Error: No API key provided"
+    echo ""
+    echo "Usage:"
+    echo "  $0 <API_KEY>"
+    echo "  GEMINI_API_KEY=your_key $0"
+    echo ""
+    echo "Example:"
+    echo "  $0 AIzaSy..."
+    echo "  export GEMINI_API_KEY=AIzaSy... && $0"
+    exit 1
+fi
 
 echo "Testing Gemini API key..."
 echo "API Key: ${API_KEY:0:20}..."

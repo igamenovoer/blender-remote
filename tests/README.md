@@ -28,6 +28,15 @@ tests/
 │   ├── test_base64_screenshot.py        # Base64 screenshot tests
 │   ├── test_viewport_screenshot.py      # Viewport screenshot tests
 │   └── (see mcp-server/README.md)       # Full MCP server test suite
+├── mcp-cli-tools/                        # MCP CLI tools and protocol tests
+│   ├── test_mcp_cli_client_pixi.py      # MCP CLI client (pixi) - RECOMMENDED
+│   ├── test_mcp_cli_client.py           # MCP CLI client (uv)
+│   ├── test_blender_mcp_direct.py       # Direct TCP and FastMCP tool tests
+│   ├── test_blender_mcp_programmatic.py # HTTP-based programmatic tests
+│   └── (see mcp-cli-tools/README.md)    # MCP CLI tools documentation
+├── api-tests/                            # External API integration tests
+│   ├── test_gemini_api.sh               # Gemini API connectivity test
+│   └── (see api-tests/README.md)        # External API test documentation
 ├── blocking/                             # Blocking and concurrency tests
 │   ├── test_multi_client.py             # Multi-client blocking functionality
 │   ├── test_blocking_simple.py          # Simple blocking mechanism test
@@ -77,6 +86,12 @@ tests/
 # Integration tests (dual service comparison)
 ./tests/run_dual_service_tests.py --integration
 
+# MCP CLI tools tests
+pixi run python tests/mcp-cli-tools/test_mcp_cli_client_pixi.py
+
+# External API tests
+bash tests/api-tests/test_gemini_api.sh "your_api_key"
+
 # Verbose output
 ./tests/run_dual_service_tests.py --verbose
 ```
@@ -119,6 +134,29 @@ tests/
   - Error handling robustness
   - Memory management
   - Concurrent connections
+
+### 4. MCP CLI Tools Tests
+**Directory**: `mcp-cli-tools/`
+- Tests official MCP protocol implementations and programmatic interaction methods
+- **Test Categories**:
+  - **Official Protocol Tests**: MCP CLI client using Python SDK (recommended)
+  - **Low-level Protocol Tests**: Direct TCP socket communication
+  - **FastMCP Integration Tests**: Direct tool imports and function calls
+  - **Legacy/Reference Tests**: HTTP-based programmatic approaches
+- **Key Tests**:
+  - MCP session initialization and tool discovery
+  - Scene information retrieval via MCP protocol
+  - Code execution through MCP tools
+  - Screenshot capture and image handling
+  - Error handling and connection management
+
+### 5. External API Tests
+**Directory**: `api-tests/`
+- Tests external API integrations and connectivity
+- **Test Categories**:
+  - **Gemini API**: LLM integration testing
+  - **Authentication**: API key validation
+  - **Connectivity**: Network and endpoint testing
 
 ## Prerequisites
 
