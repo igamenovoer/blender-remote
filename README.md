@@ -32,6 +32,35 @@ blender &
 blender --background --python start_service.py &
 ```
 
+### 3. **Flexible Connection Management**
+Connect to Blender instances on different hosts and ports with advanced MCP server configuration.
+
+```bash
+# Connect to local Blender on custom port
+uvx blender-remote --port 7777
+
+# Connect to remote Blender instance
+uvx blender-remote --host 192.168.1.100 --port 6688
+
+# Multiple configurations for different projects
+uvx blender-remote --host 127.0.0.1 --port 6688  # Development
+uvx blender-remote --host 10.0.0.5 --port 6688   # Production
+```
+
+### 4. **Command-Line Interface**
+Complete CLI tools for setup, configuration, and service management.
+
+```bash
+# Setup and start
+blender-remote-cli init /path/to/blender
+blender-remote-cli install
+blender-remote-cli start --scene=assets.blend --log-level=DEBUG
+
+# Configuration management
+blender-remote-cli config set mcp_service.default_port=7777
+blender-remote-cli config get mcp_service.log_level
+```
+
 ## Installation
 
 ```bash
@@ -98,6 +127,18 @@ result = client.execute_python("bpy.ops.mesh.primitive_sphere_add()")
 }
 ```
 
+**Custom Host/Port Configuration:**
+```json
+{
+  "mcpServers": {
+    "blender-remote": {
+      "command": "uvx",
+      "args": ["blender-remote", "--host", "127.0.0.1", "--port", "6688"]
+    }
+  }
+}
+```
+
 **Then ask your LLM:**
 - "What objects are in the current Blender scene?"
 - "Create a blue metallic cube at position (2, 0, 0)"
@@ -128,13 +169,56 @@ result = client.execute_python("bpy.ops.mesh.primitive_sphere_add()")
 ## CLI Configuration Tool
 
 ```bash
-# Setup and management
+# One-time setup
 blender-remote-cli init /path/to/blender
 blender-remote-cli install
+
+# Start Blender service
 blender-remote-cli start --background
+blender-remote-cli start --scene=my_project.blend --log-level=DEBUG
+
+# Configuration management
 blender-remote-cli config set mcp_service.default_port=7777
+blender-remote-cli config set mcp_service.log_level=DEBUG
+blender-remote-cli config get mcp_service.default_port
+
+# Service management
 blender-remote-cli status
 ```
+
+## MCP Server Configuration
+
+```bash
+# Basic connection
+uvx blender-remote
+
+# Custom host and port
+uvx blender-remote --host 192.168.1.100 --port 7777
+
+# Help and options
+uvx blender-remote --help
+```
+
+**Configuration Priority:**
+1. Command line arguments (highest priority)
+2. Config file (`~/.config/blender-remote/bld-remote-config.yaml`)
+3. Default values (127.0.0.1:6688)
+
+## Environment Variables
+
+Control service behavior with environment variables:
+
+```bash
+# Service configuration
+export BLD_REMOTE_MCP_PORT=6688                    # Service port
+export BLD_REMOTE_MCP_START_NOW=1                  # Auto-start on Blender launch
+export BLD_REMOTE_LOG_LEVEL=DEBUG                  # Logging verbosity
+
+# Start Blender with configured service
+blender &
+```
+
+**Supported Log Levels:** `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`
 
 ## Socket-Level Communication
 
@@ -148,6 +232,7 @@ sock.send(json.dumps(command).encode())
 response = json.loads(sock.recv(4096).decode())
 sock.close()
 ```
+
 
 ## Documentation
 
