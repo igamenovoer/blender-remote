@@ -3,6 +3,21 @@
 **DO NOT READ THIS FILE UNLESS YOU ARE TOLD TO DO**
 **It contains many outdated and temporary information**
 
+### 20250714
+
+as you find out, complex code will easily introduce formatting issues, so, to avoid this, we will allow the `mcp_server.py` to transmit the code as a base64-encoded string, and then decode it in the `BLD_Remote_MCP` addon, so that it can be executed in Blender's context. This way, we can avoid formatting issues and still run the code as expected. 
+
+To do this, you will need to modify the `mcp_server.py`, add an argument to the `execute_code` method, name it `send_as_base64:bool`, default to `False`, and if it is `True`, then encode the code as base64 before sending it to Blender. In the `BLD_Remote_MCP` addon, you will need to find out that the code is base64-encoded (maybe adding a new flag to json params), and decode it before executing it in Blender's context.
+
+Formatting issue may also happen when the result is a complex object, so, to avoid this, we will also allow the `mcp_server.py` to instruct the `BLD_Remote_MCP` addon to return the result as a base64-encoded string, and then decode it in the `mcp_server.py` before returning it to the client. This way, we can avoid formatting issues and still return the result as expected. To do this, we will add an argument to the `execute_code` method, name it `return_as_base64:bool`, default to `False`, and if it is `True`, then encode the result as base64 before returning it to the client. In the `BLD_Remote_MCP` addon, you will need to find out that the result is base64-encoded (maybe adding a new flag to json params), and decode it before returning it to the client.
+
+Note that, `execute_code` method should be backward compatible, so, if the `send_as_base64` and `return_as_base64` arguments are not provided, it should behave as before, i.e. not encode the code and result as base64.
+
+---
+one import thing to test is that, the mcp server (`uvx blender-remote` + `BLD_Remote_MCP`) should be able to run the given blender code and get back the result in the synchronous way, i.e. you send a request to MCP server, it runs the code in Blender, and returns the result back to you. The result expected is defined in the given blender code, which is a Python script that runs in Blender's context, and customzable instead of just something like "code executed successfully". For example, you can try to create some objects in Blender, and get back their vertices global coordinates, or something like that. Include this in your test plan.
+
+---
+
 about how to keep blender alive in background, see `blender-remote-cli` command implemented in `src/blender_remote/cli.py`, it creates startup script to keep Blender alive in background.
 
 ----

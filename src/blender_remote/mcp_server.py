@@ -43,6 +43,33 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+class MCPServerConfig:
+    """Configuration settings for the MCP server and Blender TCP communication.
+    
+    These settings are optimized for LAN/localhost usage where network latency
+    is low and we can use larger buffers for better performance.
+    """
+    
+    # Network Configuration
+    DEFAULT_MCP_HOST = "127.0.0.1"
+    DEFAULT_MCP_PORT = 8000
+    DEFAULT_BLENDER_HOST = "127.0.0.1"  
+    FALLBACK_BLENDER_PORT = 6688
+    
+    # Socket Communication Settings (optimized for LAN/localhost)
+    SOCKET_TIMEOUT_SECONDS = 60.0  # Increased from 30s for complex operations
+    SOCKET_RECV_CHUNK_SIZE = 131072  # 128KB chunks (up from 8KB) for faster transfer
+    SOCKET_MAX_RESPONSE_SIZE = 10 * 1024 * 1024  # 10MB max response size
+    
+    # Viewport Screenshot Settings
+    DEFAULT_SCREENSHOT_MAX_SIZE = 800
+    DEFAULT_SCREENSHOT_FORMAT = "png"
+    
+    # Performance Settings
+    ENABLE_OPTIMIZED_SOCKET_HANDLING = True  # Use fast read-all-then-parse approach
+    SOCKET_RECV_TIMEOUT_MS = 100  # 100ms timeout for checking if more data available
+
+
 def get_default_blender_port() -> int:
     """Get default Blender TCP port from config file, fallback to 6688."""
     try:
@@ -53,8 +80,8 @@ def get_default_blender_port() -> int:
     except Exception as e:
         logger.debug(f"Could not read config file: {e}")
     
-    # Fallback to default
-    return 6688
+    # Fallback to configured default
+    return MCPServerConfig.FALLBACK_BLENDER_PORT
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -66,29 +93,29 @@ def parse_arguments() -> argparse.Namespace:
     # MCP Server configuration (where this FastMCP server runs)
     parser.add_argument(
         "--mcp-host",
-        default="127.0.0.1",
-        help="Host address for the MCP server to bind to (default: 127.0.0.1)"
+        default=MCPServerConfig.DEFAULT_MCP_HOST,
+        help=f"Host address for the MCP server to bind to (default: {MCPServerConfig.DEFAULT_MCP_HOST})"
     )
     
     parser.add_argument(
         "--mcp-port",
         type=int,
-        default=8000,
-        help="Port for the MCP server to bind to (default: 8000)"
+        default=MCPServerConfig.DEFAULT_MCP_PORT,
+        help=f"Port for the MCP server to bind to (default: {MCPServerConfig.DEFAULT_MCP_PORT})"
     )
     
     # Blender connection configuration (where BLD_Remote_MCP TCP server runs)
     parser.add_argument(
         "--blender-host",
-        default="127.0.0.1",
-        help="Host address to connect to Blender BLD_Remote_MCP TCP service (default: 127.0.0.1)"
+        default=MCPServerConfig.DEFAULT_BLENDER_HOST,
+        help=f"Host address to connect to Blender BLD_Remote_MCP TCP service (default: {MCPServerConfig.DEFAULT_BLENDER_HOST})"
     )
     
     parser.add_argument(
         "--blender-port",
         type=int,
         default=None,
-        help="Port to connect to Blender BLD_Remote_MCP TCP service (default: from config or 6688)"
+        help=f"Port to connect to Blender BLD_Remote_MCP TCP service (default: from config or {MCPServerConfig.FALLBACK_BLENDER_PORT})"
     )
     
     # Legacy arguments for backward compatibility
@@ -115,7 +142,7 @@ mcp: FastMCP = FastMCP("Blender Remote MCP")
 class BlenderConnection:
     """Handle connection to Blender BLD_Remote_MCP TCP server."""
 
-    def __init__(self, blender_host: str = "127.0.0.1", blender_port: int = 6688):
+    def __init__(self, blender_host: str = MCPServerConfig.DEFAULT_BLENDER_HOST, blender_port: int = MCPServerConfig.FALLBACK_BLENDER_PORT):
         self.blender_host = blender_host
         self.blender_port = blender_port
         self.sock: Optional[socket.socket] = None
@@ -150,13 +177,78 @@ class BlenderConnection:
             message = json.dumps(command)
             self.sock.sendall(message.encode("utf-8"))
 
-            # Receive response
-            response_data = self.sock.recv(8192)
-            if not response_data:
-                raise ConnectionError("Connection closed by Blender")
-
-            response = json.loads(response_data.decode("utf-8"))
-            return cast(Dict[str, Any], response)
+            # Optimized socket handling for LAN/localhost - read all data first, then parse
+            self.sock.settimeout(MCPServerConfig.SOCKET_TIMEOUT_SECONDS)
+            
+            if MCPServerConfig.ENABLE_OPTIMIZED_SOCKET_HANDLING:
+                # Optimized approach: read all data first, then parse (efficient for LAN/localhost)
+                response_data = b''
+                
+                while len(response_data) < MCPServerConfig.SOCKET_MAX_RESPONSE_SIZE:
+                    try:
+                        chunk = self.sock.recv(MCPServerConfig.SOCKET_RECV_CHUNK_SIZE)
+                        if not chunk:
+                            break
+                        response_data += chunk
+                        
+                        # Quick check if we might have complete JSON by looking for balanced braces
+                        # This avoids expensive JSON parsing on every chunk for large responses
+                        try:
+                            decoded = response_data.decode("utf-8")
+                            if decoded.count('{') > 0 and decoded.count('{') == decoded.count('}'):
+                                # Likely complete JSON, try parsing
+                                response = json.loads(decoded)
+                                return cast(Dict[str, Any], response)
+                        except (UnicodeDecodeError, json.JSONDecodeError):
+                            # Not ready yet, continue reading
+                            continue
+                            
+                    except socket.timeout:
+                        # For LAN/localhost, short timeout means likely no more data
+                        break
+                    except Exception as e:
+                        if "timeout" in str(e).lower():
+                            break
+                        else:
+                            raise e
+                
+                if not response_data:
+                    raise ConnectionError("Connection closed by Blender")
+                
+                # Final parse attempt
+                response = json.loads(response_data.decode("utf-8"))
+                return cast(Dict[str, Any], response)
+            
+            else:
+                # Legacy approach: parse on each chunk (backward compatibility)
+                response_data = b''
+                
+                while True:
+                    try:
+                        chunk = self.sock.recv(MCPServerConfig.SOCKET_RECV_CHUNK_SIZE)
+                        if not chunk:
+                            break
+                        response_data += chunk
+                        # Try to parse JSON to see if we have complete response
+                        try:
+                            response = json.loads(response_data.decode("utf-8"))
+                            # Successfully parsed, we have complete response
+                            return cast(Dict[str, Any], response)
+                        except json.JSONDecodeError:
+                            # Need more data, continue reading
+                            continue
+                    except Exception as timeout_error:
+                        if "timeout" in str(timeout_error).lower():
+                            raise ConnectionError("Timeout waiting for complete response from Blender")
+                        else:
+                            raise timeout_error
+                
+                if not response_data:
+                    raise ConnectionError("Connection closed by Blender")
+                
+                # Final attempt to parse the response
+                response = json.loads(response_data.decode("utf-8"))
+                return cast(Dict[str, Any], response)
 
         except Exception as e:
             logger.error(f"Error communicating with Blender: {e}")
@@ -299,9 +391,9 @@ async def get_object_info(object_name: str, ctx: Context) -> Dict[str, Any]:
 @mcp.tool()
 async def get_viewport_screenshot(
     ctx: Context,
-    max_size: int = 800,
+    max_size: int = MCPServerConfig.DEFAULT_SCREENSHOT_MAX_SIZE,
     filepath: Optional[str] = None,
-    format: str = "png",
+    format: str = MCPServerConfig.DEFAULT_SCREENSHOT_FORMAT,
 ) -> Dict[str, Any]:
     """Capture a screenshot of the Blender viewport and return as base64 encoded data. Note: Only works in GUI mode."""
     await ctx.info("Capturing viewport screenshot...")

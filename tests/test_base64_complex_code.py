@@ -108,30 +108,16 @@ print(json.dumps(results, indent=2))
                             # Try to parse the JSON output from our code
                             if output_result:
                                 try:
-                                    # Look for JSON in the output
-                                    lines = output_result.split('\n')
-                                    json_lines = []
-                                    in_json = False
+                                    # First try to parse the entire output as JSON
+                                    parsed_result = json.loads(output_result.strip())
                                     
-                                    for line in lines:
-                                        if line.strip().startswith('{'):
-                                            in_json = True
-                                        if in_json:
-                                            json_lines.append(line)
-                                        if line.strip().endswith('}') and in_json:
-                                            break
+                                    print(f"  ✅ Successfully parsed JSON result!")
+                                    print(f"  📊 Objects created: {parsed_result.get('objects_created', [])}")
+                                    print(f"  📊 Total vertices: {parsed_result.get('total_vertices', 0)}")
+                                    print(f"  📊 Cube vertices: {parsed_result.get('cube_data', {}).get('vertex_count', 0)}")
+                                    print(f"  📊 Sphere vertices: {parsed_result.get('sphere_data', {}).get('vertex_count', 0)}")
                                     
-                                    if json_lines:
-                                        json_str = '\n'.join(json_lines)
-                                        parsed_result = json.loads(json_str)
-                                        
-                                        print(f"  ✅ Successfully parsed JSON result!")
-                                        print(f"  📊 Objects created: {parsed_result.get('objects_created', [])}")
-                                        print(f"  📊 Total vertices: {parsed_result.get('total_vertices', 0)}")
-                                        print(f"  📊 Cube vertices: {parsed_result.get('cube_data', {}).get('vertex_count', 0)}")
-                                        print(f"  📊 Sphere vertices: {parsed_result.get('sphere_data', {}).get('vertex_count', 0)}")
-                                        
-                                        return {
+                                    return {
                                             "status": "success",
                                             "test_name": "base64_object_creation",
                                             "structured_data": parsed_result,
@@ -144,15 +130,6 @@ print(json.dumps(results, indent=2))
                                                 "complex_code_executed": True
                                             }
                                         }
-                                    else:
-                                        print(f"  ⚠️ No JSON found in output")
-                                        return {
-                                            "status": "no_json_output",
-                                            "test_name": "base64_object_creation",
-                                            "raw_output": output_result,
-                                            "base64_used": True
-                                        }
-                                        
                                 except json.JSONDecodeError as e:
                                     print(f"  ❌ Failed to parse JSON from output: {e}")
                                     return {
