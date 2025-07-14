@@ -554,8 +554,20 @@ try:
     else:
         print("⚠️ Warning: MCP service may not have started properly")
     
-    # Main keep-alive loop - simple sleep for sync version
+    # Main keep-alive loop with background mode command processing
     while _keep_running:
+        # Process any queued commands in background mode
+        try:
+            import bld_remote
+            if bld_remote.is_background_mode():
+                # Call step() to process queued commands in background mode
+                bld_remote.step()
+        except ImportError:
+            # bld_remote module not available, skip step processing
+            pass
+        except Exception as e:
+            print(f"Warning: Error in background step processing: {e}")
+        
         # Simple keep-alive loop for synchronous threading-based server
         # The server runs in its own daemon threads, we just need to prevent
         # the main thread from exiting

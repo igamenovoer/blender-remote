@@ -19,23 +19,22 @@ import traceback
 import io
 import sys
 import base64
-import queue
 from contextlib import redirect_stdout, redirect_stderr
 from bpy.props import BoolProperty
-from typing import Dict, Any, Optional, Callable
+from typing import Dict, Any, Optional
 from dataclasses import dataclass
 
 from . import persist
-from .utils import log_info, log_warning, log_error, log_debug
+from .utils import log_info, log_warning, log_error
 from .config import get_mcp_port, should_auto_start
 
 bl_info = {
     "name": "BLD Remote MCP",
     "author": "Claude Code", 
-    "version": (2, 1, 0),
+    "version": (2, 0, 0),
     "blender": (3, 0, 0),
     "location": "N/A",
-    "description": "Dual-mode command server for remote Blender control (GUI timer + background queue)",
+    "description": "Synchronous command server for remote Blender control with immediate results",
     "category": "Development",
 }
 
@@ -46,19 +45,6 @@ _server_thread = None
 _server_running = False
 _server_port = 0
 _client_threads = []
-
-# Background mode command queue
-_command_queue = None
-_background_mode = None
-
-
-@dataclass
-class ExecutionJob:
-    """Represents a command execution job for background mode queue processing."""
-    command: Dict[str, Any]
-    callback: Callable[[Dict[str, Any]], None]
-    completed: threading.Event
-    result: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -127,7 +113,7 @@ class OutputCapture:
 
 
 class BldRemoteMCPServer:
-    """Dual-mode TCP server for Blender remote control (GUI timer + background queue)."""
+    """Threading-based synchronous TCP server for Blender remote control."""
     
     def __init__(self, host='127.0.0.1', port=6688):
         self.host = host
@@ -138,17 +124,11 @@ class BldRemoteMCPServer:
         self.client_threads = []
         self.background_mode = bpy.app.background
         
-        # Background mode command queue for manual processing
-        self.command_queue = queue.Queue() if self.background_mode else None
-        
-        log_info(f"BldRemoteMCPServer initialized in {'background' if self.background_mode else 'GUI'} mode")
-        
         # Install signal handlers for background mode
         if self.background_mode:
             signal.signal(signal.SIGTERM, self._signal_handler)
             signal.signal(signal.SIGINT, self._signal_handler)
             atexit.register(self._cleanup_on_exit)
-            log_info("Background mode: Signal handlers and command queue initialized")
     
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals in background mode."""
@@ -278,18 +258,7 @@ class BldRemoteMCPServer:
             log_info("Client handler stopped")
 
     def _execute_command_sync(self, command):
-        """Execute command synchronously using appropriate method based on mode."""
-        if self.background_mode:
-            # Background mode: Use queue-based execution with manual processing
-            return self._execute_command_background_mode(command)
-        else:
-            # GUI mode: Use timer-based execution (existing approach)
-            return self._execute_command_gui_mode(command)
-    
-    def _execute_command_gui_mode(self, command):
-        """Execute command in GUI mode using Blender timers (existing approach)."""
-        log_debug("Executing command in GUI mode using timer approach")
-        
+        """Execute command synchronously using Blender timer for main thread access."""
         # Use a shared container to get results from timer callback
         result_container = {"response": None, "done": False}
         
@@ -318,86 +287,6 @@ class BldRemoteMCPServer:
                 return {"status": "error", "message": "Command execution timeout"}
         
         return result_container["response"]
-    
-    def _execute_command_background_mode(self, command):
-        """Execute command in background mode using queue and callback system."""
-        log_debug("Executing command in background mode using queue approach")
-        
-        # Create result container and synchronization event
-        result_container = {"response": None}
-        result_event = threading.Event()
-        
-        def result_callback(response: Dict[str, Any]) -> None:
-            """Callback function to receive the result from main thread."""
-            result_container["response"] = response
-            result_event.set()
-        
-        # Create and queue the execution job
-        job = ExecutionJob(
-            command=command,
-            callback=result_callback,
-            completed=result_event
-        )
-        
-        self.command_queue.put(job)
-        log_debug(f"Command queued for background processing, queue size: {self.command_queue.qsize()}")
-        
-        # Wait for the result with timeout
-        timeout = 30.0  # 30 second timeout
-        if result_event.wait(timeout):
-            response = result_container.get("response")
-            log_debug("Background command execution completed successfully")
-            return response
-        else:
-            error_msg = f"Background command execution timeout after {timeout} seconds"
-            log_error(error_msg)
-            return {"status": "error", "message": error_msg}
-    
-    def step(self) -> None:
-        """Process all pending commands in the queue - called manually in background mode."""
-        if not self.background_mode or not self.command_queue:
-            log_debug("step() called but not in background mode or no queue available")
-            return
-        
-        processed_count = 0
-        
-        # Process all jobs in the queue
-        while not self.command_queue.empty():
-            try:
-                job = self.command_queue.get_nowait()
-                processed_count += 1
-                
-                log_debug(f"Processing command job {processed_count}: {job.command.get('type', 'unknown')}")
-                
-                # Execute the command in the main thread (thread-safe for Blender)
-                try:
-                    response = self.execute_command(job.command)
-                    job.result = response
-                    log_debug(f"Command job {processed_count} completed successfully")
-                    
-                except Exception as e:
-                    error_response = {
-                        "status": "error", 
-                        "message": f"Command execution error: {str(e)}"
-                    }
-                    job.result = error_response
-                    log_error(f"Command job {processed_count} failed: {e}")
-                
-                # Call the callback to notify the waiting thread
-                try:
-                    job.callback(job.result)
-                    job.completed.set()
-                except Exception as e:
-                    log_error(f"Callback error for command job {processed_count}: {e}")
-                    job.completed.set()
-                
-            except queue.Empty:
-                break
-            except Exception as e:
-                log_error(f"Error processing command job: {e}")
-        
-        if processed_count > 0:
-            log_debug(f"step() processed {processed_count} command jobs")
 
     def execute_command(self, command):
         """Execute a command in the main Blender thread."""
@@ -795,25 +684,6 @@ class BldRemoteMCPServer:
 _server_instance = None
 
 
-def _get_global_command_queue():
-    """Get the global command queue for background mode."""
-    global _server_instance
-    if _server_instance and _server_instance.background_mode:
-        return _server_instance.command_queue
-    return None
-
-
-def step():
-    """Process pending commands - called manually in background mode."""
-    global _server_instance
-    log_debug("Global step() function called")
-    
-    if _server_instance:
-        _server_instance.step()
-    else:
-        log_debug("step() called but no server instance available")
-
-
 def _is_background_mode():
     """Check if Blender is running in background mode."""
     return bpy.app.background
@@ -993,14 +863,12 @@ def get_mcp_service_port():
 def register():
     """Register the addon's properties and classes with Blender."""
     log_info("=== BLD REMOTE MCP ADDON REGISTRATION STARTING ===")
-    log_info("🚀 BLD Remote MCP v2.1.0 Loading! (DUAL-MODE VERSION)")
+    log_info("🚀 BLD Remote MCP v2.0.0 Loading! (SYNCHRONOUS VERSION)")
     log_info("register() function called")
     
     # Check Blender environment
     log_info(f"Blender version: {bpy.app.version}")
-    background_mode = _is_background_mode()
-    log_info(f"Blender background mode: {background_mode}")
-    log_info(f"Execution strategy: {'Queue-based (background)' if background_mode else 'Timer-based (GUI)'}")
+    log_info(f"Blender background mode: {_is_background_mode()}")
     
     # Add scene properties
     log_info("Adding scene properties...")
@@ -1050,10 +918,6 @@ def register():
             log_info("✅ Auto-start enabled, attempting to start server")
             try:
                 start_mcp_service()
-                # Log the execution mode for the started server
-                if _server_instance:
-                    mode = 'background (queue-based)' if _server_instance.background_mode else 'GUI (timer-based)'
-                    log_info(f"✅ Server started in {mode} mode")
                 log_info("✅ Auto-start server initialization completed")
             except Exception as e:
                 log_warning(f"⚠️ Auto-start failed: {e}")
@@ -1111,23 +975,8 @@ class BldRemoteAPI:
     set_mcp_service_port = staticmethod(set_mcp_service_port)
     get_mcp_service_port = staticmethod(get_mcp_service_port)
     
-    # Background mode step processing
-    step = staticmethod(step)
-    
     # Persistence functionality
     persist = persist
-    
-    @staticmethod
-    def is_background_mode():
-        """Check if running in background mode."""
-        return bpy.app.background
-    
-    @staticmethod
-    def get_command_queue_size():
-        """Get the current command queue size (background mode only)."""
-        queue_obj = _get_global_command_queue()
-        return queue_obj.qsize() if queue_obj else 0
 
 # Register the API in sys.modules so it can be imported as 'import bld_remote'
 sys.modules['bld_remote'] = BldRemoteAPI()
-log_debug("BldRemoteAPI registered in sys.modules with step() function")
