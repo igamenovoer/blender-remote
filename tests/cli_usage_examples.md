@@ -9,7 +9,7 @@ This document demonstrates the enhanced `blender-remote-cli` features.
 The `init` command now includes logging level configuration:
 
 ```bash
-# Initialize configuration with logging support
+# Initialize configuration with logging support (path is optional - will prompt if omitted)
 blender-remote-cli init /apps/blender-4.4.3-linux-x64/blender
 
 # Output includes:
@@ -105,7 +105,7 @@ The CLI automatically sets these environment variables for BLD_Remote_MCP:
 ## Complete Workflow Example
 
 ```bash
-# 1. Initialize configuration
+# 1. Initialize configuration (path is optional - will prompt if omitted)
 blender-remote-cli init /apps/blender-4.4.3-linux-x64/blender
 
 # 2. Install the addon

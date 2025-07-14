@@ -29,11 +29,67 @@ from . import persist
 from .utils import log_info, log_warning, log_error, log_debug
 from .config import get_mcp_port, should_auto_start
 
+
+class BldRemoteMCPConfig:
+    """Configuration constants for BLD Remote MCP server."""
+    
+    # Network Configuration
+    DEFAULT_HOST = '127.0.0.1'
+    DEFAULT_PORT = 6688
+    SOCKET_LISTEN_BACKLOG = 5
+    SOCKET_TIMEOUT_SECONDS = 1.0
+    SOCKET_RECV_BUFFER_SIZE = 8192
+    
+    # Command Execution Timeouts
+    COMMAND_EXECUTION_TIMEOUT_SECONDS = 30.0
+    TIMER_FIRST_INTERVAL_SECONDS = 0.0
+    SHUTDOWN_DELAY_SECONDS = 1.0
+    
+    # Threading and Polling
+    THREAD_JOIN_TIMEOUT_SECONDS = 3.0
+    POLLING_SLEEP_INTERVAL_SECONDS = 0.01
+    ERROR_RECOVERY_SLEEP_SECONDS = 0.5
+    
+    # Data Limits and Formatting
+    MAX_OBJECTS_IN_SCENE_INFO = 10
+    LOCATION_PRECISION_DIGITS = 2
+    CODE_PREVIEW_LENGTH = 100
+    DEFAULT_VIEWPORT_MAX_SIZE = 800
+    
+    # Port Validation
+    MIN_PORT_NUMBER = 1024
+    MAX_PORT_NUMBER = 65535
+    
+    # Scene Index for Properties
+    DEFAULT_SCENE_INDEX = 0
+    
+    # Version Information
+    ADDON_VERSION = (2, 1, 0)
+    BLENDER_MIN_VERSION = (3, 0, 0)
+    
+    # Initial State Values
+    INITIAL_SERVER_PORT = 0
+    
+    # Socket Configuration
+    SOCKET_REUSE_ADDRESS = 1
+    
+    # Version String for Logging
+    VERSION_STRING = "v2.1.0"
+    
+    # Counter and State Values
+    INITIAL_COUNTER_VALUE = 0
+    QUEUE_EMPTY_SIZE = 0
+    COUNTER_INCREMENT = 1
+    
+    # String Encoding Constants
+    STRING_ENCODING_UTF8 = 'utf-8'
+    STRING_ENCODING_ASCII = 'ascii'
+
 bl_info = {
     "name": "BLD Remote MCP",
     "author": "Claude Code", 
-    "version": (2, 1, 0),
-    "blender": (3, 0, 0),
+    "version": BldRemoteMCPConfig.ADDON_VERSION,
+    "blender": BldRemoteMCPConfig.BLENDER_MIN_VERSION,
     "location": "N/A",
     "description": "Dual-mode command server for remote Blender control (GUI timer + background queue)",
     "category": "Development",
@@ -44,7 +100,7 @@ _tcp_server = None
 _server_socket = None
 _server_thread = None
 _server_running = False
-_server_port = 0
+_server_port = BldRemoteMCPConfig.INITIAL_SERVER_PORT
 _client_threads = []
 
 # Background mode command queue
@@ -129,7 +185,7 @@ class OutputCapture:
 class BldRemoteMCPServer:
     """Dual-mode TCP server for Blender remote control (GUI timer + background queue)."""
     
-    def __init__(self, host='127.0.0.1', port=6688):
+    def __init__(self, host=BldRemoteMCPConfig.DEFAULT_HOST, port=BldRemoteMCPConfig.DEFAULT_PORT):
         self.host = host
         self.port = port
         self.running = False
@@ -177,9 +233,9 @@ class BldRemoteMCPServer:
         try:
             # Create socket
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, BldRemoteMCPConfig.SOCKET_REUSE_ADDRESS)
             self.server_socket.bind((self.host, self.port))
-            self.server_socket.listen(5)
+            self.server_socket.listen(BldRemoteMCPConfig.SOCKET_LISTEN_BACKLOG)
             
             # Start server thread
             self.server_thread = threading.Thread(target=self._server_loop)
@@ -201,7 +257,7 @@ class BldRemoteMCPServer:
     def _server_loop(self):
         """Main server loop in a separate thread."""
         log_info("Server thread started")
-        self.server_socket.settimeout(1.0)  # Timeout to allow for stopping
+        self.server_socket.settimeout(BldRemoteMCPConfig.SOCKET_TIMEOUT_SECONDS)  # Timeout to allow for stopping
         
         while self.running:
             try:
@@ -223,13 +279,13 @@ class BldRemoteMCPServer:
                 except Exception as e:
                     if self.running:  # Only log if we're supposed to be running
                         log_error(f"Error accepting connection: {str(e)}")
-                    time.sleep(0.5)
+                    time.sleep(BldRemoteMCPConfig.ERROR_RECOVERY_SLEEP_SECONDS)
             except Exception as e:
                 if self.running:  # Only log if we're supposed to be running
                     log_error(f"Error in server loop: {str(e)}")
                 if not self.running:
                     break
-                time.sleep(0.5)
+                time.sleep(BldRemoteMCPConfig.ERROR_RECOVERY_SLEEP_SECONDS)
         
         log_info("Server thread stopped")
     
@@ -242,7 +298,7 @@ class BldRemoteMCPServer:
         try:
             while self.running:
                 try:
-                    data = client.recv(8192)
+                    data = client.recv(BldRemoteMCPConfig.SOCKET_RECV_BUFFER_SIZE)
                     if not data:
                         log_info("Client disconnected")
                         break
@@ -250,7 +306,7 @@ class BldRemoteMCPServer:
                     buffer += data
                     try:
                         # Try to parse command
-                        command = json.loads(buffer.decode('utf-8'))
+                        command = json.loads(buffer.decode(BldRemoteMCPConfig.STRING_ENCODING_UTF8))
                         buffer = b''
                         
                         # Execute command synchronously in main thread using timer
@@ -258,7 +314,7 @@ class BldRemoteMCPServer:
                         response_json = json.dumps(response)
                         
                         try:
-                            client.sendall(response_json.encode('utf-8'))
+                            client.sendall(response_json.encode(BldRemoteMCPConfig.STRING_ENCODING_UTF8))
                         except:
                             log_info("Failed to send response - client disconnected")
                             break
@@ -307,13 +363,13 @@ class BldRemoteMCPServer:
             return None
         
         # Schedule execution in main thread
-        bpy.app.timers.register(execute_wrapper, first_interval=0.0)
+        bpy.app.timers.register(execute_wrapper, first_interval=BldRemoteMCPConfig.TIMER_FIRST_INTERVAL_SECONDS)
         
         # Wait for completion (polling)
-        timeout = 30.0  # 30 second timeout
+        timeout = BldRemoteMCPConfig.COMMAND_EXECUTION_TIMEOUT_SECONDS  # Command execution timeout
         start_time = time.time()
         while not result_container["done"]:
-            time.sleep(0.01)  # Small sleep to avoid busy waiting
+            time.sleep(BldRemoteMCPConfig.POLLING_SLEEP_INTERVAL_SECONDS)  # Small sleep to avoid busy waiting
             if time.time() - start_time > timeout:
                 return {"status": "error", "message": "Command execution timeout"}
         
@@ -343,7 +399,7 @@ class BldRemoteMCPServer:
         log_debug(f"Command queued for background processing, queue size: {self.command_queue.qsize()}")
         
         # Wait for the result with timeout
-        timeout = 30.0  # 30 second timeout
+        timeout = BldRemoteMCPConfig.COMMAND_EXECUTION_TIMEOUT_SECONDS  # Command execution timeout
         if result_event.wait(timeout):
             response = result_container.get("response")
             log_debug("Background command execution completed successfully")
@@ -359,13 +415,13 @@ class BldRemoteMCPServer:
             log_debug("step() called but not in background mode or no queue available")
             return
         
-        processed_count = 0
+        processed_count = BldRemoteMCPConfig.INITIAL_COUNTER_VALUE
         
         # Process all jobs in the queue
         while not self.command_queue.empty():
             try:
                 job = self.command_queue.get_nowait()
-                processed_count += 1
+                processed_count += BldRemoteMCPConfig.COUNTER_INCREMENT
                 
                 log_debug(f"Processing command job {processed_count}: {job.command.get('type', 'unknown')}")
                 
@@ -396,7 +452,7 @@ class BldRemoteMCPServer:
             except Exception as e:
                 log_error(f"Error processing command job: {e}")
         
-        if processed_count > 0:
+        if processed_count > BldRemoteMCPConfig.INITIAL_COUNTER_VALUE:
             log_debug(f"step() processed {processed_count} command jobs")
 
     def execute_command(self, command):
@@ -447,7 +503,7 @@ class BldRemoteMCPServer:
         response = {
             "response": "OK",
             "message": "Task received",
-            "source": f"tcp://127.0.0.1:{self.port}"
+            "source": f"tcp://{BldRemoteMCPConfig.DEFAULT_HOST}:{self.port}"
         }
         
         if "message" in data:
@@ -495,7 +551,7 @@ class BldRemoteMCPServer:
             return None
         
         # Schedule shutdown after a brief delay
-        bpy.app.timers.register(delayed_shutdown, first_interval=1.0)
+        bpy.app.timers.register(delayed_shutdown, first_interval=BldRemoteMCPConfig.SHUTDOWN_DELAY_SECONDS)
         return {"message": "Server shutdown initiated"}
     
     def stop(self):
@@ -519,7 +575,7 @@ class BldRemoteMCPServer:
         if self.server_thread:
             try:
                 if self.server_thread.is_alive():
-                    self.server_thread.join(timeout=3.0)
+                    self.server_thread.join(timeout=BldRemoteMCPConfig.THREAD_JOIN_TIMEOUT_SECONDS)
                     if self.server_thread.is_alive():
                         log_warning("Warning: Server thread did not stop cleanly")
             except:
@@ -542,17 +598,17 @@ class BldRemoteMCPServer:
                 "frame_end": bpy.context.scene.frame_end,
             }
             
-            # Collect minimal object information (limit to first 10 objects)
+            # Collect minimal object information (limit to first N objects)
             for i, obj in enumerate(bpy.context.scene.objects):
-                if i >= 10:
+                if i >= BldRemoteMCPConfig.MAX_OBJECTS_IN_SCENE_INFO:
                     break
                     
                 obj_info = {
                     "name": obj.name,
                     "type": obj.type,
-                    "location": [round(float(obj.location.x), 2), 
-                                round(float(obj.location.y), 2), 
-                                round(float(obj.location.z), 2)],
+                    "location": [round(float(obj.location.x), BldRemoteMCPConfig.LOCATION_PRECISION_DIGITS), 
+                                round(float(obj.location.y), BldRemoteMCPConfig.LOCATION_PRECISION_DIGITS), 
+                                round(float(obj.location.z), BldRemoteMCPConfig.LOCATION_PRECISION_DIGITS)],
                     "visible": obj.visible_get(),
                 }
                 scene_info["objects"].append(obj_info)
@@ -601,7 +657,7 @@ class BldRemoteMCPServer:
         
         return obj_info
     
-    def get_viewport_screenshot(self, max_size=800, filepath=None, format="png", **kwargs):
+    def get_viewport_screenshot(self, max_size=BldRemoteMCPConfig.DEFAULT_VIEWPORT_MAX_SIZE, filepath=None, format="png", **kwargs):
         """Capture a screenshot of the current 3D viewport."""
         log_info(f"Getting viewport screenshot: filepath={filepath}, max_size={max_size}")
         
@@ -679,12 +735,12 @@ class BldRemoteMCPServer:
         actual_code = code
         if code_is_base64:
             try:
-                actual_code = base64.b64decode(code.encode('ascii')).decode('utf-8')
+                actual_code = base64.b64decode(code.encode(BldRemoteMCPConfig.STRING_ENCODING_ASCII)).decode(BldRemoteMCPConfig.STRING_ENCODING_UTF8)
                 log_info(f"Decoded base64 code (original length: {len(code)}, decoded length: {len(actual_code)})")
             except Exception as e:
                 raise ValueError(f"Failed to decode base64 code: {e}")
         
-        log_info(f"Executing code: {actual_code[:100]}{'...' if len(actual_code) > 100 else ''}")
+        log_info(f"Executing code: {actual_code[:BldRemoteMCPConfig.CODE_PREVIEW_LENGTH]}{'...' if len(actual_code) > BldRemoteMCPConfig.CODE_PREVIEW_LENGTH else ''}")
         
         exec_result = self._execute_code_with_capture(actual_code)
         
@@ -702,7 +758,7 @@ class BldRemoteMCPServer:
                     # Encode the main result as base64
                     original_result = result_data["result"]
                     if original_result:
-                        encoded_result = base64.b64encode(original_result.encode('utf-8')).decode('ascii')
+                        encoded_result = base64.b64encode(original_result.encode(BldRemoteMCPConfig.STRING_ENCODING_UTF8)).decode(BldRemoteMCPConfig.STRING_ENCODING_ASCII)
                         result_data["result"] = encoded_result
                         result_data["result_is_base64"] = True
                         log_info(f"Encoded result as base64 (original length: {len(original_result)}, encoded length: {len(encoded_result)})")
@@ -858,12 +914,12 @@ def cleanup_server():
     _server_thread = None
     _server_running = False
     old_port = _server_port
-    _server_port = 0
+    _server_port = BldRemoteMCPConfig.INITIAL_SERVER_PORT
     
     # Update scene property
     try:
         if hasattr(bpy, 'data') and hasattr(bpy.data, 'scenes') and bpy.data.scenes:
-            bpy.data.scenes[0].bld_remote_server_running = False
+            bpy.data.scenes[BldRemoteMCPConfig.DEFAULT_SCENE_INDEX].bld_remote_server_running = False
             log_info("Scene property updated successfully")
     except (AttributeError, TypeError) as e:
         log_info(f"Cannot access scenes to update property: {e}")
@@ -896,7 +952,7 @@ def start_server_from_script():
             # Update scene property
             try:
                 if hasattr(bpy, 'data') and hasattr(bpy.data, 'scenes') and bpy.data.scenes:
-                    bpy.data.scenes[0].bld_remote_server_running = True
+                    bpy.data.scenes[BldRemoteMCPConfig.DEFAULT_SCENE_INDEX].bld_remote_server_running = True
                     log_info("Scene property updated to True")
             except Exception as e:
                 log_info(f"Cannot update scene property: {e}")
@@ -922,7 +978,7 @@ def get_status():
     status = {
         "running": _server_instance is not None and _server_instance.running,
         "port": _server_port,
-        "address": f"127.0.0.1:{_server_port}",
+        "address": f"{BldRemoteMCPConfig.DEFAULT_HOST}:{_server_port}",
         "server_object": _server_instance is not None
     }
     
@@ -973,8 +1029,8 @@ def set_mcp_service_port(port_number):
     if _server_instance is not None and _server_instance.running:
         raise RuntimeError("Cannot change port while server is running. Stop service first.")
     
-    if not isinstance(port_number, int) or port_number < 1024 or port_number > 65535:
-        raise ValueError("Port number must be an integer between 1024 and 65535")
+    if not isinstance(port_number, int) or port_number < BldRemoteMCPConfig.MIN_PORT_NUMBER or port_number > BldRemoteMCPConfig.MAX_PORT_NUMBER:
+        raise ValueError(f"Port number must be an integer between {BldRemoteMCPConfig.MIN_PORT_NUMBER} and {BldRemoteMCPConfig.MAX_PORT_NUMBER}")
     
     # Set environment variable for next start
     os.environ['BLD_REMOTE_MCP_PORT'] = str(port_number)
@@ -993,7 +1049,7 @@ def get_mcp_service_port():
 def register():
     """Register the addon's properties and classes with Blender."""
     log_info("=== BLD REMOTE MCP ADDON REGISTRATION STARTING ===")
-    log_info("🚀 BLD Remote MCP v2.1.0 Loading! (DUAL-MODE VERSION)")
+    log_info(f"🚀 BLD Remote MCP {BldRemoteMCPConfig.VERSION_STRING} Loading! (DUAL-MODE VERSION)")
     log_info("register() function called")
     
     # Check Blender environment
@@ -1126,7 +1182,7 @@ class BldRemoteAPI:
     def get_command_queue_size():
         """Get the current command queue size (background mode only)."""
         queue_obj = _get_global_command_queue()
-        return queue_obj.qsize() if queue_obj else 0
+        return queue_obj.qsize() if queue_obj else BldRemoteMCPConfig.QUEUE_EMPTY_SIZE
 
 # Register the API in sys.modules so it can be imported as 'import bld_remote'
 sys.modules['bld_remote'] = BldRemoteAPI()

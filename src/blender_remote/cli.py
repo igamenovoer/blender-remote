@@ -40,7 +40,7 @@ class BlenderRemoteConfig:
         """Load configuration from file"""
         if not self.config_path.exists():
             raise click.ClickException(
-                f"Configuration file not found: {self.config_path}\nRun 'blender-remote-cli init <blender_path>' first"
+                f"Configuration file not found: {self.config_path}\nRun 'blender-remote-cli init [blender_path]' first"
             )
 
         self.config = OmegaConf.load(self.config_path)
@@ -283,10 +283,13 @@ def cli() -> None:
 
 
 @cli.command()
-@click.argument("blender_path", type=click.Path(exists=True))
+@click.argument("blender_path", type=click.Path(exists=True), required=False)
 @click.option("--backup", is_flag=True, help="Create backup of existing config")
-def init(blender_path: str, backup: bool) -> None:
-    """Initialize blender-remote configuration"""
+def init(blender_path: Optional[str], backup: bool) -> None:
+    """Initialize blender-remote configuration.
+    
+    If blender_path is not provided, you will be prompted to enter the path.
+    """
     click.echo(f"🔧 Initializing blender-remote configuration...")
 
     # Backup existing config if requested
@@ -294,6 +297,13 @@ def init(blender_path: str, backup: bool) -> None:
         backup_path = CONFIG_FILE.with_suffix(".yaml.bak")
         shutil.copy2(CONFIG_FILE, backup_path)
         click.echo(f"📋 Backup created: {backup_path}")
+
+    # Get blender path - prompt if not provided
+    if not blender_path:
+        blender_path = click.prompt(
+            "Please enter the path to your Blender executable",
+            type=click.Path(exists=True)
+        )
 
     # Detect Blender info
     click.echo(f"🔍 Detecting Blender information...")

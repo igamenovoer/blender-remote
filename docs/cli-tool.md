@@ -26,7 +26,7 @@ blender-remote-cli --help
 
 ```bash
 # 1. Initialize configuration with auto-detection
-blender-remote-cli init /path/to/blender
+blender-remote-cli init [blender_path]
 
 # 2. Install BLD Remote MCP addon automatically
 blender-remote-cli install
@@ -53,7 +53,7 @@ Initialize blender-remote configuration with automatic path detection.
 
 **Usage:**
 ```bash
-blender-remote-cli init <blender_executable_path> [OPTIONS]
+blender-remote-cli init [blender_executable_path] [OPTIONS]
 ```
 
 **Options:**
@@ -61,11 +61,23 @@ blender-remote-cli init <blender_executable_path> [OPTIONS]
 
 **Examples:**
 ```bash
-# Basic initialization
+# Basic initialization with path specified
 blender-remote-cli init /usr/bin/blender
 
 # Initialize with backup
 blender-remote-cli init /usr/bin/blender --backup
+
+# Initialize with interactive path prompt
+blender-remote-cli init
+```
+
+**Interactive Mode:**
+If you don't provide a blender path, the CLI will prompt you to enter it interactively:
+```bash
+$ blender-remote-cli init
+🔧 Initializing blender-remote configuration...
+Please enter the path to your Blender executable: /usr/bin/blender
+🔍 Detecting Blender information...
 ```
 
 **What it does:**
@@ -352,7 +364,7 @@ blender-remote-cli status
 **"Configuration file not found"**
 ```bash
 # Run init first
-blender-remote-cli init /path/to/blender
+blender-remote-cli init [blender_path]
 ```
 
 **"Blender executable not found"**
@@ -455,7 +467,7 @@ The CLI tool respects these environment variables:
 pip install blender-remote
 
 # 2. Initialize configuration
-blender-remote-cli init /usr/bin/blender
+blender-remote-cli init [blender_path]
 
 # 3. Install addon
 blender-remote-cli install
