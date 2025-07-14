@@ -186,6 +186,32 @@ def get_addon_zip_path() -> Path:
     raise click.ClickException("Could not find bld_remote_mcp addon files")
 
 
+def get_debug_addon_zip_path() -> Path:
+    """Get path to the debug addon zip file"""
+    # Check if we're in development mode
+    current_dir = Path.cwd()
+
+    # Look for debug addon in development directory
+    dev_addon_dir = current_dir / "blender_addon" / "simple-tcp-executor"
+    dev_addon_zip = current_dir / "blender_addon" / "simple-tcp-executor.zip"
+
+    if dev_addon_dir.exists():
+        # Create zip from development directory
+        if dev_addon_zip.exists():
+            dev_addon_zip.unlink()
+
+        # Create zip
+        shutil.make_archive(
+            str(dev_addon_zip.with_suffix("")),
+            "zip",
+            str(dev_addon_dir.parent),
+            "simple-tcp-executor",
+        )
+        return dev_addon_zip
+
+    raise click.ClickException("Could not find simple-tcp-executor addon files")
+
+
 def connect_and_send_command(
     command_type: str,
     params: Optional[Dict[str, Any]] = None,
@@ -704,6 +730,228 @@ def status() -> None:
         error_msg = response.get("message", "Unknown error")
         click.echo(f"❌ Connection failed: {error_msg}")
         click.echo("   Make sure Blender is running with BLD_Remote_MCP addon enabled")
+
+
+# Debug commands for testing code execution patterns
+@cli.group()
+def debug() -> None:
+    """Debug tools for testing code execution patterns"""
+    pass
+
+
+@debug.command()
+def install() -> None:
+    """Install simple-tcp-executor debug addon to Blender"""
+    click.echo(f"🔧 Installing simple-tcp-executor debug addon...")
+
+    # Load config
+    config = BlenderRemoteConfig()
+    blender_config = config.get("blender")
+
+    if not blender_config:
+        raise click.ClickException("Blender configuration not found. Run 'init' first.")
+
+    blender_path = blender_config.get("exec_path")
+
+    if not blender_path:
+        raise click.ClickException("Blender executable path not found in config")
+
+    # Get debug addon zip path
+    debug_addon_zip = get_debug_addon_zip_path()
+
+    click.echo(f"📦 Using debug addon: {debug_addon_zip}")
+
+    # Install addon using Blender CLI
+    python_expr = f"import bpy; bpy.ops.preferences.addon_install(filepath='{debug_addon_zip}', overwrite=True); bpy.ops.preferences.addon_enable(module='simple-tcp-executor'); bpy.ops.wm.save_userpref()"
+
+    try:
+        result = subprocess.run(
+            [blender_path, "--background", "--python-expr", python_expr],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        if result.returncode == 0:
+            click.echo(f"✅ Debug addon installed successfully!")
+            click.echo(
+                f"📁 Addon location: {blender_config.get('plugin_dir')}/simple-tcp-executor"
+            )
+        else:
+            click.echo(f"❌ Installation failed!")
+            click.echo(f"Error: {result.stderr}")
+            raise click.ClickException("Debug addon installation failed")
+
+    except subprocess.TimeoutExpired:
+        raise click.ClickException("Installation timeout")
+    except Exception as e:
+        raise click.ClickException(f"Installation error: {e}")
+
+
+@debug.command()
+@click.option("--background", is_flag=True, help="Start Blender in background mode")
+@click.option("--port", type=int, help="TCP port for debug server (default: 7777 or BLD_DEBUG_TCP_PORT env var)")
+def start(background: bool, port: Optional[int]) -> None:
+    """Start Blender with simple-tcp-executor debug addon"""
+    
+    # Load config
+    config = BlenderRemoteConfig()
+    blender_config = config.get("blender")
+
+    if not blender_config:
+        raise click.ClickException("Blender configuration not found. Run 'init' first.")
+
+    blender_path = blender_config.get("exec_path")
+
+    if not blender_path:
+        raise click.ClickException("Blender executable path not found in config")
+
+    # Determine port
+    debug_port = port or int(os.environ.get("BLD_DEBUG_TCP_PORT", 7777))
+
+    # Prepare startup code
+    startup_code = f"""
+# Set debug TCP port
+import os
+os.environ['BLD_DEBUG_TCP_PORT'] = '{debug_port}'
+
+# Enable the debug addon
+import bpy
+try:
+    bpy.ops.preferences.addon_enable(module='simple-tcp-executor')
+    print(f"✅ Simple TCP Executor debug addon enabled on port {debug_port}")
+except Exception as e:
+    print(f"❌ Failed to enable debug addon: {{e}}")
+    print("Make sure the addon is installed first using 'debug install'")
+"""
+
+    if background:
+        startup_code += """
+# Keep Blender running in background mode
+import time
+import signal
+import sys
+
+# Global flag to control the keep-alive loop
+_keep_running = True
+
+def signal_handler(signum, frame):
+    global _keep_running
+    print(f"Received signal {signum}, shutting down...")
+    _keep_running = False
+    
+    # Allow a moment for cleanup
+    time.sleep(0.5)
+    sys.exit(0)
+
+# Install signal handlers
+signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+signal.signal(signal.SIGTERM, signal_handler)  # Termination
+
+print("Blender running in background mode with debug TCP server. Press Ctrl+C to exit.")
+print(f"Debug TCP server should be listening on port {os.environ.get('BLD_DEBUG_TCP_PORT', 7777)}")
+
+# Keep the main thread alive with manual step() processing
+try:
+    print("✅ Starting debug background loop...")
+    
+    # Write to debug log directly
+    with open('/tmp/blender_debug.log', 'a') as f:
+        f.write("DEBUG: Entering main loop section\\n")
+        f.flush()
+    
+    # Get the addon's step function using the registered API module
+    import bpy
+    step_processor = None
+    try:
+        # Import the registered API module
+        import simple_tcp_executor
+        step_processor = simple_tcp_executor.step
+        print("DEBUG: Found step processor function via registered API module")
+        with open('/tmp/blender_debug.log', 'a') as f:
+            f.write("DEBUG: Found step processor function via registered API module\\n")
+            f.flush()
+        
+        # Test if the API is working
+        is_running = simple_tcp_executor.is_running()
+        print(f"DEBUG: TCP executor running status: {is_running}")
+        with open('/tmp/blender_debug.log', 'a') as f:
+            f.write(f"DEBUG: TCP executor running status: {is_running}\\n")
+            f.flush()
+        
+    except ImportError as e:
+        print(f"DEBUG: Could not import simple_tcp_executor API: {e}")
+        with open('/tmp/blender_debug.log', 'a') as f:
+            f.write(f"DEBUG: Could not import simple_tcp_executor API: {e}\\n")
+            f.flush()
+    except Exception as e:
+        print(f"DEBUG: Error accessing TCP executor API: {e}")
+        with open('/tmp/blender_debug.log', 'a') as f:
+            f.write(f"DEBUG: Error accessing TCP executor API: {e}\\n")
+            f.flush()
+    
+    # Main keep-alive loop with manual step() processing
+    loop_count = 0
+    while _keep_running:
+        loop_count += 1
+        
+        # Log every 100 iterations to show the loop is running
+        if loop_count % 100 == 0:
+            with open('/tmp/blender_debug.log', 'a') as f:
+                f.write(f"DEBUG: Main loop iteration {loop_count}\\n")
+                f.flush()
+        
+        # Manually call the step function to process the queue
+        if step_processor:
+            try:
+                step_processor()
+            except Exception as e:
+                print(f"DEBUG: Error in step processor: {e}")
+                with open('/tmp/blender_debug.log', 'a') as f:
+                    f.write(f"DEBUG: Error in step processor: {e}\\n")
+                    f.flush()
+        
+        time.sleep(0.05)  # 50ms sleep for responsive signal handling
+            
+except KeyboardInterrupt:
+    print("Interrupted by user, shutting down...")
+    _keep_running = False
+
+print("Debug background mode finished, Blender will exit.")
+"""
+
+    # Create temporary script file
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as temp_file:
+        temp_file.write(startup_code)
+        temp_script = temp_file.name
+
+    try:
+        # Build command
+        cmd = [blender_path]
+
+        if background:
+            cmd.append("--background")
+
+        cmd.extend(["--python", temp_script])
+
+        click.echo(f"🚀 Starting Blender with debug TCP server on port {debug_port}...")
+        
+        if background:
+            click.echo(f"🔧 Background mode: Blender will run headless")
+        else:
+            click.echo(f"🖥️  GUI mode: Blender window will open")
+
+        # Execute Blender
+        result = subprocess.run(cmd, timeout=None)
+
+        return result.returncode
+
+    finally:
+        # Clean up temporary script
+        try:
+            os.unlink(temp_script)
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
