@@ -106,15 +106,15 @@ def get_scene_info():
         raise
 
 
-def get_object_info(object_name=None):
+def get_object_info(name=None):
     """Get information about a specific object or all objects."""
-    log_info(f"Getting object info for: {object_name if object_name else 'all objects'}")
+    log_info(f"Getting object info for: {name if name else 'all objects'}")
     try:
-        if object_name:
+        if name:
             # Get info for specific object
-            obj = bpy.data.objects.get(object_name)
+            obj = bpy.data.objects.get(name)
             if not obj:
-                raise ValueError(f"Object '{object_name}' not found")
+                raise ValueError(f"Object '{name}' not found")
             
             return {
                 "name": obj.name,

@@ -376,7 +376,7 @@ async def get_object_info(object_name: str, ctx: Context) -> Dict[str, Any]:
 
     try:
         response = await blender_conn.send_command(
-            {"type": "get_object_info", "params": {"object_name": object_name}}
+            {"type": "get_object_info", "params": {"name": object_name}}
         )
 
         if response.get("status") == "error":

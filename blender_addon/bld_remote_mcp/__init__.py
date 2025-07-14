@@ -453,14 +453,14 @@ class BldRemoteMCPServer:
             traceback.print_exc()
             return {"error": str(e)}
     
-    def get_object_info(self, object_name=None):
+    def get_object_info(self, name=None):
         """Get detailed information about a specific object."""
-        if not object_name:
-            raise ValueError("object_name parameter is required")
+        if not name:
+            raise ValueError("name parameter is required")
             
-        obj = bpy.data.objects.get(object_name)
+        obj = bpy.data.objects.get(name)
         if not obj:
-            raise ValueError(f"Object not found: {object_name}")
+            raise ValueError(f"Object not found: {name}")
         
         # Basic object info
         obj_info = {
