@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import shutil
 import re
+import base64
 from pathlib import Path
 from typing import Optional, Dict, Any, cast, Union
 
@@ -19,7 +20,13 @@ from omegaconf import OmegaConf, DictConfig
 
 CONFIG_DIR = Path.home() / ".config" / "blender-remote"
 CONFIG_FILE = CONFIG_DIR / "bld-remote-config.yaml"
-DEFAULT_PORT = 6688
+
+# Configuration constants that align with MCPServerConfig
+# NOTE: These values must stay in sync with MCPServerConfig in mcp_server.py
+DEFAULT_PORT = 6688  # Should match MCPServerConfig.FALLBACK_BLENDER_PORT
+SOCKET_TIMEOUT_SECONDS = 60.0  # Should match MCPServerConfig.SOCKET_TIMEOUT_SECONDS
+SOCKET_RECV_CHUNK_SIZE = 131072  # Should match MCPServerConfig.SOCKET_RECV_CHUNK_SIZE (128KB)
+SOCKET_MAX_RESPONSE_SIZE = 10 * 1024 * 1024  # Should match MCPServerConfig.SOCKET_MAX_RESPONSE_SIZE (10MB)
 
 
 class BlenderRemoteConfig:
@@ -184,9 +191,9 @@ def connect_and_send_command(
     params: Optional[Dict[str, Any]] = None,
     host: str = "127.0.0.1",
     port: int = DEFAULT_PORT,
-    timeout: float = 10.0,
+    timeout: float = SOCKET_TIMEOUT_SECONDS,
 ) -> Dict[str, Any]:
-    """Connect to BLD_Remote_MCP and send a command"""
+    """Connect to BLD_Remote_MCP and send a command with optimized socket handling"""
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(timeout)
@@ -198,10 +205,43 @@ def connect_and_send_command(
         command_json = json.dumps(command)
         sock.sendall(command_json.encode("utf-8"))
 
-        # Receive response
-        response_data = sock.recv(8192)
+        # Optimized response handling with accumulation (matches MCP server approach)
+        response_data = b''
+        
+        while len(response_data) < SOCKET_MAX_RESPONSE_SIZE:
+            try:
+                chunk = sock.recv(SOCKET_RECV_CHUNK_SIZE)
+                if not chunk:
+                    break
+                response_data += chunk
+                
+                # Quick check if we might have complete JSON by looking for balanced braces
+                try:
+                    decoded = response_data.decode("utf-8")
+                    if decoded.count('{') > 0 and decoded.count('{') == decoded.count('}'):
+                        # Likely complete JSON, try parsing
+                        response = json.loads(decoded)
+                        sock.close()
+                        return cast(Dict[str, Any], response)
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    # Not ready yet, continue reading
+                    continue
+                    
+            except socket.timeout:
+                # Short timeout means likely no more data for LAN/localhost
+                break
+            except Exception as e:
+                if "timeout" in str(e).lower():
+                    break
+                else:
+                    raise e
+        
+        if not response_data:
+            sock.close()
+            return {"status": "error", "message": "Connection closed by Blender"}
+        
+        # Final parse attempt
         response = json.loads(response_data.decode("utf-8"))
-
         sock.close()
         return cast(Dict[str, Any], response)
 
@@ -549,6 +589,97 @@ print("Background mode keep-alive loop finished, Blender will exit.")
             os.unlink(temp_script)
         except Exception:
             pass
+
+
+# Code execution commands with base64 support
+@cli.command()
+@click.argument("code_file", type=click.Path(exists=True), required=False)
+@click.option("--code", "-c", help="Python code to execute directly")
+@click.option("--use-base64", is_flag=True, help="Use base64 encoding for code transmission (recommended for complex code)")
+@click.option("--return-base64", is_flag=True, help="Request base64-encoded results (recommended for complex output)")
+@click.option("--port", type=int, help="Override default MCP port")
+def execute(code_file: Optional[str], code: Optional[str], use_base64: bool, return_base64: bool, port: Optional[int]) -> None:
+    """Execute Python code in Blender with optional base64 encoding"""
+    
+    if not code_file and not code:
+        raise click.ClickException("Must provide either --code or a code file")
+    
+    if code_file and code:
+        raise click.ClickException("Cannot use both --code and code file")
+    
+    # Read code from file if provided
+    if code_file:
+        with open(code_file, 'r') as f:
+            code_to_execute = f.read()
+        click.echo(f"📁 Executing code from: {code_file}")
+    else:
+        code_to_execute = code or ""
+        click.echo(f"💻 Executing code directly")
+    
+    if not code_to_execute.strip():
+        raise click.ClickException("Code is empty")
+    
+    if use_base64:
+        click.echo(f"🔐 Using base64 encoding for code transmission")
+    if return_base64:
+        click.echo(f"🔐 Requesting base64-encoded results")
+    
+    click.echo(f"📏 Code length: {len(code_to_execute)} characters")
+    
+    # Get port configuration
+    config = BlenderRemoteConfig()
+    mcp_port = port or config.get("mcp_service.default_port") or DEFAULT_PORT
+    
+    # Prepare command parameters
+    params = {
+        "code": code_to_execute,
+        "code_is_base64": use_base64,
+        "return_as_base64": return_base64
+    }
+    
+    # Encode code as base64 if requested
+    if use_base64:
+        encoded_code = base64.b64encode(code_to_execute.encode('utf-8')).decode('ascii')
+        params["code"] = encoded_code
+        click.echo(f"🔐 Encoded code length: {len(encoded_code)} characters")
+    
+    click.echo(f"📡 Connecting to Blender BLD_Remote_MCP service (port {mcp_port})...")
+    
+    # Execute command
+    response = connect_and_send_command("execute_code", params, port=mcp_port)
+    
+    if response.get("status") == "success":
+        result = response.get("result", {})
+        
+        click.echo(f"✅ Code execution successful!")
+        
+        # Handle execution result
+        if result.get("executed", False):
+            output = result.get("result", "")
+            
+            # Decode base64 result if needed
+            if return_base64 and result.get("result_is_base64", False):
+                try:
+                    decoded_output = base64.b64decode(output.encode('ascii')).decode('utf-8')
+                    click.echo(f"🔐 Decoded base64 result:")
+                    click.echo(decoded_output)
+                except Exception as e:
+                    click.echo(f"❌ Failed to decode base64 result: {e}")
+                    click.echo(f"Raw result: {output}")
+            else:
+                if output:
+                    click.echo(f"📄 Output:")
+                    click.echo(output)
+                else:
+                    click.echo(f"✅ Code executed successfully (no output)")
+        else:
+            click.echo(f"⚠️ Code execution completed but execution status unclear")
+            click.echo(f"Response: {result}")
+    else:
+        error_msg = response.get("message", "Unknown error")
+        click.echo(f"❌ Code execution failed: {error_msg}")
+        if "connection" in error_msg.lower():
+            click.echo("   Make sure Blender is running with BLD_Remote_MCP addon enabled")
 
 
 # Legacy commands for backward compatibility

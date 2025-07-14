@@ -48,13 +48,17 @@ uvx blender-remote --host 10.0.0.5 --port 6688   # Production
 ```
 
 ### 4. **Command-Line Interface**
-Complete CLI tools for setup, configuration, and service management.
+Complete CLI tools for setup, configuration, service management, and code execution.
 
 ```bash
 # Setup and start
 blender-remote-cli init /path/to/blender
 blender-remote-cli install
 blender-remote-cli start --scene=assets.blend --log-level=DEBUG
+
+# Execute Python code in Blender
+blender-remote-cli execute --code "bpy.ops.mesh.primitive_cube_add()"
+blender-remote-cli execute my_script.py --use-base64
 
 # Configuration management
 blender-remote-cli config set mcp_service.default_port=7777
@@ -151,12 +155,26 @@ result = client.execute_python("bpy.ops.mesh.primitive_sphere_add()")
 |------|-------------|
 | `get_scene_info()` | List all objects, materials, and scene properties |
 | `get_object_info(name)` | Get detailed object properties |
-| `execute_code(code)` | Run Python code in Blender context |
+| `execute_code(code, send_as_base64, return_as_base64)` | Run Python code in Blender context with optional base64 encoding |
 | `get_viewport_screenshot()` | Capture viewport image (GUI mode only) |
 | `put_persist_data(key, data)` | Store data for later use in the session |
 | `get_persist_data(key, default)` | Retrieve stored data by key |
 | `remove_persist_data(key)` | Remove stored data |
 | `check_connection_status()` | Verify service health |
+
+## Base64 Code Encoding
+
+For complex code with special characters or large blocks, use base64 encoding to prevent formatting issues:
+
+```bash
+# CLI with base64 encoding
+blender-remote-cli execute complex_script.py --use-base64 --return-base64
+```
+
+**When to use base64:**
+- Large code blocks with complex formatting
+- Code containing special characters or quotes
+- When JSON parsing errors occur with complex scripts
 
 ## Data Persistence
 
@@ -197,6 +215,10 @@ blender-remote-cli install
 # Start Blender service
 blender-remote-cli start --background
 blender-remote-cli start --scene=my_project.blend --log-level=DEBUG
+
+# Execute Python code
+blender-remote-cli execute --code "print('Hello from Blender')"
+blender-remote-cli execute script.py --use-base64 --return-base64
 
 # Configuration management
 blender-remote-cli config set mcp_service.default_port=7777
@@ -250,7 +272,7 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.connect(('127.0.0.1', 6688))
 command = {"type": "execute_code", "params": {"code": "bpy.ops.mesh.primitive_cube_add()"}}
 sock.send(json.dumps(command).encode())
-response = json.loads(sock.recv(4096).decode())
+response = json.loads(sock.recv(131072).decode())  # 128KB buffer for large responses
 sock.close()
 ```
 

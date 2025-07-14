@@ -201,6 +201,41 @@ blender-remote-cli start --background --port=7777 --scene=assets.blend --log-lev
 - All service functions work except viewport screenshots
 - Perfect for CI/CD and headless automation
 
+### `execute` - Execute Python Code
+
+Execute Python code in Blender with optional base64 encoding for complex scripts.
+
+**Usage:**
+```bash
+blender-remote-cli execute [OPTIONS] [CODE_FILE]
+```
+
+**Options:**
+- `--code`, `-c` - Python code to execute directly
+- `--use-base64` - Use base64 encoding for code transmission (recommended for complex code)  
+- `--return-base64` - Request base64-encoded results (recommended for complex output)
+- `--port` - Override default MCP port
+
+**Examples:**
+```bash
+# Execute inline code
+blender-remote-cli execute --code "bpy.ops.mesh.primitive_cube_add()"
+
+# Execute Python file
+blender-remote-cli execute my_script.py
+
+# Use base64 for complex code (prevents formatting issues)
+blender-remote-cli execute complex_script.py --use-base64 --return-base64
+
+# Custom port
+blender-remote-cli execute --code "print('Hello')" --port 7777
+```
+
+**When to use base64:**
+- Large code blocks with complex formatting
+- Code containing special characters or quotes  
+- When JSON parsing errors occur with complex scripts
+
 ### `status` - Check Connection
 
 Check connection status to running BLD Remote MCP service.
@@ -434,6 +469,9 @@ blender-remote-cli start --background
 
 # 6. Verify connection
 blender-remote-cli status
+
+# 7. Execute test code
+blender-remote-cli execute --code "print('Setup complete!')"
 ```
 
 ### Automated Asset Generation
@@ -444,6 +482,19 @@ blender-remote-cli start --background --pre-file=asset_setup.py
 
 # In another terminal, run automation
 python asset_generation.py
+```
+
+### Python Code Execution
+
+```bash
+# Simple code execution
+blender-remote-cli execute --code "bpy.ops.mesh.primitive_cube_add(location=(2, 0, 0))"
+
+# Execute complex script file with base64
+blender-remote-cli execute complex_modeling.py --use-base64 --return-base64
+
+# Execute with custom port
+blender-remote-cli execute --code "print(len(bpy.data.objects))" --port 7777
 ```
 
 ### Development Testing

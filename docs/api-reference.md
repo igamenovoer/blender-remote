@@ -8,7 +8,7 @@ This document provides comprehensive API reference for all MCP tools available i
 |------|---------|--------------|------------|
 | [`get_scene_info`](#get_scene_info) | Scene inspection | No | None |
 | [`get_object_info`](#get_object_info) | Object details | No | `object_name` |
-| [`execute_blender_code`](#execute_blender_code) | Code execution | No | `code` |
+| [`execute_code`](#execute_code) | Code execution | No | `code`, `send_as_base64`, `return_as_base64` |
 | [`get_viewport_screenshot`](#get_viewport_screenshot) | Screenshot capture | **Yes** | `max_size`, `filepath`, `format` |
 | [`check_connection_status`](#check_connection_status) | Health check | No | None |
 
@@ -213,15 +213,17 @@ if result["status"] == "success":
 
 ---
 
-## execute_blender_code
+## execute_code
 
-Executes Python code in Blender's context with full access to the Blender Python API.
+Executes Python code in Blender's context with full access to the Blender Python API and optional base64 encoding.
 
 ### Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `code` | `string` | Yes | Python code to execute in Blender |
+| `send_as_base64` | `boolean` | No | Encode code as base64 for complex scripts (default: false) |
+| `return_as_base64` | `boolean` | No | Return results as base64-encoded (default: false) |
 
 ### Returns
 

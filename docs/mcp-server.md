@@ -214,12 +214,14 @@ Retrieves detailed information about a specific object.
 - "What are the dimensions of the Camera?"
 - "Show me the material slots for the Sphere"
 
-### execute_blender_code(code)
+### execute_code(code, send_as_base64, return_as_base64)
 
-Executes Python code in Blender's context with full API access.
+Executes Python code in Blender's context with full API access and optional base64 encoding.
 
 **Parameters:**
 - `code` (string): Python code to execute
+- `send_as_base64` (boolean, optional): Encode code as base64 to prevent formatting issues (default: false)
+- `return_as_base64` (boolean, optional): Return results as base64-encoded (default: false)
 
 **Returns:**
 ```json
@@ -229,6 +231,12 @@ Executes Python code in Blender's context with full API access.
   "output": "Any print statements or returned values"
 }
 ```
+
+**Base64 Usage:**
+Use base64 encoding for complex code or when encountering JSON formatting issues:
+- Large code blocks with special characters
+- Code containing quotes or escape sequences
+- When standard transmission fails with parsing errors
 
 **Example LLM Usage:**
 - "Create a blue metallic cube at position (2, 0, 0)"
@@ -568,7 +576,7 @@ uvx blender-remote --port 6689
 
 **Effective Prompts:**
 - "Show me the current scene" → Uses `get_scene_info()`
-- "Create a red cube at (1,1,1)" → Uses `execute_blender_code()`  
+- "Create a red cube at (1,1,1)" → Uses `execute_code()`  
 - "Take a screenshot" → Uses `get_viewport_screenshot()`
 
 **Multi-step Workflows:**
@@ -604,7 +612,7 @@ blender-remote is compatible with BlenderAutoMCP workflows:
 
 **Tool Mapping:**
 - `get_scene_info()` → Same functionality
-- `execute_code()` → Same as `execute_blender_code()`
+- `execute_code()` → Enhanced with base64 encoding support
 - `get_viewport_screenshot()` → Enhanced with UUID-based file management
 
 **Key Improvements:**

@@ -48,15 +48,18 @@ class MCPServerConfig:
     
     These settings are optimized for LAN/localhost usage where network latency
     is low and we can use larger buffers for better performance.
+    
+    NOTE: Socket settings must stay in sync with corresponding constants in cli.py
     """
     
     # Network Configuration
     DEFAULT_MCP_HOST = "127.0.0.1"
     DEFAULT_MCP_PORT = 8000
     DEFAULT_BLENDER_HOST = "127.0.0.1"  
-    FALLBACK_BLENDER_PORT = 6688
+    FALLBACK_BLENDER_PORT = 6688  # Must match cli.py DEFAULT_PORT
     
     # Socket Communication Settings (optimized for LAN/localhost)
+    # NOTE: These values are also used by cli.py for consistency
     SOCKET_TIMEOUT_SECONDS = 60.0  # Increased from 30s for complex operations
     SOCKET_RECV_CHUNK_SIZE = 131072  # 128KB chunks (up from 8KB) for faster transfer
     SOCKET_MAX_RESPONSE_SIZE = 10 * 1024 * 1024  # 10MB max response size
@@ -392,7 +395,6 @@ async def get_object_info(object_name: str, ctx: Context) -> Dict[str, Any]:
 async def get_viewport_screenshot(
     ctx: Context,
     max_size: int = MCPServerConfig.DEFAULT_SCREENSHOT_MAX_SIZE,
-    filepath: Optional[str] = None,
     format: str = MCPServerConfig.DEFAULT_SCREENSHOT_FORMAT,
 ) -> Dict[str, Any]:
     """Capture a screenshot of the Blender viewport and return as base64 encoded data. Note: Only works in GUI mode."""

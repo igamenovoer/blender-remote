@@ -149,7 +149,7 @@ result = client.execute_python("bpy.ops.mesh.primitive_sphere_add()")
 |------|-------------|--------------|
 | `get_scene_info()` | List all objects, materials, and scene properties | No |
 | `get_object_info(name)` | Get detailed object properties | No |
-| `execute_blender_code(code)` | Run Python code in Blender context | No |
+| `execute_code(code, send_as_base64, return_as_base64)` | Run Python code in Blender context with optional base64 encoding | No |
 | `get_viewport_screenshot()` | Capture viewport image | **Yes** |
 | `check_connection_status()` | Verify service health | No |
 
@@ -160,7 +160,7 @@ result = client.execute_python("bpy.ops.mesh.primitive_sphere_add()")
 ## Example: LLM-Assisted API Development
 
 1. **LLM experiments**: "Try creating 10 cubes in a grid pattern"
-2. **LLM observes**: Uses `execute_blender_code()` to test different approaches
+2. **LLM observes**: Uses `execute_code()` to test different approaches
 3. **LLM creates API**: "Based on what worked, let me create a `create_cube_grid()` function"
 4. **You integrate**: Add the LLM-created function to your Python automation
 
