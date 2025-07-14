@@ -18,6 +18,7 @@ import atexit
 import traceback
 import io
 import sys
+import base64
 from contextlib import redirect_stdout, redirect_stderr
 from bpy.props import BoolProperty
 from typing import Dict, Any, Optional
@@ -551,22 +552,57 @@ class BldRemoteMCPServer:
             log_error(f"Error capturing viewport screenshot: {e}")
             raise
 
-    def execute_code(self, code=None, **kwargs):
-        """Execute arbitrary Blender Python code with output capture."""
+    def execute_code(self, code=None, code_is_base64=False, return_as_base64=False, **kwargs):
+        """Execute arbitrary Blender Python code with output capture.
+        
+        Args:
+            code: Python code to execute (may be base64-encoded if code_is_base64=True)
+            code_is_base64: If True, decode the code from base64 before execution
+            return_as_base64: If True, encode the result as base64 for safe transmission
+            **kwargs: Additional parameters for backward compatibility
+        """
         if not code:
             raise ValueError("No code provided")
         
-        log_info(f"Executing code: {code[:100]}{'...' if len(code) > 100 else ''}")
+        # Decode base64 code if requested
+        actual_code = code
+        if code_is_base64:
+            try:
+                actual_code = base64.b64decode(code.encode('ascii')).decode('utf-8')
+                log_info(f"Decoded base64 code (original length: {len(code)}, decoded length: {len(actual_code)})")
+            except Exception as e:
+                raise ValueError(f"Failed to decode base64 code: {e}")
         
-        exec_result = self._execute_code_with_capture(code)
+        log_info(f"Executing code: {actual_code[:100]}{'...' if len(actual_code) > 100 else ''}")
+        
+        exec_result = self._execute_code_with_capture(actual_code)
         
         if exec_result.success:
-            return {
+            result_data = {
                 "executed": True,
                 "result": exec_result.output.get("stdout", ""),
                 "output": exec_result.output,
                 "duration": exec_result.duration,
             }
+            
+            # Encode result as base64 if requested
+            if return_as_base64:
+                try:
+                    # Encode the main result as base64
+                    original_result = result_data["result"]
+                    if original_result:
+                        encoded_result = base64.b64encode(original_result.encode('utf-8')).decode('ascii')
+                        result_data["result"] = encoded_result
+                        result_data["result_is_base64"] = True
+                        log_info(f"Encoded result as base64 (original length: {len(original_result)}, encoded length: {len(encoded_result)})")
+                    else:
+                        result_data["result_is_base64"] = False
+                except Exception as e:
+                    log_error(f"Failed to encode result as base64: {e}")
+                    result_data["result_encode_error"] = str(e)
+                    result_data["result_is_base64"] = False
+            
+            return result_data
         else:
             raise Exception(f"Code execution error: {exec_result.error}")
 

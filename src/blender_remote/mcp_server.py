@@ -19,6 +19,7 @@ This will start an MCP server (HTTP) that communicates with Blender's BLD_Remote
 
 import argparse
 import asyncio
+import base64
 import json
 import logging
 import socket
@@ -200,18 +201,44 @@ async def get_scene_info(ctx: Context) -> Dict[str, Any]:
 
 
 @mcp.tool()
-async def execute_code(code: str, ctx: Context) -> Dict[str, Any]:
-    """Execute Python code in Blender."""
-    await ctx.info(f"Executing code in Blender...")
+async def execute_code(
+    code: str, 
+    ctx: Context, 
+    send_as_base64: bool = False, 
+    return_as_base64: bool = False
+) -> Dict[str, Any]:
+    """Execute Python code in Blender.
+    
+    Args:
+        code: Python code to execute in Blender
+        send_as_base64: If True, encode the code as base64 before sending to avoid formatting issues
+        return_as_base64: If True, request that the result be returned as base64-encoded
+    """
+    await ctx.info(f"Executing code in Blender... (send_b64: {send_as_base64}, return_b64: {return_as_base64})")
 
     if blender_conn is None:
         await ctx.error("Blender connection not initialized")
         return {"error": "Blender connection not initialized"}
 
     try:
-        response = await blender_conn.send_command(
-            {"type": "execute_code", "params": {"code": code}}
-        )
+        # Prepare the code for transmission
+        code_to_send = code
+        if send_as_base64:
+            # Encode the code as base64 to avoid formatting issues
+            code_to_send = base64.b64encode(code.encode('utf-8')).decode('ascii')
+            await ctx.info("Code encoded as base64 for safe transmission")
+
+        # Prepare the command with base64 flags
+        command = {
+            "type": "execute_code", 
+            "params": {
+                "code": code_to_send,
+                "code_is_base64": send_as_base64,
+                "return_as_base64": return_as_base64
+            }
+        }
+
+        response = await blender_conn.send_command(command)
 
         if response.get("status") == "error":
             await ctx.error(
@@ -219,10 +246,25 @@ async def execute_code(code: str, ctx: Context) -> Dict[str, Any]:
             )
             return {"error": response.get("message", "Unknown error")}
 
-        return cast(
-            Dict[str, Any],
-            response.get("result", {"message": "Code executed successfully"}),
-        )
+        result = response.get("result", {"message": "Code executed successfully"})
+        
+        # Check if the result is base64-encoded and decode it
+        if return_as_base64 and result.get("result_is_base64", False):
+            try:
+                # Decode the base64-encoded result
+                encoded_result = result.get("result", "")
+                if encoded_result:
+                    decoded_result = base64.b64decode(encoded_result.encode('ascii')).decode('utf-8')
+                    result["result"] = decoded_result
+                    await ctx.info("Result decoded from base64")
+                # Remove the base64 flag from the final response
+                result.pop("result_is_base64", None)
+            except Exception as decode_error:
+                await ctx.error(f"Failed to decode base64 result: {decode_error}")
+                result["decode_error"] = str(decode_error)
+
+        return cast(Dict[str, Any], result)
+        
     except Exception as e:
         await ctx.error(f"Failed to execute code: {e}")
         return {"error": str(e)}
