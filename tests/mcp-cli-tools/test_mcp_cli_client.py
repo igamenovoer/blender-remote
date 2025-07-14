@@ -48,7 +48,7 @@ async def interact_with_blender_mcp():
                 # Execute Blender code
                 print("\n3. Executing Blender code...")
                 code = "import bpy; print(f'Scene: {bpy.context.scene.name}, Objects: {len(bpy.context.scene.objects)}')"
-                code_result = await session.call_tool("execute_blender_code", {
+                code_result = await session.call_tool("execute_code", {
                     "code": code
                 })
                 print(f"Code execution result: {code_result}")

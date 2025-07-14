@@ -200,7 +200,7 @@ async def get_scene_info(ctx: Context) -> Dict[str, Any]:
 
 
 @mcp.tool()
-async def execute_blender_code(code: str, ctx: Context) -> Dict[str, Any]:
+async def execute_code(code: str, ctx: Context) -> Dict[str, Any]:
     """Execute Python code in Blender."""
     await ctx.info(f"Executing code in Blender...")
 

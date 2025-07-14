@@ -145,7 +145,7 @@ Add a simple message to the Blender console saying "Hello from MCP server!"
 ```
 
 ### Expected Result
-The MCP server will use `execute_blender_code()` with:
+The MCP server will use `execute_code()` with:
 ```python
 print("Hello from MCP server!")
 ```
