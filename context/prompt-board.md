@@ -5,6 +5,25 @@
 
 ### 20250714
 
+we have successfully implemented the MCP server using `uvx blender-remote` and `BLD_Remote_MCP` addon, which is a drop-in replacement for `uvx blender-mcp` and `BlenderAutoMCP`. Now we move on to the remote control via Python API, which is `src/blender_remote/client.py` and `src/blender_remote/scene_manager.py`, these classes are used to control Blender remotely via Python API, and they communicate directly with the `BLD_Remote_MCP` addon, circumventing the MCP server (`uvx blender-remote`). This is useful for advanced users who want to control Blender directly without going through the MCP server, sometimes even calling `BLD_Remote_MCP` methods that are not exposed by the MCP server due to protocol limitations. Now devise a test plan for these classes, save to `context/plans/blender-remote-client-test-plan.md`, and make sure to cover all the methods in these classes. For tempororary stuff, you can save to `<workspace>/tmp`, create a subdir for the test. The test scripts should be saved to `context/tests` with appropriate names, and the test results should be saved to `context/logs/tests` with appropriate names. If any issue is left out during the test, create a task in `context/tasks/todo` subdir with appropriate name and description, and link it to the test script and result log. 
+
+Note that those remote control classes are somewhat outdated, so you can modify them according to your needs, but make sure to keep the original functionality.
+
+Note that if anything goes wrong, you can use `blender-mcp` as a backup communication method, see `context/plans/mcp-server-comprehensive-test-plan.md` for details, this will allow you execute some blender code for verification. Because `uvx blender-remote` is a drop-in replacement for `uvx blender-mcp`, you can also use it as backup communication method.
+
+Note that those remote control classes were tested before with `blender-mcp`, so their core logic should work, problems should typically arise in input/output handling, so you can focus on those parts.
+
+---
+
+TODO:
+restructure the `src/blender_remote` directory
+- move `mcp_server.py` to a subdir named `mcp`, and break the file into smaller files, so that it is easier to maintain and understand. 
+- move things related to `blender-remote-cli` to a subdir named `cli`, and break the file into smaller files, so that it is easier to maintain and understand.
+- move things related to remote control via python api to a subdir named `remote`, and maintain the file as it is, DO NOT break them yet.
+
+scan the workspace to find out what should be updated with the new structure, and update them accordingly.
+
+---
 as you find out, complex code will easily introduce formatting issues, so, to avoid this, we will allow the `mcp_server.py` to transmit the code as a base64-encoded string, and then decode it in the `BLD_Remote_MCP` addon, so that it can be executed in Blender's context. This way, we can avoid formatting issues and still run the code as expected. 
 
 To do this, you will need to modify the `mcp_server.py`, add an argument to the `execute_code` method, name it `send_as_base64:bool`, default to `False`, and if it is `True`, then encode the code as base64 before sending it to Blender. In the `BLD_Remote_MCP` addon, you will need to find out that the code is base64-encoded (maybe adding a new flag to json params), and decode it before executing it in Blender's context.

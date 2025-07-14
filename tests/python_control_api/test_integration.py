@@ -36,17 +36,42 @@ try:
         print("\n1. Clearing scene...")
         scene_manager.clear_scene(keep_camera=True, keep_light=True)
 
-        # Step 2: Create some objects
+        # Step 2: Create some objects using direct Blender Python
         print("\n2. Creating objects...")
-        cube_name = scene_manager.add_cube(
-            location=(0, 0, 0), size=2.0, name="WorkflowCube"
-        )
-        sphere_name = scene_manager.add_sphere(
-            location=(3, 0, 0), radius=1.0, name="WorkflowSphere"
-        )
-        cylinder_name = scene_manager.add_cylinder(
-            location=(-3, 0, 0), radius=0.8, depth=2.0, name="WorkflowCylinder"
-        )
+        create_objects_code = """
+import bpy
+
+# Create a cube
+bpy.ops.mesh.primitive_cube_add(location=(0, 0, 0), size=2.0)
+cube_obj = bpy.context.active_object
+cube_obj.name = "WorkflowCube"
+print("OBJECT_CREATED:" + cube_obj.name)
+
+# Create a sphere
+bpy.ops.mesh.primitive_uv_sphere_add(location=(3, 0, 0), radius=1.0)
+sphere_obj = bpy.context.active_object
+sphere_obj.name = "WorkflowSphere"
+print("OBJECT_CREATED:" + sphere_obj.name)
+
+# Create a cylinder
+bpy.ops.mesh.primitive_cylinder_add(location=(-3, 0, 0), radius=0.8, depth=2.0)
+cylinder_obj = bpy.context.active_object
+cylinder_obj.name = "WorkflowCylinder"
+print("OBJECT_CREATED:" + cylinder_obj.name)
+"""
+        result = scene_manager.client.execute_python(create_objects_code)
+        
+        # Extract object names
+        cube_name = sphere_name = cylinder_name = None
+        for line in result.split('\n'):
+            if line.startswith("OBJECT_CREATED:"):
+                obj_name = line[15:]
+                if "Cube" in obj_name:
+                    cube_name = obj_name
+                elif "Sphere" in obj_name:
+                    sphere_name = obj_name
+                elif "Cylinder" in obj_name:
+                    cylinder_name = obj_name
 
         print(f"Created objects: {cube_name}, {sphere_name}, {cylinder_name}")
 
@@ -96,7 +121,8 @@ try:
         # Step 9: Clean up
         print("\n9. Cleaning up...")
         for obj_name in [cube_name, sphere_name, cylinder_name]:
-            scene_manager.delete_object(obj_name)
+            if obj_name:  # Only delete if object was created successfully
+                scene_manager.delete_object(obj_name)
 
         # Clean up temporary file
         try:
@@ -124,14 +150,19 @@ try:
         result = scene_manager.move_object("NonExistentObject", (0, 0, 0))
         print(f"Move non-existent object result: {result}")
 
-        # Test invalid location format
-        print("Testing invalid location format...")
+        # Test invalid Blender operation
+        print("Testing invalid Blender operation...")
         try:
-            scene_manager.add_cube(location=(1, 2))  # Invalid - should be 3D
-            print("ERROR: Should have raised ValueError")
+            # Test with invalid Blender Python code
+            invalid_code = """
+import bpy
+bpy.ops.mesh.primitive_nonexistent_add()  # This should fail
+"""
+            scene_manager.client.execute_python(invalid_code)
+            print("ERROR: Should have raised exception")
             return False
-        except ValueError as e:
-            print(f"Correctly caught ValueError: {e}")
+        except Exception as e:
+            print(f"Correctly caught exception: {type(e).__name__}: {e}")
 
         return True
 

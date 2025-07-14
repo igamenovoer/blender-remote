@@ -305,7 +305,13 @@ class BlenderMCPClient:
             If execution fails.
         """
         response = self.execute_command("execute_code", {"code": code})
-        return cast(str, response.get("result", {}).get("message", ""))
+        # Get the output from the correct field in the response
+        result_data = response.get("result", {})
+        # Try to get output from 'result' field first, then 'output.stdout' as fallback
+        output = result_data.get("result", "")
+        if not output:
+            output = result_data.get("output", {}).get("stdout", "")
+        return cast(str, output)
 
     def get_scene_info(self) -> Dict[str, Any]:
         """

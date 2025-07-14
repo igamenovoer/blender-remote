@@ -175,3 +175,6 @@ htmltest.log
 
 # Magic Context - separate repo for reusable AI prompts
 .magic-context/
+
+# Blender Python Reference, symlinked to local directory
+context/refcode/blender_python_reference_4_4

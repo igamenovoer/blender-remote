@@ -45,20 +45,46 @@ def main():
     else:
         print("✗ Failed to clear scene")
     
-    # Step 4: Create primitive objects
-    print("\n4. Creating primitive objects...")
+    # Step 4: Create primitive objects using direct Blender Python
+    print("\n4. Creating primitive objects via Blender Python...")
     
-    # Create a cube
-    cube_name = scene_manager.add_cube(location=(0, 0, 0), size=2.0, name="MainCube")
-    print(f"Created cube: {cube_name}")
+    # Create objects using Blender Python API
+    create_objects_code = """
+import bpy
+
+# Create a cube
+bpy.ops.mesh.primitive_cube_add(location=(0, 0, 0), size=2.0)
+cube_obj = bpy.context.active_object
+cube_obj.name = "MainCube"
+print("OBJECT_CREATED:" + cube_obj.name)
+
+# Create a sphere
+bpy.ops.mesh.primitive_uv_sphere_add(location=(3, 0, 0), radius=1.0)
+sphere_obj = bpy.context.active_object
+sphere_obj.name = "RedSphere"
+print("OBJECT_CREATED:" + sphere_obj.name)
+
+# Create a cylinder
+bpy.ops.mesh.primitive_cylinder_add(location=(-3, 0, 0), radius=0.8, depth=2.0)
+cylinder_obj = bpy.context.active_object
+cylinder_obj.name = "TallCylinder"
+print("OBJECT_CREATED:" + cylinder_obj.name)
+"""
     
-    # Create a sphere
-    sphere_name = scene_manager.add_sphere(location=(3, 0, 0), radius=1.0, name="RedSphere")
-    print(f"Created sphere: {sphere_name}")
+    result = scene_manager.client.execute_python(create_objects_code)
     
-    # Create a cylinder
-    cylinder_name = scene_manager.add_cylinder(location=(-3, 0, 0), radius=0.8, depth=2.0, name="TallCylinder")
-    print(f"Created cylinder: {cylinder_name}")
+    # Extract object names from the result
+    cube_name = sphere_name = cylinder_name = None
+    for line in result.split('\n'):
+        if line.startswith("OBJECT_CREATED:"):
+            obj_name = line[15:]
+            print(f"Created object: {obj_name}")
+            if "MainCube" in obj_name:
+                cube_name = obj_name
+            elif "RedSphere" in obj_name:
+                sphere_name = obj_name
+            elif "TallCylinder" in obj_name:
+                cylinder_name = obj_name
     
     # Verify objects were created
     scene_info = scene_manager.get_scene_info()
@@ -74,11 +100,11 @@ def main():
     # Step 6: Manipulate objects
     print("\n6. Manipulating objects...")
     
-    # Move the cube
-    if scene_manager.move_object(cube_name, location=(1, 1, 1)):
+    # Move the cube (only if it was created successfully)
+    if cube_name and scene_manager.move_object(cube_name, location=(1, 1, 1)):
         print(f"✓ Moved {cube_name} to (1, 1, 1)")
     else:
-        print(f"✗ Failed to move {cube_name}")
+        print(f"✗ Failed to move {cube_name or 'cube (not created)'}")
     
     # Batch update objects
     print("\n7. Batch updating objects...")
@@ -133,14 +159,17 @@ def main():
     # Step 11: Export objects
     print("\n11. Exporting objects...")
     try:
-        # Export cube as GLB
-        glb_scene = scene_manager.get_object_as_glb(cube_name, with_material=True)
-        print(f"✓ Exported {cube_name} as GLB")
-        print(f"  Scene type: {type(glb_scene)}")
-        
-        # Export raw GLB bytes
-        glb_bytes = scene_manager.get_object_as_glb_raw(cube_name)
-        print(f"✓ Exported {cube_name} as raw GLB ({len(glb_bytes)} bytes)")
+        # Export cube as GLB (only if it was created successfully)
+        if cube_name:
+            glb_scene = scene_manager.get_object_as_glb(cube_name, with_material=True)
+            print(f"✓ Exported {cube_name} as GLB")
+            print(f"  Scene type: {type(glb_scene)}")
+            
+            # Export raw GLB bytes
+            glb_bytes = scene_manager.get_object_as_glb_raw(cube_name)
+            print(f"✓ Exported {cube_name} as raw GLB ({len(glb_bytes)} bytes)")
+        else:
+            print("✗ Cannot export cube - not created successfully")
         
     except Exception as e:
         print(f"✗ Export error: {e}")

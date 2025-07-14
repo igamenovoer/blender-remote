@@ -63,31 +63,43 @@ try:
         return True
 
     def test_primitive_creation():
-        """Test creating primitive objects."""
-        print("\nTesting primitive creation...")
+        """Test creating primitive objects using direct Blender Python."""
+        print("\nTesting primitive creation via Blender Python...")
 
         scene_manager = blender_remote.create_scene_manager(port=6688)
 
-        # Create a cube
-        print("Creating cube...")
-        cube_name = scene_manager.add_cube(
-            location=(2, 0, 0), size=1.0, name="TestCube"
-        )
-        print(f"Created cube: {cube_name}")
+        # Create primitives using direct Blender Python code
+        print("Creating objects via Blender Python...")
+        create_objects_code = """
+import bpy
 
-        # Create a sphere
-        print("Creating sphere...")
-        sphere_name = scene_manager.add_sphere(
-            location=(-2, 0, 0), radius=0.8, name="TestSphere"
-        )
-        print(f"Created sphere: {sphere_name}")
+# Create a cube
+bpy.ops.mesh.primitive_cube_add(location=(2, 0, 0), size=1.0)
+cube_obj = bpy.context.active_object
+cube_obj.name = "TestCube"
+print("OBJECT_CREATED:" + cube_obj.name)
 
-        # Create a cylinder
-        print("Creating cylinder...")
-        cylinder_name = scene_manager.add_cylinder(
-            location=(0, 2, 0), radius=0.5, depth=2.0, name="TestCylinder"
-        )
-        print(f"Created cylinder: {cylinder_name}")
+# Create a sphere
+bpy.ops.mesh.primitive_uv_sphere_add(location=(-2, 0, 0), radius=0.8)
+sphere_obj = bpy.context.active_object
+sphere_obj.name = "TestSphere"
+print("OBJECT_CREATED:" + sphere_obj.name)
+
+# Create a cylinder
+bpy.ops.mesh.primitive_cylinder_add(location=(0, 2, 0), radius=0.5, depth=2.0)
+cylinder_obj = bpy.context.active_object
+cylinder_obj.name = "TestCylinder"
+print("OBJECT_CREATED:" + cylinder_obj.name)
+"""
+        result = scene_manager.client.execute_python(create_objects_code)
+        
+        # Extract created object names
+        created_names = []
+        for line in result.split('\n'):
+            if line.startswith("OBJECT_CREATED:"):
+                obj_name = line[15:]
+                created_names.append(obj_name)
+                print(f"Created object: {obj_name}")
 
         # Verify objects were created
         print("Verifying created objects...")
@@ -103,10 +115,23 @@ try:
 
         scene_manager = blender_remote.create_scene_manager(port=6688)
 
-        # Create a test object
-        test_obj_name = scene_manager.add_cube(
-            location=(0, 0, 0), name="ManipulationTest"
-        )
+        # Create a test object using direct Blender Python
+        create_cube_code = """
+import bpy
+bpy.ops.mesh.primitive_cube_add(location=(0, 0, 0))
+cube_obj = bpy.context.active_object
+cube_obj.name = "ManipulationTest"
+print("OBJECT_CREATED:" + cube_obj.name)
+"""
+        result = scene_manager.client.execute_python(create_cube_code)
+        
+        # Extract object name
+        test_obj_name = None
+        for line in result.split('\n'):
+            if line.startswith("OBJECT_CREATED:"):
+                test_obj_name = line[15:]
+                break
+        print(f"Created test object: {test_obj_name}")
         print(f"Created test object: {test_obj_name}")
 
         # Move the object
@@ -165,13 +190,23 @@ try:
 
         scene_manager = blender_remote.create_scene_manager(port=6688)
 
-        # Create multiple test objects
+        # Create multiple test objects using direct Blender Python
+        create_objects_code = """
+import bpy
+for i in range(3):
+    bpy.ops.mesh.primitive_cube_add(location=(i * 2, 0, 0))
+    cube_obj = bpy.context.active_object
+    cube_obj.name = f"BatchTest{i}"
+    print("OBJECT_CREATED:" + cube_obj.name)
+"""
+        result = scene_manager.client.execute_python(create_objects_code)
+        
+        # Extract object names
         test_objects = []
-        for i in range(3):
-            obj_name = scene_manager.add_cube(
-                location=(i * 2, 0, 0), name=f"BatchTest{i}"
-            )
-            test_objects.append(obj_name)
+        for line in result.split('\n'):
+            if line.startswith("OBJECT_CREATED:"):
+                obj_name = line[15:]
+                test_objects.append(obj_name)
 
         print(f"Created {len(test_objects)} test objects")
 

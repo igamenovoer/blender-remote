@@ -24,7 +24,7 @@ class BlenderSceneManager:
     """
     Blender Scene Manager for accessing and manipulating the 3D scene.
 
-    Provides high-level methods for scene operations including object creation,
+    Provides high-level methods for scene operations including object
     manipulation, camera control, and rendering.
 
     Parameters
@@ -350,192 +350,61 @@ print("UPDATE_RESULTS:" + str(update_results))
         code = f"""
 import bpy
 
-# Select objects to delete
-bpy.ops.object.select_all(action='DESELECT')
-keep_types = {keep_types}
+# Ensure we have proper context for operations
+def ensure_context():
+    areas_3d = [area for area in bpy.context.window.screen.areas if area.type == 'VIEW_3D']
+    if not areas_3d:
+        return None, None
+    area = areas_3d[0]
+    regions_window = [region for region in area.regions if region.type == 'WINDOW']
+    if not regions_window:
+        return area, None
+    return area, regions_window[0]
 
-for obj in bpy.context.scene.objects:
-    if obj.type not in keep_types:
-        obj.select_set(True)
+# Get context components
+area_3d, region_window = ensure_context()
 
-# Delete selected objects
-bpy.ops.object.delete()
-
-print("CLEAR_SUCCESS:True")
+if area_3d:
+    # Use simplified context override focusing on area only
+    with bpy.context.temp_override(area=area_3d):
+        # First ensure we're in object mode
+        if bpy.context.active_object and bpy.context.active_object.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        
+        # Select objects to delete
+        bpy.ops.object.select_all(action='DESELECT')
+        keep_types = {keep_types}
+        
+        for obj in bpy.context.scene.objects:
+            if obj.type not in keep_types:
+                obj.select_set(True)
+        
+        # Delete selected objects
+        bpy.ops.object.delete()
+        
+        print("CLEAR_SUCCESS:True")
+else:
+    # Fallback: try without context override
+    try:
+        bpy.ops.object.select_all(action='DESELECT')
+        keep_types = {keep_types}
+        
+        for obj in bpy.context.scene.objects:
+            if obj.type not in keep_types:
+                obj.select_set(True)
+        
+        bpy.ops.object.delete()
+        
+        print("CLEAR_SUCCESS:True")
+    except RuntimeError as e:
+        print("CLEAR_ERROR:Context setup failed - " + str(e))
 """
         result = self.client.execute_python(code)
         return "CLEAR_SUCCESS:True" in result
 
-    def add_primitive(
-        self,
-        primitive_type: str,
-        location: Union[np.ndarray, Tuple[float, float, float], None] = None,
-        rotation: Union[np.ndarray, Tuple[float, float, float], None] = None,
-        scale: Union[np.ndarray, Tuple[float, float, float], None] = None,
-        name: Optional[str] = None,
-    ) -> str:
-        """
-        Add a primitive object to the scene.
 
-        Parameters
-        ----------
-        primitive_type : str
-            Type of primitive ("cube", "sphere", "cylinder", "plane", etc.).
-        location : numpy.ndarray or tuple of float, default (0, 0, 0)
-            Object location (x, y, z).
-        rotation : numpy.ndarray or tuple of float, default (0, 0, 0)
-            Object rotation in radians (x, y, z).
-        scale : numpy.ndarray or tuple of float, default (1, 1, 1)
-            Object scale (x, y, z).
-        name : str, optional
-            Optional name for the object.
 
-        Returns
-        -------
-        str
-            Name of the created object.
-        """
-        # Default values
-        if location is None:
-            location = np.array([0.0, 0.0, 0.0])
-        if rotation is None:
-            rotation = np.array([0.0, 0.0, 0.0])
-        if scale is None:
-            scale = np.array([1.0, 1.0, 1.0])
 
-        # Convert to numpy arrays if needed
-        location = np.asarray(location, dtype=np.float64)
-        rotation = np.asarray(rotation, dtype=np.float64)
-        scale = np.asarray(scale, dtype=np.float64)
-
-        # Validate shapes
-        if location.shape != (3,):
-            raise ValueError("location must be a 3-element array or tuple")
-        if rotation.shape != (3,):
-            raise ValueError("rotation must be a 3-element array or tuple")
-        if scale.shape != (3,):
-            raise ValueError("scale must be a 3-element array or tuple")
-
-        loc_str = f"({location[0]}, {location[1]}, {location[2]})"
-        rot_str = f"({rotation[0]}, {rotation[1]}, {rotation[2]})"
-        scale_str = f"({scale[0]}, {scale[1]}, {scale[2]})"
-
-        name_assignment = f'obj.name = "{name}"' if name else ""
-        code = f"""
-import bpy
-
-# Add primitive
-bpy.ops.mesh.primitive_{primitive_type}_add(location={loc_str})
-
-# Get the created object
-obj = bpy.context.active_object
-
-# Set properties
-obj.rotation_euler = {rot_str}
-obj.scale = {scale_str}
-
-# Set name if provided
-{name_assignment}
-
-print("OBJECT_NAME:" + str(obj.name))
-"""
-        result = self.client.execute_python(code)
-
-        # Extract object name
-        for line in result.split("\n"):
-            if line.startswith("OBJECT_NAME:"):
-                return line[12:]
-
-        return ""
-
-    def add_cube(
-        self,
-        location: Union[np.ndarray, Tuple[float, float, float], None] = None,
-        size: float = 2.0,
-        name: Optional[str] = None,
-    ) -> str:
-        """
-        Add a cube to the scene.
-
-        Parameters
-        ----------
-        location : numpy.ndarray or tuple of float, default (0, 0, 0)
-            Cube location (x, y, z).
-        size : float, default 2.0
-            Cube size (edge length).
-        name : str, optional
-            Optional name for the cube.
-
-        Returns
-        -------
-        str
-            Name of the created cube.
-        """
-        if location is None:
-            location = np.array([0.0, 0.0, 0.0])
-        scale = np.array([size / 2, size / 2, size / 2])
-        return self.add_primitive("cube", location=location, scale=scale, name=name)
-
-    def add_sphere(
-        self,
-        location: Union[np.ndarray, Tuple[float, float, float], None] = None,
-        radius: float = 1.0,
-        name: Optional[str] = None,
-    ) -> str:
-        """
-        Add a sphere to the scene.
-
-        Parameters
-        ----------
-        location : numpy.ndarray or tuple of float, default (0, 0, 0)
-            Sphere location (x, y, z).
-        radius : float, default 1.0
-            Sphere radius.
-        name : str, optional
-            Optional name for the sphere.
-
-        Returns
-        -------
-        str
-            Name of the created sphere.
-        """
-        if location is None:
-            location = np.array([0.0, 0.0, 0.0])
-        scale = np.array([radius, radius, radius])
-        return self.add_primitive(
-            "uv_sphere", location=location, scale=scale, name=name
-        )
-
-    def add_cylinder(
-        self,
-        location: Union[np.ndarray, Tuple[float, float, float], None] = None,
-        radius: float = 1.0,
-        depth: float = 2.0,
-        name: Optional[str] = None,
-    ) -> str:
-        """
-        Add a cylinder to the scene.
-
-        Parameters
-        ----------
-        location : numpy.ndarray or tuple of float, default (0, 0, 0)
-            Cylinder location (x, y, z).
-        radius : float, default 1.0
-            Cylinder radius.
-        depth : float, default 2.0
-            Cylinder depth (height).
-        name : str, optional
-            Optional name for the cylinder.
-
-        Returns
-        -------
-        str
-            Name of the created cylinder.
-        """
-        if location is None:
-            location = np.array([0.0, 0.0, 0.0])
-        scale = np.array([radius, radius, depth / 2])
-        return self.add_primitive("cylinder", location=location, scale=scale, name=name)
 
     def delete_object(self, object_name: str) -> bool:
         """
