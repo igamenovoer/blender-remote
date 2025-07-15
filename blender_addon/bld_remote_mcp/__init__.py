@@ -197,7 +197,7 @@ class BldRemoteMCPServer:
         # Background mode command queue for manual processing
         self.command_queue = queue.Queue() if self.background_mode else None
         
-        log_info(f"BldRemoteMCPServer initialized in {'background' if self.background_mode else 'GUI'} mode")
+        log_debug(f"BldRemoteMCPServer initialized in {'background' if self.background_mode else 'GUI'} mode")
         
         # Install signal handlers for background mode
         if self.background_mode:
@@ -209,10 +209,10 @@ class BldRemoteMCPServer:
                 signal.signal(signal.SIGTERM, self._signal_handler)
             except (AttributeError, ValueError):
                 # SIGTERM not available on this platform (e.g., Windows)
-                log_info("SIGTERM not available on this platform, using SIGINT only")
+                log_debug("SIGTERM not available on this platform, using SIGINT only")
             
             atexit.register(self._cleanup_on_exit)
-            log_info("Background mode: Signal handlers and command queue initialized")
+            log_debug("Background mode: Signal handlers and command queue initialized")
     
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals in background mode."""
@@ -241,7 +241,8 @@ class BldRemoteMCPServer:
         try:
             # Create socket
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, BldRemoteMCPConfig.SOCKET_REUSE_ADDRESS)
+            # Note: Removed SO_REUSEADDR to ensure proper port conflict detection
+            # Multiple instances should fail when trying to bind to the same port
             self.server_socket.bind((self.host, self.port))
             self.server_socket.listen(BldRemoteMCPConfig.SOCKET_LISTEN_BACKLOG)
             
@@ -264,14 +265,14 @@ class BldRemoteMCPServer:
     
     def _server_loop(self):
         """Main server loop in a separate thread."""
-        log_info("Server thread started")
+        log_debug("Server thread started")
         self.server_socket.settimeout(BldRemoteMCPConfig.SOCKET_TIMEOUT_SECONDS)  # Timeout to allow for stopping
         
         while self.running:
             try:
                 try:
                     client, address = self.server_socket.accept()
-                    log_info(f"Connected to client: {address}")
+                    log_debug(f"Connected to client: {address}")
                     
                     # Handle client in a separate thread
                     client_thread = threading.Thread(
@@ -295,11 +296,11 @@ class BldRemoteMCPServer:
                     break
                 time.sleep(BldRemoteMCPConfig.ERROR_RECOVERY_SLEEP_SECONDS)
         
-        log_info("Server thread stopped")
+        log_debug("Server thread stopped")
     
     def _handle_client(self, client):
         """Handle connected client with synchronous execution."""
-        log_info("Client handler started")
+        log_debug("Client handler started")
         client.settimeout(None)  # No timeout
         buffer = b''
         
@@ -308,7 +309,7 @@ class BldRemoteMCPServer:
                 try:
                     data = client.recv(BldRemoteMCPConfig.SOCKET_RECV_BUFFER_SIZE)
                     if not data:
-                        log_info("Client disconnected")
+                        log_debug("Client disconnected")
                         break
                     
                     buffer += data
@@ -324,7 +325,7 @@ class BldRemoteMCPServer:
                         try:
                             client.sendall(response_json.encode(BldRemoteMCPConfig.STRING_ENCODING_UTF8))
                         except:
-                            log_info("Failed to send response - client disconnected")
+                            log_debug("Failed to send response - client disconnected")
                             break
                     except json.JSONDecodeError:
                         # Incomplete data, wait for more
@@ -339,7 +340,7 @@ class BldRemoteMCPServer:
                 client.close()
             except:
                 pass
-            log_info("Client handler stopped")
+            log_debug("Client handler stopped")
 
     def _execute_command_sync(self, command):
         """Execute command synchronously using appropriate method based on mode."""
@@ -494,9 +495,9 @@ class BldRemoteMCPServer:
         handler = handlers.get(cmd_type)
         if handler:
             try:
-                log_info(f"Executing handler for {cmd_type}")
+                log_debug(f"Executing handler for {cmd_type}")
                 result = handler(**params)
-                log_info(f"Handler execution complete")
+                log_debug(f"Handler execution complete")
                 return {"status": "success", "result": result}
             except Exception as e:
                 log_error(f"Error in handler: {str(e)}")
@@ -516,12 +517,12 @@ class BldRemoteMCPServer:
         
         if "message" in data:
             message_content = data['message']
-            log_info(f"Processing message field: '{message_content}'")
+            log_debug(f"Processing message field: '{message_content}'")
             response["message"] = f"Printed message: {message_content}"
             
         if "code" in data:
             code_to_run = data['code']
-            log_info(f"Processing code field (length: {len(code_to_run)})")
+            log_debug(f"Processing code field (length: {len(code_to_run)})")
             
             try:
                 # Special handling for the quit command
@@ -595,7 +596,7 @@ class BldRemoteMCPServer:
     def get_scene_info(self):
         """Get information about the current Blender scene."""
         try:
-            log_info("Getting scene info...")
+            log_debug("Getting scene info...")
             scene_info = {
                 "name": bpy.context.scene.name,
                 "object_count": len(bpy.context.scene.objects),
@@ -621,7 +622,7 @@ class BldRemoteMCPServer:
                 }
                 scene_info["objects"].append(obj_info)
             
-            log_info(f"Scene info collected: {len(scene_info['objects'])} objects")
+            log_debug(f"Scene info collected: {len(scene_info['objects'])} objects")
             return scene_info
         except Exception as e:
             log_error(f"Error in get_scene_info: {str(e)}")
@@ -667,7 +668,7 @@ class BldRemoteMCPServer:
     
     def get_viewport_screenshot(self, max_size=BldRemoteMCPConfig.DEFAULT_VIEWPORT_MAX_SIZE, filepath=None, format="png", **kwargs):
         """Capture a screenshot of the current 3D viewport."""
-        log_info(f"Getting viewport screenshot: filepath={filepath}, max_size={max_size}")
+        log_debug(f"Getting viewport screenshot: filepath={filepath}, max_size={max_size}")
         
         # Check if we're in background mode (no GUI)
         if bpy.app.background:
@@ -682,7 +683,7 @@ class BldRemoteMCPServer:
                 temp_dir = tempfile.gettempdir()
                 unique_filename = f"blender_screenshot_{uuid.uuid4().hex}.{format}"
                 filepath = os.path.join(temp_dir, unique_filename)
-                log_info(f"Generated unique temporary filepath: {filepath}")
+                log_debug(f"Generated unique temporary filepath: {filepath}")
             
             # Find the active 3D viewport
             area = None
@@ -744,11 +745,11 @@ class BldRemoteMCPServer:
         if code_is_base64:
             try:
                 actual_code = base64.b64decode(code.encode(BldRemoteMCPConfig.STRING_ENCODING_ASCII)).decode(BldRemoteMCPConfig.STRING_ENCODING_UTF8)
-                log_info(f"Decoded base64 code (original length: {len(code)}, decoded length: {len(actual_code)})")
+                log_debug(f"Decoded base64 code (original length: {len(code)}, decoded length: {len(actual_code)})")
             except Exception as e:
                 raise ValueError(f"Failed to decode base64 code: {e}")
         
-        log_info(f"Executing code: {actual_code[:BldRemoteMCPConfig.CODE_PREVIEW_LENGTH]}{'...' if len(actual_code) > BldRemoteMCPConfig.CODE_PREVIEW_LENGTH else ''}")
+        log_debug(f"Executing code: {actual_code[:BldRemoteMCPConfig.CODE_PREVIEW_LENGTH]}{'...' if len(actual_code) > BldRemoteMCPConfig.CODE_PREVIEW_LENGTH else ''}")
         
         exec_result = self._execute_code_with_capture(actual_code)
         
@@ -769,7 +770,7 @@ class BldRemoteMCPServer:
                         encoded_result = base64.b64encode(original_result.encode(BldRemoteMCPConfig.STRING_ENCODING_UTF8)).decode(BldRemoteMCPConfig.STRING_ENCODING_ASCII)
                         result_data["result"] = encoded_result
                         result_data["result_is_base64"] = True
-                        log_info(f"Encoded result as base64 (original length: {len(original_result)}, encoded length: {len(encoded_result)})")
+                        log_debug(f"Encoded result as base64 (original length: {len(original_result)}, encoded length: {len(encoded_result)})")
                     else:
                         result_data["result_is_base64"] = False
                 except Exception as e:
@@ -905,13 +906,13 @@ def cleanup_server():
     """Stop the TCP server and clean up associated resources."""
     global _server_instance, _tcp_server, _server_socket, _server_thread, _server_running, _server_port
     
-    log_info("cleanup_server() called")
+    log_debug("cleanup_server() called")
     
     if _server_instance:
-        log_info("Stopping server instance...")
+        log_debug("Stopping server instance...")
         try:
             _server_instance.stop()
-            log_info("Server instance stopped successfully")
+            log_debug("Server instance stopped successfully")
         except Exception as e:
             log_error(f"Error stopping server instance: {e}")
         _server_instance = None
@@ -928,20 +929,20 @@ def cleanup_server():
     try:
         if hasattr(bpy, 'data') and hasattr(bpy.data, 'scenes') and bpy.data.scenes:
             bpy.data.scenes[BldRemoteMCPConfig.DEFAULT_SCENE_INDEX].bld_remote_server_running = False
-            log_info("Scene property updated successfully")
+            log_debug("Scene property updated successfully")
     except (AttributeError, TypeError) as e:
-        log_info(f"Cannot access scenes to update property: {e}")
+        log_debug(f"Cannot access scenes to update property: {e}")
     except Exception as e:
         log_error(f"Unexpected error updating scene property: {e}")
         
-    log_info("Server cleanup complete")
+    log_debug("Server cleanup complete")
 
 
 def start_server_from_script():
     """Start the TCP server from an external script."""
     global _server_instance, _tcp_server, _server_running, _server_port
     
-    log_info("start_server_from_script() called")
+    log_debug("start_server_from_script() called")
     
     # Get port configuration
     port = get_mcp_port()
@@ -961,18 +962,20 @@ def start_server_from_script():
             try:
                 if hasattr(bpy, 'data') and hasattr(bpy.data, 'scenes') and bpy.data.scenes:
                     bpy.data.scenes[BldRemoteMCPConfig.DEFAULT_SCENE_INDEX].bld_remote_server_running = True
-                    log_info("Scene property updated to True")
+                    log_debug("Scene property updated to True")
             except Exception as e:
-                log_info(f"Cannot update scene property: {e}")
+                log_debug(f"Cannot update scene property: {e}")
             
             log_info("[OK] Server started successfully")
         else:
-            log_error("Failed to start server")
+            log_error("[FAIL] Server failed to start - port may already be in use")
             _server_instance = None
+            raise RuntimeError(f"Failed to start server on port {port} - port may already be in use")
             
     except Exception as e:
-        log_error(f"Error starting server: {e}")
+        log_error(f"[FAIL] Error starting server: {e}")
         _server_instance = None
+        raise
 
 
 # =============================================================================
@@ -998,16 +1001,16 @@ def start_mcp_service():
     """Start MCP service, raise exception on failure."""
     global _server_instance
     
-    log_info("start_mcp_service() called")
+    log_debug("start_mcp_service() called")
     
     if _server_instance is not None and _server_instance.running:
-        log_info("[WARN] Server already running, nothing to do")
+        log_debug("[WARN] Server already running, nothing to do")
         return
     
-    log_info("Server not running, attempting to start...")
+    log_debug("Server not running, attempting to start...")
     try:
         start_server_from_script()
-        log_info("[OK] Server start initiated successfully")
+        log_debug("[OK] Server start initiated successfully")
         
     except Exception as e:
         error_msg = f"Failed to start server: {e}"
@@ -1056,42 +1059,42 @@ def get_mcp_service_port():
 
 def register():
     """Register the addon's properties and classes with Blender."""
-    log_info("=== BLD REMOTE MCP ADDON REGISTRATION STARTING ===")
-    log_info(f"[START] BLD Remote MCP {BldRemoteMCPConfig.VERSION_STRING} Loading! (DUAL-MODE VERSION)")
-    log_info("register() function called")
+    log_debug("=== BLD REMOTE MCP ADDON REGISTRATION STARTING ===")
+    log_info(f"BLD Remote MCP {BldRemoteMCPConfig.VERSION_STRING} Loading")
+    log_debug("register() function called")
     
     # Check Blender environment
-    log_info(f"Blender version: {bpy.app.version}")
+    log_debug(f"Blender version: {bpy.app.version}")
     background_mode = _is_background_mode()
-    log_info(f"Blender background mode: {background_mode}")
-    log_info(f"Execution strategy: {'Queue-based (background)' if background_mode else 'Timer-based (GUI)'}")
+    log_info(f"Blender mode: {'Background' if background_mode else 'GUI'}")
+    log_debug(f"Execution strategy: {'Queue-based (background)' if background_mode else 'Timer-based (GUI)'}")
     
     # Add scene properties
-    log_info("Adding scene properties...")
+    log_debug("Adding scene properties...")
     try:
         bpy.types.Scene.bld_remote_server_running = BoolProperty(
             name="BLD Remote Server Running",
             description="Indicates if the BLD Remote server is active",
             default=False
         )
-        log_info("[OK] Scene property 'bld_remote_server_running' added")
+        log_debug("[OK] Scene property 'bld_remote_server_running' added")
     except Exception as e:
         log_error(f"ERROR: Failed to add scene property: {e}")
         raise
     
     # Log startup configuration  
-    log_info("Loading and logging startup configuration...")
+    log_debug("Loading and logging startup configuration...")
     try:
         from .config import log_startup_config
         log_startup_config()
-        log_info("[OK] Startup configuration logged")
+        log_debug("[OK] Startup configuration logged")
     except Exception as e:
         log_error(f"ERROR: Failed to log startup config: {e}")
     
     # Install signal handlers for background mode
     background_mode = _is_background_mode()
     if background_mode:
-        log_info("Background mode detected, installing signal handlers...")
+        log_debug("Background mode detected, installing signal handlers...")
         try:
             # SIGINT is supported on all platforms
             signal.signal(signal.SIGINT, _signal_handler)
@@ -1103,69 +1106,78 @@ def register():
                 signals_installed.append("SIGTERM")
             except (AttributeError, ValueError):
                 # SIGTERM not available on this platform (e.g., Windows)
-                log_info("SIGTERM not available on this platform, using SIGINT only")
+                log_debug("SIGTERM not available on this platform, using SIGINT only")
             
-            log_info(f"[OK] Signal handlers ({', '.join(signals_installed)}) installed")
+            log_debug(f"[OK] Signal handlers ({', '.join(signals_installed)}) installed")
             
             atexit.register(_cleanup_on_exit)
-            log_info("[OK] Exit handler registered")
+            log_debug("[OK] Exit handler registered")
         except Exception as e:
             log_error(f"ERROR: Failed to setup background mode handlers: {e}")
     else:
-        log_info("GUI mode detected, skipping signal handler installation")
+        log_debug("GUI mode detected, skipping signal handler installation")
     
     # Auto-start if configured
-    log_info("Checking auto-start configuration...")
+    log_debug("Checking auto-start configuration...")
     try:
         auto_start = should_auto_start()
-        log_info(f"Auto-start enabled: {auto_start}")
         
         if auto_start:
-            log_info("[OK] Auto-start enabled, attempting to start server")
+            log_info("Auto-start enabled, attempting to start server")
             try:
                 start_mcp_service()
                 # Log the execution mode for the started server
                 if _server_instance:
                     mode = 'background (queue-based)' if _server_instance.background_mode else 'GUI (timer-based)'
-                    log_info(f"[OK] Server started in {mode} mode")
-                log_info("[OK] Auto-start server initialization completed")
+                    log_debug(f"[OK] Server started in {mode} mode")
+                log_debug("[OK] Auto-start server initialization completed")
             except Exception as e:
-                log_warning(f"[WARN] Auto-start failed: {e}")
+                log_error(f"[FAIL] Auto-start failed: {e}")
                 traceback.print_exc()
+                
+                # In background mode, if auto-start was requested but failed, exit Blender
+                if background_mode:
+                    log_error("[CRITICAL] Background mode auto-start failed - forcing Blender exit")
+                    raise SystemExit(f"Background mode auto-start failed: {e}")
+                else:
+                    log_warning("[WARN] Auto-start failed in GUI mode, but continuing...")
         else:
-            log_info("Auto-start disabled, server will not start automatically")
+            log_debug("Auto-start disabled, server will not start automatically")
+    except SystemExit:
+        # Re-raise SystemExit to allow Blender to quit
+        raise
     except Exception as e:
         log_error(f"ERROR: Failed to check auto-start config: {e}")
     
-    log_info("[OK] BLD Remote MCP addon registered successfully")
-    log_info("=== BLD REMOTE MCP ADDON REGISTRATION COMPLETED ===")
+    log_debug("[OK] BLD Remote MCP addon registered successfully")
+    log_debug("=== BLD REMOTE MCP ADDON REGISTRATION COMPLETED ===")
 
 
 def unregister():
     """Unregister the addon and clean up all resources."""
-    log_info("=== BLD REMOTE MCP ADDON UNREGISTRATION STARTING ===")
-    log_info("unregister() function called")
+    log_debug("=== BLD REMOTE MCP ADDON UNREGISTRATION STARTING ===")
+    log_debug("unregister() function called")
     
     # Stop server
-    log_info("Stopping server and cleaning up resources...")
+    log_debug("Stopping server and cleaning up resources...")
     try:
         cleanup_server()
-        log_info("[OK] Server cleanup completed")
+        log_debug("[OK] Server cleanup completed")
     except Exception as e:
         log_error(f"ERROR: Failed to cleanup server: {e}")
     
     # Clean up scene properties
-    log_info("Removing scene properties...")
+    log_debug("Removing scene properties...")
     try:
         del bpy.types.Scene.bld_remote_server_running
-        log_info("[OK] Scene property 'bld_remote_server_running' removed")
+        log_debug("[OK] Scene property 'bld_remote_server_running' removed")
     except (AttributeError, RuntimeError) as e:
-        log_info(f"Scene property already removed or not accessible: {e}")
+        log_debug(f"Scene property already removed or not accessible: {e}")
     except Exception as e:
         log_error(f"ERROR: Unexpected error removing scene property: {e}")
     
-    log_info("[OK] BLD Remote MCP addon unregistered successfully")
-    log_info("=== BLD REMOTE MCP ADDON UNREGISTRATION COMPLETED ===")
+    log_debug("[OK] BLD Remote MCP addon unregistered successfully")
+    log_debug("=== BLD REMOTE MCP ADDON UNREGISTRATION COMPLETED ===")
 
 
 # =============================================================================

@@ -322,10 +322,13 @@ def get_addon_zip_path() -> Path:
 
     # Look for addon in development directory
     dev_addon_dir = current_dir / "blender_addon" / "bld_remote_mcp"
-    dev_addon_zip = current_dir / "blender_addon" / "bld_remote_mcp.zip"
 
     if dev_addon_dir.exists():
-        # Create zip from development directory
+        # Create zip in system temp directory to avoid cluttering workspace
+        temp_dir = Path(tempfile.gettempdir())
+        dev_addon_zip = temp_dir / "bld_remote_mcp.zip"
+        
+        # Remove existing temp zip if present
         if dev_addon_zip.exists():
             dev_addon_zip.unlink()
 
@@ -358,10 +361,13 @@ def get_debug_addon_zip_path() -> Path:
 
     # Look for debug addon in development directory
     dev_addon_dir = current_dir / "blender_addon" / "simple-tcp-executor"
-    dev_addon_zip = current_dir / "blender_addon" / "simple-tcp-executor.zip"
 
     if dev_addon_dir.exists():
-        # Create zip from development directory
+        # Create zip in system temp directory to avoid cluttering workspace
+        temp_dir = Path(tempfile.gettempdir())
+        dev_addon_zip = temp_dir / "simple-tcp-executor.zip"
+        
+        # Remove existing temp zip if present
         if dev_addon_zip.exists():
             dev_addon_zip.unlink()
 
@@ -654,21 +660,17 @@ def start(
     elif pre_code:
         startup_code.append(pre_code)
 
-    # Add MCP service startup code
+    # Add MCP service startup code - environment variables are set in shell
     startup_code.append(
-        f"""
-# Start BLD Remote MCP service
+        """
+# Verify MCP environment configuration
 import os
-os.environ['BLD_REMOTE_MCP_PORT'] = '{mcp_port}'
-os.environ['BLD_REMOTE_MCP_START_NOW'] = '1'
-os.environ['BLD_REMOTE_LOG_LEVEL'] = '{mcp_log_level.upper()}'
+port = os.environ.get('BLD_REMOTE_MCP_PORT', 'not set')
+start_now = os.environ.get('BLD_REMOTE_MCP_START_NOW', 'not set')
+log_level = os.environ.get('BLD_REMOTE_LOG_LEVEL', 'not set')
 
-try:
-    import bld_remote
-    bld_remote.start_mcp_service()
-    print(f"[SUCCESS] BLD Remote MCP service started on port {mcp_port} (log level: {mcp_log_level.upper()})")
-except Exception as e:
-    print(f"[ERROR] Failed to start BLD Remote MCP service: {{e}}")
+print("[INFO] Environment: PORT=" + str(port) + ", START_NOW=" + str(start_now) + ", LOG_LEVEL=" + str(log_level))
+print("[INFO] MCP service will start via addon auto-start mechanism")
 """
     )
 
@@ -795,8 +797,14 @@ print("Background mode keep-alive loop finished, Blender will exit.")
         else:
             click.echo("[MODE] GUI mode: Blender window will open")
 
+        # Set up environment variables for Blender
+        blender_env = os.environ.copy()
+        blender_env['BLD_REMOTE_MCP_PORT'] = str(mcp_port)
+        blender_env['BLD_REMOTE_MCP_START_NOW'] = '1'  # CLI always auto-starts
+        blender_env['BLD_REMOTE_LOG_LEVEL'] = mcp_log_level.upper()
+
         # Execute Blender
-        result = subprocess.run(cmd, timeout=None)
+        result = subprocess.run(cmd, timeout=None, env=blender_env)
 
         return result.returncode
 
@@ -1138,8 +1146,13 @@ print("Debug background mode finished, Blender will exit.")
         else:
             click.echo("[MODE] GUI mode: Blender window will open")
 
+        # Set up environment variables for debug mode
+        blender_env = os.environ.copy()
+        blender_env['BLD_REMOTE_MCP_START_NOW'] = 'false'  # Debug mode doesn't auto-start MCP
+        blender_env['BLD_REMOTE_LOG_LEVEL'] = 'DEBUG'
+
         # Execute Blender
-        result = subprocess.run(cmd, timeout=None)
+        result = subprocess.run(cmd, timeout=None, env=blender_env)
 
         return result.returncode
 
