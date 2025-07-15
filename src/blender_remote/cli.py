@@ -681,6 +681,7 @@ import time
 import signal
 import sys
 import threading
+import platform
 
 # Global flag to control the keep-alive loop
 _keep_running = True
@@ -1023,6 +1024,7 @@ except Exception as e:
 import time
 import signal
 import sys
+import platform
 
 # Global flag to control the keep-alive loop
 _keep_running = True

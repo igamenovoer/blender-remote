@@ -51,8 +51,10 @@ BlenderClientAPI (Python API) ────────┘
 - **Blender Path**: 
   - Linux/macOS: `/apps/blender-4.4.3-linux-x64/blender`
   - Windows: `C:\Program Files\Blender Foundation\Blender 4.4\blender.exe`
-- **Always use `&`** for background execution, **10-second timeout** in Bash (NOT 2-minute default)
-- **Kill processes**: `pkill -f blender`
+- **CRITICAL: Always use `&`** for background execution - **Blender will quit when Bash command times out without `&`**
+- **Environment Variables**: Set `BLD_REMOTE_MCP_START_NOW=true` and `BLD_REMOTE_MCP_PORT=6688` for auto-start
+- **Timeout**: Use **10-second timeout** in Bash (NOT 2-minute default) with `&` background execution
+- **Kill processes**: `pkill -f blender` (Linux/macOS) or `taskkill /F /IM blender.exe` (Windows)
 
 #### Fallback Testing
 ```bash

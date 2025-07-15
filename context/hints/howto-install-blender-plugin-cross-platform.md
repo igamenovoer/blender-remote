@@ -130,7 +130,7 @@ Open your terminal or command prompt and run one of the following commands, depe
 You may need to use the full path to `blender.exe`.
 
 ```cmd
-"C:\Program Files\Blender Foundation\Blender 4.1\blender.exe" --background --python "path\to\install_addon.py" -- "path\to\myaddon.zip"
+"C:\Program Files\Blender Foundation\Blender 4.4\blender.exe" --background --python "path\to\install_addon.py" -- "path\to\myaddon.zip"
 ```
 
 ### macOS
@@ -406,7 +406,7 @@ To run the enhanced script that discovers the addon directory before installatio
 ### Windows
 
 ```cmd
-"C:\Program Files\Blender Foundation\Blender 4.1\blender.exe" --background --python "path\to\install_addon.py" -- "path\to\myaddon.zip"
+"C:\Program Files\Blender Foundation\Blender 4.4\blender.exe" --background --python "path\to\install_addon.py" -- "path\to\myaddon.zip"
 ```
 
 ### macOS
