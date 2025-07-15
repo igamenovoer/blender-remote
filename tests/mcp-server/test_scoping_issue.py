@@ -9,16 +9,16 @@ import time
 
 def test_scoping_issue(host="127.0.0.1", port=6688):
     """Test different patterns to understand the scoping issue."""
-    print(f"🔍 Testing scoping issue in BLD Remote MCP...")
+    print(f"[SEARCH] Testing scoping issue in BLD Remote MCP...")
     print("=" * 60)
 
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((host, port))
-        print(f"✅ Connected to {host}:{port}")
+        print(f"[PASS] Connected to {host}:{port}")
 
         # Test 1: Simple import and use (should work)
-        print(f"\n📤 Test 1: Simple import and use...")
+        print(f"\n[SEND] Test 1: Simple import and use...")
         simple_code = """
 import numpy as np
 print("NumPy available:", np.__version__)
@@ -32,7 +32,7 @@ print("Array:", arr)
         print(f"   Result: {response1}")
 
         # Test 2: Import in function (might fail)
-        print(f"\n📤 Test 2: Import in function...")
+        print(f"\n[SEND] Test 2: Import in function...")
         func_code = """
 def test_func():
     import numpy as np
@@ -50,7 +50,7 @@ test_func()
         print(f"   Result: {response2}")
 
         # Test 3: Global import, function use (should work)
-        print(f"\n📤 Test 3: Global import, function use...")
+        print(f"\n[SEND] Test 3: Global import, function use...")
         global_code = """
 import numpy as np
 
@@ -69,7 +69,7 @@ test_func()
         print(f"   Result: {response3}")
 
         # Test 4: Check globals and locals
-        print(f"\n📤 Test 4: Check globals and locals...")
+        print(f"\n[SEND] Test 4: Check globals and locals...")
         check_code = """
 import numpy as np
 print("Globals keys:", list(globals().keys()))
@@ -93,10 +93,10 @@ test_func()
         print(f"   Result: {response4}")
 
         sock.close()
-        print(f"\n🔒 Connection closed")
+        print(f"\n[SECURE] Connection closed")
 
     except Exception as e:
-        print(f"❌ Test failed: {e}")
+        print(f"[FAIL] Test failed: {e}")
         import traceback
 
         traceback.print_exc()

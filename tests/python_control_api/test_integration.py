@@ -303,10 +303,10 @@ bpy.ops.mesh.primitive_nonexistent_add()  # This should fail
 
         if passed == total:
             print(
-                "🎉 All integration tests passed! Python Control API is working correctly."
+                "[SUCCESS] All integration tests passed! Python Control API is working correctly."
             )
         else:
-            print("❌ Some integration tests failed. Please check the results above.")
+            print("[FAIL] Some integration tests failed. Please check the results above.")
 
         return passed == total
 

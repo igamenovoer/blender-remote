@@ -15,9 +15,9 @@ sys.path.insert(0, str(Path(__file__).parent / "context" / "refcode"))
 try:
     from auto_mcp_remote.blender_mcp_client import BlenderMCPClient
 
-    print("✅ auto_mcp_remote client loaded successfully")
+    print("[PASS] auto_mcp_remote client loaded successfully")
 except ImportError as e:
-    print(f"❌ Cannot import auto_mcp_remote: {e}")
+    print(f"[FAIL] Cannot import auto_mcp_remote: {e}")
     sys.exit(1)
 
 
@@ -33,26 +33,26 @@ def check_service(port, name):
 
 
 def main():
-    print("🔄 Starting BLD_Remote_MCP service via BlenderAutoMCP...")
+    print("[PROCESSING] Starting BLD_Remote_MCP service via BlenderAutoMCP...")
 
     # Check current status
     bld_remote_running = check_service(6688, "BLD_Remote_MCP")
     blender_auto_running = check_service(9876, "BlenderAutoMCP")
 
     print(
-        f"BLD_Remote_MCP (6688): {'✅ RUNNING' if bld_remote_running else '❌ NOT RUNNING'}"
+        f"BLD_Remote_MCP (6688): {'[PASS] RUNNING' if bld_remote_running else '[FAIL] NOT RUNNING'}"
     )
     print(
-        f"BlenderAutoMCP (9876): {'✅ RUNNING' if blender_auto_running else '❌ NOT RUNNING'}"
+        f"BlenderAutoMCP (9876): {'[PASS] RUNNING' if blender_auto_running else '[FAIL] NOT RUNNING'}"
     )
 
     if bld_remote_running:
-        print("✅ BLD_Remote_MCP is already running!")
+        print("[PASS] BLD_Remote_MCP is already running!")
         return
 
     if not blender_auto_running:
         print(
-            "❌ BlenderAutoMCP is not running. Cannot use it to start BLD_Remote_MCP."
+            "[FAIL] BlenderAutoMCP is not running. Cannot use it to start BLD_Remote_MCP."
         )
         print("Please start Blender with both services:")
         print("export BLENDER_AUTO_MCP_SERVICE_PORT=9876 BLENDER_AUTO_MCP_START_NOW=1")
@@ -85,33 +85,33 @@ else:
         time.sleep(2)  # Give it time to start
         
         if bld_remote.is_mcp_service_up():
-            print("✅ BLD_Remote_MCP started successfully!")
+            print("[PASS] BLD_Remote_MCP started successfully!")
             result = "started_successfully"
         else:
-            print("❌ BLD_Remote_MCP failed to start")
+            print("[FAIL] BLD_Remote_MCP failed to start")
             result = "failed_to_start"
     except Exception as e:
-        print(f"❌ Error starting BLD_Remote_MCP: {e}")
+        print(f"[FAIL] Error starting BLD_Remote_MCP: {e}")
         result = f"error: {e}"
 """
 
-        print("📤 Sending start command...")
+        print("[SEND] Sending start command...")
         response = client.execute_python(start_code)
-        print(f"📥 Response: {response}")
+        print(f"[RECEIVE] Response: {response}")
 
         # Wait a moment and check if service started
         time.sleep(3)
         bld_remote_running = check_service(6688, "BLD_Remote_MCP")
 
         if bld_remote_running:
-            print("🎉 SUCCESS! BLD_Remote_MCP is now running on port 6688")
+            print("[SUCCESS] SUCCESS! BLD_Remote_MCP is now running on port 6688")
         else:
-            print("❌ FAILED: BLD_Remote_MCP is still not responding on port 6688")
+            print("[FAIL] FAILED: BLD_Remote_MCP is still not responding on port 6688")
 
         client.disconnect()
 
     except Exception as e:
-        print(f"❌ Error communicating with BlenderAutoMCP: {e}")
+        print(f"[FAIL] Error communicating with BlenderAutoMCP: {e}")
 
 
 if __name__ == "__main__":

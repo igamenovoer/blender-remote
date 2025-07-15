@@ -17,7 +17,7 @@ import sys
 def test_bld_remote_compatibility():
     """Test that BLD_Remote_MCP works with LLM client protocols."""
 
-    print("🧪 Testing BLD_Remote_MCP compatibility fix...")
+    print("[TESTING] Testing BLD_Remote_MCP compatibility fix...")
     print("=" * 50)
 
     # Test configuration
@@ -26,96 +26,96 @@ def test_bld_remote_compatibility():
 
     try:
         # Create socket and connect
-        print(f"🔗 Connecting to {host}:{port}...")
+        print(f"[LINK] Connecting to {host}:{port}...")
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(10)  # 10 second timeout
 
         start_time = time.time()
         sock.connect((host, port))
         connect_time = time.time() - start_time
-        print(f"✅ Connected successfully in {connect_time:.3f}s")
+        print(f"[PASS] Connected successfully in {connect_time:.3f}s")
 
         # Test 1: Send get_polyhaven_status (the failing command)
-        print("\n📤 Test 1: Sending get_polyhaven_status command...")
+        print("\n[SEND] Test 1: Sending get_polyhaven_status command...")
         test_command = {"type": "get_polyhaven_status", "params": {}}
 
         json_data = json.dumps(test_command)
         print(f"   Command: {json_data}")
 
         sock.sendall(json_data.encode("utf-8"))
-        print("   ✅ Command sent successfully")
+        print("   [PASS] Command sent successfully")
 
         # Receive response
-        print("   📥 Waiting for response...")
+        print("   [RECEIVE] Waiting for response...")
         response_data = sock.recv(4096)
 
         if not response_data:
-            print("   ❌ No response received")
+            print("   [FAIL] No response received")
             return False
 
         response = json.loads(response_data.decode("utf-8"))
-        print(f"   ✅ Response received: {response}")
+        print(f"   [PASS] Response received: {response}")
 
         # Verify response format
         if "status" in response and response["status"] == "success":
-            print("   ✅ Response format is correct")
+            print("   [PASS] Response format is correct")
         else:
-            print("   ⚠️  Response format differs but connection worked")
+            print("   [WARNING]  Response format differs but connection worked")
 
         # Test 2: Send get_scene_info command to verify connection is still open
-        print("\n📤 Test 2: Sending get_scene_info command...")
+        print("\n[SEND] Test 2: Sending get_scene_info command...")
         test_command2 = {"type": "get_scene_info", "params": {}}
 
         json_data2 = json.dumps(test_command2)
         print(f"   Command: {json_data2}")
 
         sock.sendall(json_data2.encode("utf-8"))
-        print("   ✅ Command sent successfully")
+        print("   [PASS] Command sent successfully")
 
         # Receive response
-        print("   📥 Waiting for response...")
+        print("   [RECEIVE] Waiting for response...")
         response_data2 = sock.recv(4096)
 
         if not response_data2:
-            print("   ❌ No response received")
+            print("   [FAIL] No response received")
             return False
 
         response2 = json.loads(response_data2.decode("utf-8"))
-        print(f"   ✅ Response received: {response2}")
+        print(f"   [PASS] Response received: {response2}")
 
         # Verify scene info response
         if "status" in response2 and response2["status"] == "success":
             if "result" in response2 and "name" in response2["result"]:
-                print("   ✅ Scene info response is correct")
+                print("   [PASS] Scene info response is correct")
             else:
-                print("   ⚠️  Scene info response format unexpected")
+                print("   [WARNING]  Scene info response format unexpected")
         else:
-            print("   ❌ Scene info response format incorrect")
+            print("   [FAIL] Scene info response format incorrect")
 
         # Test 3: Close connection gracefully
-        print("\n🔒 Test 3: Closing connection...")
+        print("\n[SECURE] Test 3: Closing connection...")
         sock.close()
-        print("   ✅ Connection closed successfully")
+        print("   [PASS] Connection closed successfully")
 
         print("\n" + "=" * 50)
-        print("🎉 COMPATIBILITY TEST PASSED!")
-        print("✅ Connection stays persistent between commands")
-        print("✅ Commands are processed correctly")
-        print("✅ Responses are in expected format")
+        print("[SUCCESS] COMPATIBILITY TEST PASSED!")
+        print("[PASS] Connection stays persistent between commands")
+        print("[PASS] Commands are processed correctly")
+        print("[PASS] Responses are in expected format")
 
         return True
 
     except ConnectionRefusedError:
-        print(f"❌ Connection refused - is BLD_Remote_MCP running on port {port}?")
+        print(f"[FAIL] Connection refused - is BLD_Remote_MCP running on port {port}?")
         return False
     except socket.timeout:
-        print("❌ Connection timed out")
+        print("[FAIL] Connection timed out")
         return False
     except json.JSONDecodeError as e:
-        print(f"❌ Invalid JSON response: {e}")
+        print(f"[FAIL] Invalid JSON response: {e}")
         return False
     except Exception as e:
-        print(f"❌ Unexpected error: {e}")
+        print(f"[FAIL] Unexpected error: {e}")
         return False
     finally:
         try:
@@ -133,10 +133,10 @@ def main():
     success = test_bld_remote_compatibility()
 
     if success:
-        print("\n✅ All tests passed!")
+        print("\n[PASS] All tests passed!")
         sys.exit(0)
     else:
-        print("\n❌ Tests failed!")
+        print("\n[FAIL] Tests failed!")
         sys.exit(1)
 
 

@@ -22,7 +22,7 @@ class Base64CompatibilityTests:
     async def test_backward_compatibility(self):
         """Test: Ensure old execute_code calls still work"""
         
-        print("📝 Testing Backward Compatibility (No Base64 Parameters)")
+        print("[LOG] Testing Backward Compatibility (No Base64 Parameters)")
         
         simple_code = '''
 import bpy
@@ -56,7 +56,7 @@ print(json.dumps(result))
                         if response_data.get("executed", False):
                             output = response_data.get("result", "")
                             if "backward_compatibility" in output:
-                                print(f"  ✅ Backward compatibility maintained")
+                                print(f"  [PASS] Backward compatibility maintained")
                                 return {
                                     "status": "success",
                                     "test_name": "backward_compatibility",
@@ -64,21 +64,21 @@ print(json.dumps(result))
                                     "execution_successful": True
                                 }
                             else:
-                                print(f"  ⚠️ Execution result unclear")
+                                print(f"  [WARNING] Execution result unclear")
                                 return {
                                     "status": "unclear_result", 
                                     "raw_output": output,
                                     "base64_used": False
                                 }
                         else:
-                            print(f"  ❌ Backward compatibility broken")
+                            print(f"  [FAIL] Backward compatibility broken")
                             return {
                                 "status": "execution_failed",
                                 "response_data": response_data,
                                 "base64_used": False
                             }
                     except json.JSONDecodeError as e:
-                        print(f"  ❌ JSON parse error: {e}")
+                        print(f"  [FAIL] JSON parse error: {e}")
                         return {"status": "json_error", "error": str(e), "base64_used": False}
                 
                 return {"status": "no_content", "base64_used": False}
@@ -86,7 +86,7 @@ print(json.dumps(result))
     async def test_simple_base64_encoding(self):
         """Test: Simple base64 code encoding"""
         
-        print("🔐 Testing Simple Base64 Code Encoding")
+        print("[ENCODE] Testing Simple Base64 Code Encoding")
         
         simple_code = '''
 import bpy
@@ -120,7 +120,7 @@ print(json.dumps(result))
                         if response_data.get("executed", False):
                             output = response_data.get("result", "")
                             if "simple_base64" in output:
-                                print(f"  ✅ Base64 code encoding works")
+                                print(f"  [PASS] Base64 code encoding works")
                                 return {
                                     "status": "success",
                                     "test_name": "simple_base64_encoding",
@@ -128,21 +128,21 @@ print(json.dumps(result))
                                     "execution_successful": True
                                 }
                             else:
-                                print(f"  ⚠️ Base64 execution result unclear")
+                                print(f"  [WARNING] Base64 execution result unclear")
                                 return {
                                     "status": "unclear_result",
                                     "raw_output": output,
                                     "base64_used": True
                                 }
                         else:
-                            print(f"  ❌ Base64 code encoding failed")
+                            print(f"  [FAIL] Base64 code encoding failed")
                             return {
                                 "status": "execution_failed",
                                 "response_data": response_data,
                                 "base64_used": True
                             }
                     except json.JSONDecodeError as e:
-                        print(f"  ❌ JSON parse error: {e}")
+                        print(f"  [FAIL] JSON parse error: {e}")
                         return {"status": "json_error", "error": str(e), "base64_used": True}
                 
                 return {"status": "no_content", "base64_used": True}
@@ -150,7 +150,7 @@ print(json.dumps(result))
     async def test_base64_result_encoding(self):
         """Test: Base64 result encoding"""
         
-        print("📤 Testing Base64 Result Encoding")
+        print("[SEND] Testing Base64 Result Encoding")
         
         simple_code = '''
 import json
@@ -184,7 +184,7 @@ print(json.dumps(result))
                         if response_data.get("executed", False):
                             output = response_data.get("result", "")
                             if "base64_result" in output and len(output) > 100:
-                                print(f"  ✅ Base64 result encoding works")
+                                print(f"  [PASS] Base64 result encoding works")
                                 return {
                                     "status": "success",
                                     "test_name": "base64_result_encoding",
@@ -193,21 +193,21 @@ print(json.dumps(result))
                                     "execution_successful": True
                                 }
                             else:
-                                print(f"  ⚠️ Base64 result unclear or too small")
+                                print(f"  [WARNING] Base64 result unclear or too small")
                                 return {
                                     "status": "unclear_result",
                                     "raw_output": output,
                                     "base64_used": True
                                 }
                         else:
-                            print(f"  ❌ Base64 result encoding failed")
+                            print(f"  [FAIL] Base64 result encoding failed")
                             return {
                                 "status": "execution_failed",
                                 "response_data": response_data,
                                 "base64_used": True
                             }
                     except json.JSONDecodeError as e:
-                        print(f"  ❌ JSON parse error: {e}")
+                        print(f"  [FAIL] JSON parse error: {e}")
                         return {"status": "json_error", "error": str(e), "base64_used": True}
                 
                 return {"status": "no_content", "base64_used": True}
@@ -215,7 +215,7 @@ print(json.dumps(result))
     async def test_both_base64_encoding(self):
         """Test: Both code and result base64 encoding"""
         
-        print("🔐📤 Testing Both Code and Result Base64 Encoding")
+        print("[ENCODE][SEND] Testing Both Code and Result Base64 Encoding")
         
         code_with_special_chars = '''
 import json
@@ -256,7 +256,7 @@ print(json.dumps(result))
                         if response_data.get("executed", False):
                             output = response_data.get("result", "")
                             if "both_base64" in output:
-                                print(f"  ✅ Both base64 encodings work together")
+                                print(f"  [PASS] Both base64 encodings work together")
                                 return {
                                     "status": "success",
                                     "test_name": "both_base64_encoding",
@@ -265,21 +265,21 @@ print(json.dumps(result))
                                     "execution_successful": True
                                 }
                             else:
-                                print(f"  ⚠️ Both base64 result unclear")
+                                print(f"  [WARNING] Both base64 result unclear")
                                 return {
                                     "status": "unclear_result",
                                     "raw_output": output,
                                     "base64_used": True
                                 }
                         else:
-                            print(f"  ❌ Both base64 encodings failed")
+                            print(f"  [FAIL] Both base64 encodings failed")
                             return {
                                 "status": "execution_failed",
                                 "response_data": response_data,
                                 "base64_used": True
                             }
                     except json.JSONDecodeError as e:
-                        print(f"  ❌ JSON parse error: {e}")
+                        print(f"  [FAIL] JSON parse error: {e}")
                         return {"status": "json_error", "error": str(e), "base64_used": True}
                 
                 return {"status": "no_content", "base64_used": True}
@@ -287,7 +287,7 @@ print(json.dumps(result))
     async def run_all_tests(self):
         """Run all base64 compatibility tests"""
         print("=" * 80)
-        print("🔐 Testing Base64 Compatibility and Basic Functionality")
+        print("[ENCODE] Testing Base64 Compatibility and Basic Functionality")
         print("=" * 80)
         
         tests = [
@@ -301,23 +301,23 @@ print(json.dumps(result))
         overall_success = True
         
         for test_name, test_func in tests:
-            print(f"\n📋 Running: {test_name}")
+            print(f"\n[INFO] Running: {test_name}")
             try:
                 result = await test_func()
                 results[test_name] = result
                 
                 if result["status"] == "success":
-                    print(f"✅ {test_name}: PASSED")
+                    print(f"[PASS] {test_name}: PASSED")
                     
-                    base64_status = "🔐 Base64" if result.get("base64_used") else "📝 Standard"
-                    print(f"  📊 Method: {base64_status}")
+                    base64_status = "[ENCODE] Base64" if result.get("base64_used") else "[LOG] Standard"
+                    print(f"  [STATS] Method: {base64_status}")
                 else:
-                    print(f"❌ {test_name}: FAILED - {result.get('error', result.get('status', 'Unknown error'))}")
+                    print(f"[FAIL] {test_name}: FAILED - {result.get('error', result.get('status', 'Unknown error'))}")
                     overall_success = False
                     
             except Exception as e:
                 results[test_name] = {"status": "exception", "error": str(e)}
-                print(f"❌ {test_name}: EXCEPTION - {e}")
+                print(f"[FAIL] {test_name}: EXCEPTION - {e}")
                 overall_success = False
         
         # Summary
@@ -335,23 +335,23 @@ print(json.dumps(result))
                 "overall_status": "PASS" if overall_success else "FAIL"
             },
             "compatibility_validation": {
-                "backward_compatibility": "✅ Maintained" if results.get("Backward Compatibility", {}).get("status") == "success" else "❌ Broken",
-                "base64_code_encoding": "✅ Working" if results.get("Simple Base64 Code Encoding", {}).get("status") == "success" else "❌ Failed",
-                "base64_result_encoding": "✅ Working" if results.get("Base64 Result Encoding", {}).get("status") == "success" else "❌ Failed",
-                "combined_base64": "✅ Working" if results.get("Both Base64 Encodings", {}).get("status") == "success" else "❌ Failed"
+                "backward_compatibility": "[PASS] Maintained" if results.get("Backward Compatibility", {}).get("status") == "success" else "[FAIL] Broken",
+                "base64_code_encoding": "[PASS] Working" if results.get("Simple Base64 Code Encoding", {}).get("status") == "success" else "[FAIL] Failed",
+                "base64_result_encoding": "[PASS] Working" if results.get("Base64 Result Encoding", {}).get("status") == "success" else "[FAIL] Failed",
+                "combined_base64": "[PASS] Working" if results.get("Both Base64 Encodings", {}).get("status") == "success" else "[FAIL] Failed"
             }
         }
         
         print("\n" + "=" * 80)
-        print("📊 Base64 Compatibility Test Results:")
+        print("[STATS] Base64 Compatibility Test Results:")
         for test_name, result in results.items():
-            status = "✅ PASS" if result.get("status") == "success" else "❌ FAIL"
-            method_indicator = "🔐" if result.get("base64_used") else "📝"
+            status = "[PASS] PASS" if result.get("status") == "success" else "[FAIL] FAIL"
+            method_indicator = "[ENCODE]" if result.get("base64_used") else "[LOG]"
             print(f"  {status} {method_indicator} {test_name}")
         
-        print(f"\n🎯 OVERALL RESULT: {final_result['summary']['overall_status']}")
-        print(f"📊 Success Rate: {final_result['summary']['success_rate']}")
-        print("\n🔐 Base64 Feature Validation:")
+        print(f"\n[RESULT] OVERALL RESULT: {final_result['summary']['overall_status']}")
+        print(f"[STATS] Success Rate: {final_result['summary']['success_rate']}")
+        print("\n[ENCODE] Base64 Feature Validation:")
         for key, value in final_result['compatibility_validation'].items():
             print(f"  {value} {key.replace('_', ' ').title()}")
         print("=" * 80)
@@ -367,9 +367,9 @@ async def main():
     try:
         with open(log_file, "w") as f:
             json.dump(results, f, indent=2)
-        print(f"📝 Results saved to: {log_file}")
+        print(f"[LOG] Results saved to: {log_file}")
     except Exception as e:
-        print(f"⚠️ Could not save results: {e}")
+        print(f"[WARNING] Could not save results: {e}")
     
     # Exit with appropriate code
     sys.exit(0 if results["summary"]["overall_status"] == "PASS" else 1)

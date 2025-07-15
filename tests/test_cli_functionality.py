@@ -43,28 +43,28 @@ def test_config_manager():
         
         # Save config
         config.save(test_config)
-        print(f"✅ Config saved to {temp_config}")
+        print(f"[PASS] Config saved to {temp_config}")
         
         # Load and test get
         loaded = config.load()
-        print(f"✅ Config loaded: {loaded}")
+        print(f"[PASS] Config loaded: {loaded}")
         
         # Test dot notation
         port = config.get("mcp_service.default_port")
         log_level = config.get("mcp_service.log_level")
-        print(f"✅ Got port: {port}")
-        print(f"✅ Got log_level: {log_level}")
+        print(f"[PASS] Got port: {port}")
+        print(f"[PASS] Got log_level: {log_level}")
         
         # Test set
         config.set("mcp_service.log_level", "DEBUG")
         new_log_level = config.get("mcp_service.log_level")
-        print(f"✅ Updated log_level: {new_log_level}")
+        print(f"[PASS] Updated log_level: {new_log_level}")
         
         assert port == 6688
         assert log_level == "INFO"
         assert new_log_level == "DEBUG"
         
-        print("✅ Config manager tests passed!")
+        print("[PASS] Config manager tests passed!")
 
 
 def test_blender_detection():
@@ -75,9 +75,9 @@ def test_blender_detection():
     # For testing, we just verify the function exists and handles errors
     try:
         detect_blender_info("/fake/blender/path")
-        print("❌ Should have raised exception for fake path")
+        print("[FAIL] Should have raised exception for fake path")
     except Exception as e:
-        print(f"✅ Correctly handled fake path: {e}")
+        print(f"[PASS] Correctly handled fake path: {e}")
     
 
 def test_cli_options():
@@ -87,7 +87,7 @@ def test_cli_options():
     # Test imports
     try:
         from blender_remote.cli import cli
-        print("✅ CLI module imports successfully")
+        print("[PASS] CLI module imports successfully")
         
         # Test click configuration
         start_command = None
@@ -97,26 +97,26 @@ def test_cli_options():
                 break
                 
         if start_command:
-            print("✅ Start command found")
+            print("[PASS] Start command found")
             
             # Check for our new options
             option_names = [param.name for param in start_command.params if hasattr(param, 'name')]
             
             if "scene" in option_names:
-                print("✅ --scene option present")
+                print("[PASS] --scene option present")
             else:
-                print("❌ --scene option missing")
+                print("[FAIL] --scene option missing")
                 
             if "log_level" in option_names:
-                print("✅ --log-level option present")
+                print("[PASS] --log-level option present")
             else:
-                print("❌ --log-level option missing")
+                print("[FAIL] --log-level option missing")
                 
         else:
-            print("❌ Start command not found")
+            print("[FAIL] Start command not found")
             
     except ImportError as e:
-        print(f"❌ CLI import failed: {e}")
+        print(f"[FAIL] CLI import failed: {e}")
 
 
 def main():
@@ -129,11 +129,11 @@ def main():
         test_cli_options()
         
         print("\n" + "="*50)
-        print("✅ All CLI functionality tests PASSED!")
+        print("[PASS] All CLI functionality tests PASSED!")
         return 0
         
     except Exception as e:
-        print(f"\n❌ CLI tests FAILED: {e}")
+        print(f"\n[FAIL] CLI tests FAILED: {e}")
         import traceback
         traceback.print_exc()
         return 1

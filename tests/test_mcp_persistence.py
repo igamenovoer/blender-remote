@@ -16,10 +16,10 @@ from typing import Dict, Any
 
 async def test_mcp_server_persistence():
     """Test persistence through MCP server tools."""
-    print("🧪 Testing MCP server persistence tools...")
+    print("[TESTING] Testing MCP server persistence tools...")
     
     # Start MCP server
-    print("🚀 Starting MCP server...")
+    print("[ROCKET] Starting MCP server...")
     mcp_process = await asyncio.create_subprocess_exec(
         "pixi", "run", "uvx", "blender-remote",
         stdout=asyncio.subprocess.PIPE,
@@ -31,7 +31,7 @@ async def test_mcp_server_persistence():
         await asyncio.sleep(2)
         
         # Test with a simple client that speaks MCP protocol
-        print("🔗 Testing MCP server connection...")
+        print("[LINK] Testing MCP server connection...")
         
         # The MCP server should be available as a FastMCP instance
         # but testing that requires more complex MCP protocol implementation
@@ -44,7 +44,7 @@ async def test_mcp_server_persistence():
             response = send_test_command(sock, "get_scene_info")
             print(f"    Connection test response: {response}")
             assert response.get("status") == "success", f"Connection failed: {response}"
-            print("    ✅ MCP server is accessible")
+            print("    [PASS] MCP server is accessible")
         finally:
             sock.close()
             
@@ -76,7 +76,7 @@ def send_test_command(sock: socket.socket, command_type: str, params: Dict[str, 
 
 def test_mcp_server_available():
     """Test that MCP server executable is available."""
-    print("🧪 Testing MCP server availability...")
+    print("[TESTING] Testing MCP server availability...")
     
     try:
         # Test that the uvx blender-remote command exists
@@ -88,42 +88,42 @@ def test_mcp_server_available():
         )
         
         if result.returncode == 0:
-            print("    ✅ MCP server command is available")
+            print("    [PASS] MCP server command is available")
             return True
         else:
-            print(f"    ❌ MCP server command failed: {result.stderr}")
+            print(f"    [FAIL] MCP server command failed: {result.stderr}")
             return False
             
     except subprocess.TimeoutExpired:
-        print("    ❌ MCP server command timed out")
+        print("    [FAIL] MCP server command timed out")
         return False
     except Exception as e:
-        print(f"    ❌ MCP server command error: {e}")
+        print(f"    [FAIL] MCP server command error: {e}")
         return False
 
 
 async def main():
     """Run MCP server persistence tests."""
-    print("🚀 Starting MCP Server Persistence Tests")
+    print("[ROCKET] Starting MCP Server Persistence Tests")
     print("=" * 50)
     
     try:
         # Test MCP server availability
         if not test_mcp_server_available():
-            print("❌ MCP server not available, skipping tests")
+            print("[FAIL] MCP server not available, skipping tests")
             return 1
         
         # Test MCP server persistence (basic connectivity)
         await test_mcp_server_persistence()
         
-        print("✅ MCP server is properly configured and accessible")
-        print("🎯 For full persistence testing, use the direct TCP tests")
+        print("[PASS] MCP server is properly configured and accessible")
+        print("[RESULT] For full persistence testing, use the direct TCP tests")
         print("   The MCP server will use the same persistence backend")
         
         return 0
         
     except Exception as e:
-        print(f"❌ Test failed with error: {e}")
+        print(f"[FAIL] Test failed with error: {e}")
         import traceback
         traceback.print_exc()
         return 1

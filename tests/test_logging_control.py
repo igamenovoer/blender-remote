@@ -42,17 +42,17 @@ log_critical("This is a CRITICAL message")
     success = True
     for expected in expected_outputs:
         if expected not in output:
-            print(f"❌ Expected to see: {expected}")
+            print(f"[FAIL] Expected to see: {expected}")
             success = False
         else:
-            print(f"✅ Found expected: {expected}")
+            print(f"[PASS] Found expected: {expected}")
     
     # Check unexpected outputs
     all_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
     for level_name in all_levels:
         if level_name not in expected_outputs:
             if f"[{level_name}]" in output:
-                print(f"❌ Should NOT see {level_name} messages")
+                print(f"[FAIL] Should NOT see {level_name} messages")
                 success = False
     
     return success
@@ -79,9 +79,9 @@ def main():
     
     print(f"\n{'='*50}")
     if all_passed:
-        print("✅ All logging control tests PASSED!")
+        print("[PASS] All logging control tests PASSED!")
     else:
-        print("❌ Some logging control tests FAILED!")
+        print("[FAIL] Some logging control tests FAILED!")
     
     return 0 if all_passed else 1
 

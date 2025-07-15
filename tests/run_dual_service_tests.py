@@ -22,7 +22,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 def run_command(cmd, description, timeout=60):
     """Run a command with timeout and error handling."""
     print(f"\n{'='*60}")
-    print(f"🔄 {description}")
+    print(f"[PROCESSING] {description}")
     print(f"{'='*60}")
     print(f"Command: {' '.join(cmd)}")
     print("")
@@ -37,10 +37,10 @@ def run_command(cmd, description, timeout=60):
         )
 
         if result.returncode == 0:
-            print(f"\n✅ {description} - PASSED")
+            print(f"\n[PASS] {description} - PASSED")
             return True
         else:
-            print(f"\n❌ {description} - FAILED (exit code: {result.returncode})")
+            print(f"\n[FAIL] {description} - FAILED (exit code: {result.returncode})")
             return False
 
     except subprocess.TimeoutExpired:
@@ -53,7 +53,7 @@ def run_command(cmd, description, timeout=60):
 
 def check_prerequisites():
     """Check if all prerequisites are available."""
-    print("🔍 Checking prerequisites...")
+    print("[SEARCH] Checking prerequisites...")
 
     issues = []
 
@@ -62,52 +62,52 @@ def check_prerequisites():
     if not os.path.exists(blender_path):
         issues.append(f"Blender not found at {blender_path}")
     else:
-        print(f"✅ Blender found at {blender_path}")
+        print(f"[PASS] Blender found at {blender_path}")
 
     # Check addon directory
     addon_dir = Path.home() / ".config/blender/4.4/scripts/addons/bld_remote_mcp"
     if not addon_dir.exists():
         issues.append(f"BLD_Remote_MCP addon not found at {addon_dir}")
     else:
-        print(f"✅ BLD_Remote_MCP addon found at {addon_dir}")
+        print(f"[PASS] BLD_Remote_MCP addon found at {addon_dir}")
 
     # Check auto_mcp_remote
     auto_mcp_path = PROJECT_ROOT / "context/refcode/auto_mcp_remote"
     if not auto_mcp_path.exists():
         issues.append(f"auto_mcp_remote not found at {auto_mcp_path}")
     else:
-        print(f"✅ auto_mcp_remote found at {auto_mcp_path}")
+        print(f"[PASS] auto_mcp_remote found at {auto_mcp_path}")
 
     # Check pytest
     try:
         subprocess.run(
             ["python", "-m", "pytest", "--version"], capture_output=True, check=True
         )
-        print("✅ pytest available")
+        print("[PASS] pytest available")
     except (subprocess.CalledProcessError, FileNotFoundError):
         issues.append("pytest not available - install with 'pip install pytest'")
 
     if issues:
-        print(f"\n❌ Prerequisites check failed:")
+        print(f"\n[FAIL] Prerequisites check failed:")
         for issue in issues:
             print(f"  - {issue}")
         return False
 
-    print("✅ All prerequisites satisfied")
+    print("[PASS] All prerequisites satisfied")
     return True
 
 
 def kill_blender_processes():
     """Kill any existing Blender processes."""
-    print("🔄 Cleaning up any existing Blender processes...")
+    print("[PROCESSING] Cleaning up any existing Blender processes...")
     try:
         subprocess.run(["pkill", "-f", "blender"], check=False, timeout=10)
         time.sleep(2)
-        print("✅ Blender processes cleaned up")
+        print("[PASS] Blender processes cleaned up")
     except subprocess.TimeoutExpired:
-        print("⚠️ Warning: pkill timed out")
+        print("[WARNING] Warning: pkill timed out")
     except Exception as e:
-        print(f"⚠️ Warning: Error during cleanup: {e}")
+        print(f"[WARNING] Warning: Error during cleanup: {e}")
 
 
 def main():
@@ -139,7 +139,7 @@ def main():
 
     args = parser.parse_args()
 
-    print("🧪 BLD_Remote_MCP Dual Service Test Runner")
+    print("[TESTING] BLD_Remote_MCP Dual Service Test Runner")
     print("=" * 60)
 
     # Check prerequisites
@@ -251,14 +251,14 @@ def main():
 
     # Print summary
     print("\n" + "=" * 60)
-    print("📊 TEST RESULTS SUMMARY")
+    print("[STATS] TEST RESULTS SUMMARY")
     print("=" * 60)
 
     passed = 0
     failed = 0
 
     for result in results:
-        status = "✅ PASS" if result["success"] else "❌ FAIL"
+        status = "[PASS] PASS" if result["success"] else "[FAIL] FAIL"
         duration = result["duration"]
         print(f"{result['name']:25} {status:10} ({duration:.1f}s)")
 
@@ -272,14 +272,14 @@ def main():
     print(f"Total duration: {total_duration:.1f}s")
 
     if failed == 0:
-        print("\n🎉 ALL TESTS PASSED!")
+        print("\n[SUCCESS] ALL TESTS PASSED!")
         print(
-            "✅ BLD_Remote_MCP appears to be functionally equivalent to BlenderAutoMCP"
+            "[PASS] BLD_Remote_MCP appears to be functionally equivalent to BlenderAutoMCP"
         )
         exit_code = 0
     else:
         print(f"\n💥 {failed} TEST SUITE(S) FAILED")
-        print("❌ BLD_Remote_MCP has functional differences or issues")
+        print("[FAIL] BLD_Remote_MCP has functional differences or issues")
         exit_code = 1
 
     # Final cleanup

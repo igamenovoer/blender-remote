@@ -24,7 +24,7 @@ def load_test_results():
         "synchronous_execution_simple": "synchronous-execution-simple.log"
     }
     
-    print("📁 Loading test result files...")
+    print("[FOLDER] Loading test result files...")
     
     for test_name, filename in test_files.items():
         filepath = log_dir / filename
@@ -32,12 +32,12 @@ def load_test_results():
             try:
                 with open(filepath, 'r') as f:
                     results[test_name] = json.load(f)
-                print(f"  ✅ Loaded: {filename}")
+                print(f"  [PASS] Loaded: {filename}")
             except Exception as e:
-                print(f"  ❌ Error loading {filename}: {e}")
+                print(f"  [FAIL] Error loading {filename}: {e}")
                 results[test_name] = {"status": "load_error", "error": str(e)}
         else:
-            print(f"  ⚠️ Missing: {filename}")
+            print(f"  [WARNING] Missing: {filename}")
             results[test_name] = {"status": "missing"}
     
     return results
@@ -46,17 +46,17 @@ def analyze_service_validation(data):
     """Analyze service validation results"""
     
     if data.get("status") == "missing":
-        return {"status": "❌ MISSING", "summary": "Test not run"}
+        return {"status": "[FAIL] MISSING", "summary": "Test not run"}
     
     if data.get("status") == "load_error":
-        return {"status": "❌ ERROR", "summary": f"Load error: {data.get('error', 'Unknown')}"}
+        return {"status": "[FAIL] ERROR", "summary": f"Load error: {data.get('error', 'Unknown')}"}
     
     overall_status = data.get("overall_status", "UNKNOWN")
     health_status = data.get("health_check", {}).get("health_status", "unknown")
     success_rate = data.get("health_check", {}).get("success_rate", "0/0")
     
     return {
-        "status": "✅ PASS" if overall_status == "PASS" else "❌ FAIL",
+        "status": "[PASS] PASS" if overall_status == "PASS" else "[FAIL] FAIL",
         "summary": f"Service {overall_status.lower()}, health: {health_status} ({success_rate})",
         "details": {
             "overall_status": overall_status,
@@ -70,10 +70,10 @@ def analyze_functional_equivalence(data):
     """Analyze functional equivalence results"""
     
     if data.get("status") == "missing":
-        return {"status": "❌ MISSING", "summary": "Test not run"}
+        return {"status": "[FAIL] MISSING", "summary": "Test not run"}
     
     if data.get("status") == "load_error":
-        return {"status": "❌ ERROR", "summary": f"Load error: {data.get('error', 'Unknown')}"}
+        return {"status": "[FAIL] ERROR", "summary": f"Load error: {data.get('error', 'Unknown')}"}
     
     summary = data.get("summary", {})
     overall_status = summary.get("overall_status", "UNKNOWN")
@@ -82,7 +82,7 @@ def analyze_functional_equivalence(data):
     total_methods = summary.get("total_shared_methods", 0)
     
     return {
-        "status": "✅ PASS" if overall_status == "PASS" else "❌ FAIL",
+        "status": "[PASS] PASS" if overall_status == "PASS" else "[FAIL] FAIL",
         "summary": f"Functional equivalence {overall_status.lower()}, shared methods: {success_rate}",
         "details": {
             "overall_status": overall_status,
@@ -97,10 +97,10 @@ def analyze_synchronous_execution(data, test_type="complex"):
     """Analyze synchronous execution results"""
     
     if data.get("status") == "missing":
-        return {"status": "❌ MISSING", "summary": f"Test not run ({test_type})"}
+        return {"status": "[FAIL] MISSING", "summary": f"Test not run ({test_type})"}
     
     if data.get("status") == "load_error":
-        return {"status": "❌ ERROR", "summary": f"Load error: {data.get('error', 'Unknown')} ({test_type})"}
+        return {"status": "[FAIL] ERROR", "summary": f"Load error: {data.get('error', 'Unknown')} ({test_type})"}
     
     summary = data.get("summary", {})
     overall_status = summary.get("overall_status", "UNKNOWN")
@@ -111,7 +111,7 @@ def analyze_synchronous_execution(data, test_type="complex"):
     critical_validation = data.get("critical_validation", {})
     
     return {
-        "status": "✅ PASS" if overall_status == "PASS" else "❌ FAIL",
+        "status": "[PASS] PASS" if overall_status == "PASS" else "[FAIL] FAIL",
         "summary": f"Synchronous execution {overall_status.lower()} ({test_type}), tests: {success_rate}",
         "details": {
             "overall_status": overall_status,
@@ -127,7 +127,7 @@ def generate_summary_report(results):
     """Generate comprehensive summary report"""
     
     print("\n" + "=" * 100)
-    print("🚀 COMPREHENSIVE MCP SERVER DROP-IN REPLACEMENT TEST REPORT")
+    print("[ROCKET] COMPREHENSIVE MCP SERVER DROP-IN REPLACEMENT TEST REPORT")
     print("=" * 100)
     
     # Analyze each test
@@ -138,7 +138,7 @@ def generate_summary_report(results):
         "synchronous_execution_simple": analyze_synchronous_execution(results.get("synchronous_execution_simple", {}), "simple")
     }
     
-    print(f"\n📋 Test Summary:")
+    print(f"\n[INFO] Test Summary:")
     print(f"{'='*100}")
     
     overall_success = True
@@ -149,62 +149,62 @@ def generate_summary_report(results):
         
         print(f"{status_symbol:12} {test_name.replace('_', ' ').title():40} {summary}")
         
-        if "❌" in status_symbol:
+        if "[FAIL]" in status_symbol:
             overall_success = False
     
     print(f"{'='*100}")
     
     # Key Findings
-    print(f"\n🔍 Key Findings:")
+    print(f"\n[SEARCH] Key Findings:")
     print(f"{'='*100}")
     
     # Service validation findings
     sv_analysis = analyses["service_validation"]
-    if "✅" in sv_analysis["status"]:
-        print(f"✅ BLD_Remote_MCP TCP service is running and healthy on port {sv_analysis['details'].get('port', '6688')}")
+    if "[PASS]" in sv_analysis["status"]:
+        print(f"[PASS] BLD_Remote_MCP TCP service is running and healthy on port {sv_analysis['details'].get('port', '6688')}")
     else:
-        print(f"❌ BLD_Remote_MCP TCP service issues: {sv_analysis['summary']}")
+        print(f"[FAIL] BLD_Remote_MCP TCP service issues: {sv_analysis['summary']}")
     
     # Functional equivalence findings
     fe_analysis = analyses["functional_equivalence"]
-    if "✅" in fe_analysis["status"]:
+    if "[PASS]" in fe_analysis["status"]:
         working = fe_analysis["details"].get("working_shared_methods", 0)
         total = fe_analysis["details"].get("total_shared_methods", 0)
-        print(f"✅ All {working}/{total} shared methods working - TRUE DROP-IN REPLACEMENT ACHIEVED")
+        print(f"[PASS] All {working}/{total} shared methods working - TRUE DROP-IN REPLACEMENT ACHIEVED")
         print(f"   📌 Shared methods: get_scene_info, get_object_info, execute_code")
     else:
-        print(f"❌ Functional equivalence issues: {fe_analysis['summary']}")
+        print(f"[FAIL] Functional equivalence issues: {fe_analysis['summary']}")
     
     # Synchronous execution findings
     se_simple = analyses["synchronous_execution_simple"]
     se_complex = analyses["synchronous_execution_complex"]
     
-    if "✅" in se_simple["status"]:
+    if "[PASS]" in se_simple["status"]:
         passed = se_simple["details"].get("passed_tests", 0)
         total = se_simple["details"].get("total_tests", 0)
-        print(f"✅ Synchronous execution with custom results: {passed}/{total} simple tests PASSED")
-        print(f"   🎯 CORE VALUE PROPOSITION VALIDATED: Custom Blender code returns structured data")
+        print(f"[PASS] Synchronous execution with custom results: {passed}/{total} simple tests PASSED")
+        print(f"   [RESULT] CORE VALUE PROPOSITION VALIDATED: Custom Blender code returns structured data")
     else:
-        print(f"⚠️ Simple synchronous execution issues: {se_simple['summary']}")
+        print(f"[WARNING] Simple synchronous execution issues: {se_simple['summary']}")
     
-    if "❌" in se_complex["status"]:
-        print(f"⚠️ Complex synchronous execution limitation: Large code blocks cause JSON parsing issues")
-        print(f"   💡 Recommendation: Use smaller code blocks or alternative code delivery method")
+    if "[FAIL]" in se_complex["status"]:
+        print(f"[WARNING] Complex synchronous execution limitation: Large code blocks cause JSON parsing issues")
+        print(f"   [TIP] Recommendation: Use smaller code blocks or alternative code delivery method")
     
     # Overall Assessment
-    print(f"\n🎯 Overall Assessment:")
+    print(f"\n[RESULT] Overall Assessment:")
     print(f"{'='*100}")
     
-    if overall_success or ("✅" in sv_analysis["status"] and "✅" in fe_analysis["status"] and "✅" in se_simple["status"]):
-        print(f"🎉 SUCCESS: MCP Server Drop-in Replacement VALIDATED")
+    if overall_success or ("[PASS]" in sv_analysis["status"] and "[PASS]" in fe_analysis["status"] and "[PASS]" in se_simple["status"]):
+        print(f"[SUCCESS] SUCCESS: MCP Server Drop-in Replacement VALIDATED")
         print(f"")
-        print(f"📊 Key Achievements:")
-        print(f"   ✅ TCP service running and healthy")
-        print(f"   ✅ All shared methods functionally equivalent")
-        print(f"   ✅ Synchronous execution with custom results working")
-        print(f"   ✅ True drop-in replacement for BlenderAutoMCP achieved")
+        print(f"[STATS] Key Achievements:")
+        print(f"   [PASS] TCP service running and healthy")
+        print(f"   [PASS] All shared methods functionally equivalent")
+        print(f"   [PASS] Synchronous execution with custom results working")
+        print(f"   [PASS] True drop-in replacement for BlenderAutoMCP achieved")
         print(f"")
-        print(f"🚀 Ready for Production Use:")
+        print(f"[ROCKET] Ready for Production Use:")
         print(f"   • uvx blender-remote + BLD_Remote_MCP replaces uvx blender-mcp + BlenderAutoMCP")
         print(f"   • Background mode support (advantage over reference)")
         print(f"   • Enhanced data persistence features")
@@ -212,36 +212,36 @@ def generate_summary_report(results):
         
         final_status = "SUCCESS"
     else:
-        print(f"❌ ISSUES FOUND: Some tests failed")
+        print(f"[FAIL] ISSUES FOUND: Some tests failed")
         print(f"   Review individual test results for details")
         final_status = "ISSUES"
     
     # Recommendations
-    print(f"\n💡 Recommendations:")
+    print(f"\n[TIP] Recommendations:")
     print(f"{'='*100}")
     
-    if "❌" in se_complex["status"] and "✅" in se_simple["status"]:
-        print(f"📋 Code Block Size Limitation:")
+    if "[FAIL]" in se_complex["status"] and "[PASS]" in se_simple["status"]:
+        print(f"[INFO] Code Block Size Limitation:")
         print(f"   • Simple/medium code blocks work perfectly")
         print(f"   • Very large code blocks (>4KB) may cause JSON parsing issues")
         print(f"   • Recommendation: Break large operations into smaller functions")
         print(f"   • Alternative: Implement code upload/file execution feature")
     
-    print(f"📋 Next Steps:")
+    print(f"[INFO] Next Steps:")
     print(f"   • Deploy uvx blender-remote package to PyPI")
     print(f"   • Update documentation with test results")
     print(f"   • Consider implementing large code block handling enhancement")
     
     # Technical Details
-    print(f"\n🔧 Technical Details:")
+    print(f"\n[FIX] Technical Details:")
     print(f"{'='*100}")
-    print(f"📡 Service Configuration:")
+    print(f"[CONNECT] Service Configuration:")
     print(f"   • BLD_Remote_MCP TCP Port: 6688")
     print(f"   • MCP Server HTTP Port: 8000 (default)")
     print(f"   • Protocol: FastMCP 2.0 with STDIO transport")
     print(f"   • Blender Version: 4.4.3")
     print(f"")
-    print(f"🛠️ Test Environment:")
+    print(f"[TOOLS] Test Environment:")
     print(f"   • Environment: pixi")
     print(f"   • Test Framework: MCP Python SDK")
     print(f"   • Communication: TCP + MCP Protocol")
@@ -251,15 +251,15 @@ def generate_summary_report(results):
         "overall_status": final_status,
         "individual_analyses": analyses,
         "summary": {
-            "service_health": "✅" in sv_analysis["status"],
-            "functional_equivalence": "✅" in fe_analysis["status"],
-            "synchronous_execution": "✅" in se_simple["status"],
-            "drop_in_replacement_validated": overall_success or ("✅" in sv_analysis["status"] and "✅" in fe_analysis["status"] and "✅" in se_simple["status"])
+            "service_health": "[PASS]" in sv_analysis["status"],
+            "functional_equivalence": "[PASS]" in fe_analysis["status"],
+            "synchronous_execution": "[PASS]" in se_simple["status"],
+            "drop_in_replacement_validated": overall_success or ("[PASS]" in sv_analysis["status"] and "[PASS]" in fe_analysis["status"] and "[PASS]" in se_simple["status"])
         }
     }
 
 def main():
-    print("📊 Generating Comprehensive MCP Server Test Report")
+    print("[STATS] Generating Comprehensive MCP Server Test Report")
     print("=" * 60)
     
     # Load all test results
@@ -276,9 +276,9 @@ def main():
                 "test_results": results,
                 "analysis": report
             }, f, indent=2)
-        print(f"\n📝 Comprehensive report saved to: {report_file}")
+        print(f"\n[LOG] Comprehensive report saved to: {report_file}")
     except Exception as e:
-        print(f"⚠️ Could not save comprehensive report: {e}")
+        print(f"[WARNING] Could not save comprehensive report: {e}")
     
     # Exit with appropriate code
     sys.exit(0 if report["overall_status"] == "SUCCESS" else 1)

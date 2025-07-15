@@ -15,9 +15,9 @@ sys.path.insert(0, str(Path(__file__).parent / "context" / "refcode"))
 try:
     from auto_mcp_remote.blender_mcp_client import BlenderMCPClient
 
-    print("✅ auto_mcp_remote client loaded")
+    print("[PASS] auto_mcp_remote client loaded")
 except ImportError as e:
-    print(f"❌ Cannot import auto_mcp_remote: {e}")
+    print(f"[FAIL] Cannot import auto_mcp_remote: {e}")
     sys.exit(1)
 
 
@@ -32,7 +32,7 @@ def test_raw_tcp(port, service_name, message):
 
         # Send JSON message
         json_msg = json.dumps(message)
-        print(f"📤 Sending: {json_msg}")
+        print(f"[SEND] Sending: {json_msg}")
         sock.sendall(json_msg.encode("utf-8"))
 
         # Receive response
@@ -41,21 +41,21 @@ def test_raw_tcp(port, service_name, message):
 
         sock.close()
 
-        print(f"📥 Raw response: {response}")
+        print(f"[RECEIVE] Raw response: {response}")
         return response
 
     except Exception as e:
-        print(f"❌ Raw TCP test failed: {e}")
+        print(f"[FAIL] Raw TCP test failed: {e}")
         return None
 
 
 def test_detailed_comparison():
     """Run detailed comparison tests."""
-    print("🔍 DETAILED COMPARISON TEST")
+    print("[SEARCH] DETAILED COMPARISON TEST")
     print("=" * 60)
 
     # Test 1: Simple calculation with detailed response
-    print("\n📊 Test 1: Detailed Response Comparison")
+    print("\n[STATS] Test 1: Detailed Response Comparison")
     message = {
         "code": "calculation_result = 10 * 5 + 3; print(f'Calculation: {calculation_result}')",
         "message": "Detailed test calculation",
@@ -64,7 +64,7 @@ def test_detailed_comparison():
     bld_response = test_raw_tcp(6688, "BLD_Remote_MCP", message)
     auto_response = test_raw_tcp(9876, "BlenderAutoMCP", message)
 
-    print(f"\n📊 Response Structure Comparison:")
+    print(f"\n[STATS] Response Structure Comparison:")
     if bld_response and auto_response:
         print(f"BLD_Remote_MCP fields: {list(bld_response.keys())}")
         print(f"BlenderAutoMCP fields: {list(auto_response.keys())}")
@@ -88,13 +88,13 @@ def test_detailed_comparison():
     bld_error = test_raw_tcp(6688, "BLD_Remote_MCP", error_message)
     auto_error = test_raw_tcp(9876, "BlenderAutoMCP", error_message)
 
-    print(f"\n📊 Error Response Comparison:")
+    print(f"\n[STATS] Error Response Comparison:")
     if bld_error and auto_error:
         print(f"BLD_Remote_MCP error response: {bld_error}")
         print(f"BlenderAutoMCP error response: {auto_error}")
 
     # Test 3: Blender API detailed test
-    print("\n🎮 Test 3: Blender API Detailed Test")
+    print("\n[INTERACTIVE] Test 3: Blender API Detailed Test")
     api_message = {
         "code": """
 import bpy
@@ -119,7 +119,7 @@ api_result = result_info
     bld_api = test_raw_tcp(6688, "BLD_Remote_MCP", api_message)
     auto_api = test_raw_tcp(9876, "BlenderAutoMCP", api_message)
 
-    print(f"\n📊 API Response Comparison:")
+    print(f"\n[STATS] API Response Comparison:")
     if bld_api and auto_api:
         print(f"Both services provided API responses")
         print(f"BLD response status: {bld_api.get('response', 'no response field')}")
@@ -127,7 +127,7 @@ api_result = result_info
 
 
 def main():
-    print("🔍 BLD_Remote_MCP Detailed Comparison Test")
+    print("[SEARCH] BLD_Remote_MCP Detailed Comparison Test")
     print("=" * 60)
 
     # Verify both services are running
@@ -143,19 +143,19 @@ def main():
     bld_running = check_port(6688, "BLD_Remote_MCP")
     auto_running = check_port(9876, "BlenderAutoMCP")
 
-    print(f"BLD_Remote_MCP (6688): {'✅ RUNNING' if bld_running else '❌ NOT RUNNING'}")
+    print(f"BLD_Remote_MCP (6688): {'[PASS] RUNNING' if bld_running else '[FAIL] NOT RUNNING'}")
     print(
-        f"BlenderAutoMCP (9876): {'✅ RUNNING' if auto_running else '❌ NOT RUNNING'}"
+        f"BlenderAutoMCP (9876): {'[PASS] RUNNING' if auto_running else '[FAIL] NOT RUNNING'}"
     )
 
     if not (bld_running and auto_running):
-        print("❌ Both services must be running for comparison test")
+        print("[FAIL] Both services must be running for comparison test")
         return False
 
     test_detailed_comparison()
 
     print(f"\n{'='*60}")
-    print("✅ DETAILED COMPARISON COMPLETE")
+    print("[PASS] DETAILED COMPARISON COMPLETE")
     print("Check the output above to verify response structures match")
     print(f"{'='*60}")
 

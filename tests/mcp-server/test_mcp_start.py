@@ -17,7 +17,7 @@ def test_mcp_server_start():
     try:
         from blender_remote.mcp_server import main
 
-        print("🚀 Testing MCP server startup...")
+        print("[ROCKET] Testing MCP server startup...")
         print("   This will start the server for 3 seconds then stop it")
 
         # Create a timer to stop the server
@@ -31,17 +31,17 @@ def test_mcp_server_start():
         timer_thread.start()
 
         # Try to start the server
-        print("📡 Starting MCP server (will auto-stop in 3 seconds)...")
+        print("[CONNECT] Starting MCP server (will auto-stop in 3 seconds)...")
         main()  # This should start the FastMCP server
 
     except SystemExit:
-        print("✅ Server started successfully (stopped by timer)")
+        print("[PASS] Server started successfully (stopped by timer)")
         return True
     except KeyboardInterrupt:
-        print("✅ Server started successfully (stopped by interrupt)")
+        print("[PASS] Server started successfully (stopped by interrupt)")
         return True
     except Exception as e:
-        print(f"❌ Server startup failed: {e}")
+        print(f"[FAIL] Server startup failed: {e}")
         return False
 
 

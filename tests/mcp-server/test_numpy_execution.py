@@ -9,7 +9,7 @@ import time
 
 def test_numpy_execution(host="127.0.0.1", port=6688):
     """Test that numpy imports and execution work properly."""
-    print(f"🧪 Testing BLD Remote MCP numpy code execution...")
+    print(f"[TESTING] Testing BLD Remote MCP numpy code execution...")
     print("=" * 60)
 
     # The problematic code from the user that was failing
@@ -76,15 +76,15 @@ print(f"Final test complete! Camera: {camera.name} at {camera.location}")
 '''
 
     try:
-        print(f"🔗 Connecting to {host}:{port}...")
+        print(f"[LINK] Connecting to {host}:{port}...")
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         start_time = time.time()
         sock.connect((host, port))
         connect_time = time.time() - start_time
-        print(f"✅ Connected successfully in {connect_time:.3f}s")
+        print(f"[PASS] Connected successfully in {connect_time:.3f}s")
 
         # Test 1: Using new command-based interface
-        print(f"\n📤 Test 1: Testing numpy code execution via execute_code command...")
+        print(f"\n[SEND] Test 1: Testing numpy code execution via execute_code command...")
 
         command = {"type": "execute_code", "params": {"code": test_code}}
 
@@ -95,15 +95,15 @@ print(f"Final test complete! Camera: {camera.name} at {camera.location}")
         print(f"   📨 Response: {response}")
 
         if response.get("status") == "success":
-            print(f"   ✅ Code executed successfully via command interface!")
+            print(f"   [PASS] Code executed successfully via command interface!")
             result = response.get("result", {})
-            print(f"   📋 Result: {result}")
+            print(f"   [INFO] Result: {result}")
         else:
             error_msg = response.get("message", "Unknown error")
-            print(f"   ❌ Error: {error_msg}")
+            print(f"   [FAIL] Error: {error_msg}")
 
         # Test 2: Using legacy code interface
-        print(f"\n📤 Test 2: Testing numpy code execution via legacy code interface...")
+        print(f"\n[SEND] Test 2: Testing numpy code execution via legacy code interface...")
 
         legacy_message = {"code": test_code}
 
@@ -114,13 +114,13 @@ print(f"Final test complete! Camera: {camera.name} at {camera.location}")
         print(f"   📨 Response: {response2}")
 
         if response2.get("response") == "OK":
-            print(f"   ✅ Code executed successfully via legacy interface!")
-            print(f"   📋 Message: {response2.get('message', 'No message')}")
+            print(f"   [PASS] Code executed successfully via legacy interface!")
+            print(f"   [INFO] Message: {response2.get('message', 'No message')}")
         else:
-            print(f"   ❌ Error: {response2.get('message', 'Unknown error')}")
+            print(f"   [FAIL] Error: {response2.get('message', 'Unknown error')}")
 
         # Test 3: Simple numpy test
-        print(f"\n📤 Test 3: Simple numpy import test...")
+        print(f"\n[SEND] Test 3: Simple numpy import test...")
 
         simple_test = """
 import numpy as np
@@ -128,7 +128,7 @@ print("NumPy version:", np.__version__)
 arr = np.array([1, 2, 3, 4, 5])
 print("Array:", arr)
 print("Array sum:", np.sum(arr))
-print("✅ NumPy import and basic operations work!")
+print("[PASS] NumPy import and basic operations work!")
 """
 
         simple_command = {"type": "execute_code", "params": {"code": simple_test}}
@@ -140,23 +140,23 @@ print("✅ NumPy import and basic operations work!")
         print(f"   📨 Response: {response3}")
 
         if response3.get("status") == "success":
-            print(f"   ✅ Simple numpy test passed!")
+            print(f"   [PASS] Simple numpy test passed!")
         else:
             print(
-                f"   ❌ Simple numpy test failed: {response3.get('message', 'Unknown error')}"
+                f"   [FAIL] Simple numpy test failed: {response3.get('message', 'Unknown error')}"
             )
 
-        print(f"\n🔒 Closing connection...")
+        print(f"\n[SECURE] Closing connection...")
         sock.close()
-        print(f"   ✅ Connection closed successfully")
+        print(f"   [PASS] Connection closed successfully")
 
-        print(f"\n🎉 NUMPY EXECUTION TEST COMPLETED!")
+        print(f"\n[SUCCESS] NUMPY EXECUTION TEST COMPLETED!")
 
     except ConnectionRefusedError:
-        print(f"❌ Connection refused - is BLD Remote MCP running on port {port}?")
+        print(f"[FAIL] Connection refused - is BLD Remote MCP running on port {port}?")
         print(f"   Try starting Blender with the service first")
     except Exception as e:
-        print(f"❌ Test failed: {e}")
+        print(f"[FAIL] Test failed: {e}")
         import traceback
 
         traceback.print_exc()

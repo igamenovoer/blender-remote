@@ -47,11 +47,11 @@ def test_omegaconf_basic_features():
         
         # Save config using OmegaConf
         config.save(test_config)
-        print(f"✅ Config saved using OmegaConf")
+        print(f"[PASS] Config saved using OmegaConf")
         
         # Load and verify
         loaded = config.load()
-        print(f"✅ Config loaded using OmegaConf")
+        print(f"[PASS] Config loaded using OmegaConf")
         
         # Test dot notation access with deep nesting
         port = config.get("mcp_service.default_port")
@@ -61,7 +61,7 @@ def test_omegaconf_basic_features():
         assert port == 6688
         assert auto_start is True
         assert debug_mode is False
-        print(f"✅ Deep dot notation access works: port={port}, auto_start={auto_start}")
+        print(f"[PASS] Deep dot notation access works: port={port}, auto_start={auto_start}")
         
         # Test setting deep nested values
         config.set("mcp_service.features.debug_mode", True)
@@ -73,7 +73,7 @@ def test_omegaconf_basic_features():
         
         assert updated_debug is True
         assert new_feature == "test_value"
-        print(f"✅ Deep setting works: debug_mode={updated_debug}, new_feature={new_feature}")
+        print(f"[PASS] Deep setting works: debug_mode={updated_debug}, new_feature={new_feature}")
 
 
 def test_omegaconf_type_safety():
@@ -113,7 +113,7 @@ def test_omegaconf_type_safety():
         assert isinstance(enabled, bool)
         assert isinstance(host, str)
         
-        print(f"✅ Type preservation works: int={type(port)}, float={type(timeout)}, bool={type(enabled)}, str={type(host)}")
+        print(f"[PASS] Type preservation works: int={type(port)}, float={type(timeout)}, bool={type(enabled)}, str={type(host)}")
         
         # Test type conversion
         config.set("numbers.port", "7777")  # String that can be converted
@@ -121,7 +121,7 @@ def test_omegaconf_type_safety():
         
         # OmegaConf should preserve the string since we set it as string
         # This tests that our implementation handles this correctly
-        print(f"✅ Type handling: original_port={port}, set_as_string={converted_port}")
+        print(f"[PASS] Type handling: original_port={port}, set_as_string={converted_port}")
 
 
 def test_omegaconf_yaml_format():
@@ -161,7 +161,7 @@ def test_omegaconf_yaml_format():
         assert "default_port: 6688" in yaml_content
         assert "log_level: INFO" in yaml_content
         
-        print("✅ YAML formatting is correct")
+        print("[PASS] YAML formatting is correct")
 
 
 def test_omegaconf_error_handling():
@@ -177,9 +177,9 @@ def test_omegaconf_error_handling():
         # Test loading non-existent file
         try:
             config.load()
-            print("❌ Should have raised exception for non-existent file")
+            print("[FAIL] Should have raised exception for non-existent file")
         except Exception as e:
-            print(f"✅ Correctly handled missing file: {e}")
+            print(f"[PASS] Correctly handled missing file: {e}")
         
         # Test accessing non-existent keys
         config.save({"test": {"value": 123}})
@@ -187,7 +187,7 @@ def test_omegaconf_error_handling():
         
         non_existent = config.get("non.existent.key")
         assert non_existent is None
-        print(f"✅ Non-existent key returns None: {non_existent}")
+        print(f"[PASS] Non-existent key returns None: {non_existent}")
 
 
 def main():
@@ -201,11 +201,11 @@ def main():
         test_omegaconf_error_handling()
         
         print("\n" + "="*50)
-        print("✅ All OmegaConf feature tests PASSED!")
+        print("[PASS] All OmegaConf feature tests PASSED!")
         return 0
         
     except Exception as e:
-        print(f"\n❌ OmegaConf tests FAILED: {e}")
+        print(f"\n[FAIL] OmegaConf tests FAILED: {e}")
         import traceback
         traceback.print_exc()
         return 1

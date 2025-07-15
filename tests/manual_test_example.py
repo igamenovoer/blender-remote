@@ -35,7 +35,7 @@ def test_service_simple(port, service_name):
         }
 
         message_json = json.dumps(test_command)
-        print(f"📤 Sending: {message_json}")
+        print(f"[SEND] Sending: {message_json}")
 
         sock.sendall(message_json.encode("utf-8"))
 
@@ -43,24 +43,24 @@ def test_service_simple(port, service_name):
         response_data = sock.recv(4096)
         response = json.loads(response_data.decode("utf-8"))
 
-        print(f"📥 Response: {response}")
+        print(f"[RECEIVE] Response: {response}")
         sock.close()
 
         if isinstance(response, dict) and "response" in response:
-            print(f"✅ {service_name}: SUCCESS")
+            print(f"[PASS] {service_name}: SUCCESS")
             return True
         else:
-            print(f"❌ {service_name}: Unexpected response format")
+            print(f"[FAIL] {service_name}: Unexpected response format")
             return False
 
     except Exception as e:
-        print(f"❌ {service_name}: ERROR - {e}")
+        print(f"[FAIL] {service_name}: ERROR - {e}")
         return False
 
 
 def test_blender_api_simple(port, service_name):
     """Simple Blender API test."""
-    print(f"\n🔍 Testing Blender API access - {service_name}")
+    print(f"\n[SEARCH] Testing Blender API access - {service_name}")
 
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -81,27 +81,27 @@ api_test_result = f'version_{version_info}_objects_{object_count}'
         }
 
         message_json = json.dumps(api_command)
-        print(f"📤 Sending API test: {message_json[:100]}...")
+        print(f"[SEND] Sending API test: {message_json[:100]}...")
 
         sock.sendall(message_json.encode("utf-8"))
 
         response_data = sock.recv(4096)
         response = json.loads(response_data.decode("utf-8"))
 
-        print(f"📥 API Response: {response}")
+        print(f"[RECEIVE] API Response: {response}")
         sock.close()
 
-        print(f"✅ {service_name}: Blender API accessible")
+        print(f"[PASS] {service_name}: Blender API accessible")
         return True
 
     except Exception as e:
-        print(f"❌ {service_name}: API test failed - {e}")
+        print(f"[FAIL] {service_name}: API test failed - {e}")
         return False
 
 
 def main():
     """Run manual test example."""
-    print("🧪 Manual Dual Service Test Example")
+    print("[TESTING] Manual Dual Service Test Example")
     print("=" * 50)
     print("This script assumes Blender is running with both services:")
     print("- BLD_Remote_MCP on port 6688")
@@ -118,35 +118,35 @@ def main():
     blender_auto_basic = test_service_simple(9876, "BlenderAutoMCP")
 
     if bld_remote_basic and blender_auto_basic:
-        print("\n🔍 Both services responding, testing Blender API...")
+        print("\n[SEARCH] Both services responding, testing Blender API...")
 
         bld_remote_api = test_blender_api_simple(6688, "BLD_Remote_MCP")
         blender_auto_api = test_blender_api_simple(9876, "BlenderAutoMCP")
 
         # Results summary
-        print("\n📊 Test Results Summary")
+        print("\n[STATS] Test Results Summary")
         print("-" * 30)
-        print(f"BLD_Remote_MCP Basic:  {'✅ PASS' if bld_remote_basic else '❌ FAIL'}")
-        print(f"BLD_Remote_MCP API:    {'✅ PASS' if bld_remote_api else '❌ FAIL'}")
+        print(f"BLD_Remote_MCP Basic:  {'[PASS] PASS' if bld_remote_basic else '[FAIL] FAIL'}")
+        print(f"BLD_Remote_MCP API:    {'[PASS] PASS' if bld_remote_api else '[FAIL] FAIL'}")
         print(
-            f"BlenderAutoMCP Basic:  {'✅ PASS' if blender_auto_basic else '❌ FAIL'}"
+            f"BlenderAutoMCP Basic:  {'[PASS] PASS' if blender_auto_basic else '[FAIL] FAIL'}"
         )
-        print(f"BlenderAutoMCP API:    {'✅ PASS' if blender_auto_api else '❌ FAIL'}")
+        print(f"BlenderAutoMCP API:    {'[PASS] PASS' if blender_auto_api else '[FAIL] FAIL'}")
 
         all_passed = all(
             [bld_remote_basic, bld_remote_api, blender_auto_basic, blender_auto_api]
         )
 
         if all_passed:
-            print("\n🎉 ALL TESTS PASSED!")
-            print("✅ Both services are working correctly")
+            print("\n[SUCCESS] ALL TESTS PASSED!")
+            print("[PASS] Both services are working correctly")
         else:
             print("\n💥 SOME TESTS FAILED")
-            print("❌ Check service status and configuration")
+            print("[FAIL] Check service status and configuration")
 
     else:
         print("\n💥 Basic connectivity failed")
-        print("❌ Make sure both services are running in Blender")
+        print("[FAIL] Make sure both services are running in Blender")
 
     print("\n" + "=" * 50)
 

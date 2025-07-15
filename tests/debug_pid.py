@@ -12,21 +12,21 @@ def debug_pid():
     """Debug the get_blender_pid() method."""
     client = BlenderMCPClient(host='localhost', port=6688)
     
-    print("🔍 Debugging get_blender_pid() method...")
+    print("[SEARCH] Debugging get_blender_pid() method...")
     
     # Test connection first
     try:
         if not client.test_connection():
-            print("❌ Connection failed")
+            print("[FAIL] Connection failed")
             return
-        print("✅ Connection successful")
+        print("[PASS] Connection successful")
     except Exception as e:
-        print(f"❌ Connection failed: {e}")
+        print(f"[FAIL] Connection failed: {e}")
         return
     
     # Test raw execute_code command
     try:
-        print("\n📡 Testing raw execute_code command...")
+        print("\n[CONNECT] Testing raw execute_code command...")
         code = "import os; print(os.getpid())"
         response = client.execute_command("execute_code", {"code": code})
         print(f"Raw response: {json.dumps(response, indent=2)}")
@@ -41,14 +41,14 @@ def debug_pid():
             print(f"Execution result length: {len(execution_result)}")
             print(f"Execution result repr: {repr(execution_result)}")
         else:
-            print(f"❌ Command failed: {response.get('message', 'Unknown error')}")
+            print(f"[FAIL] Command failed: {response.get('message', 'Unknown error')}")
             
     except Exception as e:
-        print(f"❌ Raw execute_code failed: {e}")
+        print(f"[FAIL] Raw execute_code failed: {e}")
         
     # Test execute_python method
     try:
-        print("\n🐍 Testing execute_python method...")
+        print("\n[PYTHON] Testing execute_python method...")
         code = "import os; print(os.getpid())"
         result = client.execute_python(code)
         print(f"execute_python result: '{result}'")
@@ -57,7 +57,7 @@ def debug_pid():
         print(f"execute_python result repr: {repr(result)}")
         
     except Exception as e:
-        print(f"❌ execute_python failed: {e}")
+        print(f"[FAIL] execute_python failed: {e}")
 
 if __name__ == "__main__":
     debug_pid()

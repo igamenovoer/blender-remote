@@ -25,7 +25,7 @@ class BlenderAutomationTests:
     async def test_object_creation_and_vertex_extraction(self):
         """Test: Create objects and extract vertex coordinates"""
         
-        print("🎲 Testing Object Creation & Vertex Extraction")
+        print("[DICE] Testing Object Creation & Vertex Extraction")
         
         code = '''
 import bpy
@@ -110,10 +110,10 @@ print(json.dumps(results, indent=2))
                         json_str = '\n'.join(json_lines)
                         parsed_result = json.loads(json_str)
                         
-                        print(f"  ✅ Created {len(parsed_result['objects_created'])} objects")
-                        print(f"  ✅ Total vertices: {parsed_result['total_vertices']}")
-                        print(f"  ✅ Cube location: {parsed_result['cube_data']['location']}")
-                        print(f"  ✅ Sphere location: {parsed_result['sphere_data']['location']}")
+                        print(f"  [PASS] Created {len(parsed_result['objects_created'])} objects")
+                        print(f"  [PASS] Total vertices: {parsed_result['total_vertices']}")
+                        print(f"  [PASS] Cube location: {parsed_result['cube_data']['location']}")
+                        print(f"  [PASS] Sphere location: {parsed_result['sphere_data']['location']}")
                         
                         return {
                             "status": "success",
@@ -128,7 +128,7 @@ print(json.dumps(results, indent=2))
                         }
                         
                     except json.JSONDecodeError as e:
-                        print(f"  ❌ Failed to parse JSON from result: {e}")
+                        print(f"  [FAIL] Failed to parse JSON from result: {e}")
                         return {"status": "json_parse_error", "error": str(e), "raw_content": content}
                 
                 return {"status": "no_content", "result": result}
@@ -136,7 +136,7 @@ print(json.dumps(results, indent=2))
     async def test_material_creation_and_properties(self):
         """Test: Create materials and extract properties"""
         
-        print("🎨 Testing Material Creation & Properties")
+        print("[RENDER] Testing Material Creation & Properties")
         
         code = '''
 import bpy
@@ -219,8 +219,8 @@ print(json.dumps(results, indent=2))
                         json_str = '\n'.join(json_lines)
                         parsed_result = json.loads(json_str)
                         
-                        print(f"  ✅ Created {parsed_result['materials_created']} materials")
-                        print(f"  ✅ Total materials in scene: {parsed_result['total_materials_in_scene']}")
+                        print(f"  [PASS] Created {parsed_result['materials_created']} materials")
+                        print(f"  [PASS] Total materials in scene: {parsed_result['total_materials_in_scene']}")
                         
                         return {
                             "status": "success",
@@ -235,7 +235,7 @@ print(json.dumps(results, indent=2))
                         }
                         
                     except json.JSONDecodeError as e:
-                        print(f"  ❌ Failed to parse JSON from result: {e}")
+                        print(f"  [FAIL] Failed to parse JSON from result: {e}")
                         return {"status": "json_parse_error", "error": str(e), "raw_content": content}
                 
                 return {"status": "no_content", "result": result}
@@ -243,7 +243,7 @@ print(json.dumps(results, indent=2))
     async def test_animation_and_transform_data(self):
         """Test: Create animation and extract transform data"""
         
-        print("🎬 Testing Animation & Transform Data")
+        print("[VIDEO] Testing Animation & Transform Data")
         
         code = '''
 import bpy
@@ -329,9 +329,9 @@ print(json.dumps(results, indent=2))
                         json_str = '\n'.join(json_lines)
                         parsed_result = json.loads(json_str)
                         
-                        print(f"  ✅ Animated object: {parsed_result['object_name']}")
-                        print(f"  ✅ Animation frames sampled: {parsed_result['animation_frames']}")
-                        print(f"  ✅ Frame range: {parsed_result['scene_frame_range']['start']}-{parsed_result['scene_frame_range']['end']}")
+                        print(f"  [PASS] Animated object: {parsed_result['object_name']}")
+                        print(f"  [PASS] Animation frames sampled: {parsed_result['animation_frames']}")
+                        print(f"  [PASS] Frame range: {parsed_result['scene_frame_range']['start']}-{parsed_result['scene_frame_range']['end']}")
                         
                         return {
                             "status": "success",
@@ -346,7 +346,7 @@ print(json.dumps(results, indent=2))
                         }
                         
                     except json.JSONDecodeError as e:
-                        print(f"  ❌ Failed to parse JSON from result: {e}")
+                        print(f"  [FAIL] Failed to parse JSON from result: {e}")
                         return {"status": "json_parse_error", "error": str(e), "raw_content": content}
                 
                 return {"status": "no_content", "result": result}
@@ -354,7 +354,7 @@ print(json.dumps(results, indent=2))
     async def test_complex_geometry_operations(self):
         """Test: Complex geometry operations with mathematical calculations"""
         
-        print("📐 Testing Complex Geometry Operations")
+        print("[GEOMETRY] Testing Complex Geometry Operations")
         
         code = '''
 import bpy
@@ -489,10 +489,10 @@ print(json.dumps(results, indent=2))
                         json_str = '\n'.join(json_lines)
                         parsed_result = json.loads(json_str)
                         
-                        print(f"  ✅ Created complex object: {parsed_result['object_name']}")
-                        print(f"  ✅ Vertices: {parsed_result['mesh_statistics']['vertex_count']}")
-                        print(f"  ✅ Faces: {parsed_result['mesh_statistics']['face_count']}")
-                        print(f"  ✅ Surface area: {parsed_result['mesh_statistics']['surface_area']:.2f}")
+                        print(f"  [PASS] Created complex object: {parsed_result['object_name']}")
+                        print(f"  [PASS] Vertices: {parsed_result['mesh_statistics']['vertex_count']}")
+                        print(f"  [PASS] Faces: {parsed_result['mesh_statistics']['face_count']}")
+                        print(f"  [PASS] Surface area: {parsed_result['mesh_statistics']['surface_area']:.2f}")
                         
                         return {
                             "status": "success",
@@ -507,7 +507,7 @@ print(json.dumps(results, indent=2))
                         }
                         
                     except json.JSONDecodeError as e:
-                        print(f"  ❌ Failed to parse JSON from result: {e}")
+                        print(f"  [FAIL] Failed to parse JSON from result: {e}")
                         return {"status": "json_parse_error", "error": str(e), "raw_content": content}
                 
                 return {"status": "no_content", "result": result}
@@ -515,7 +515,7 @@ print(json.dumps(results, indent=2))
     async def run_all_tests(self):
         """Run all synchronous execution tests"""
         print("=" * 80)
-        print("🔬 Testing Synchronous Execution with Custom Results")
+        print("[TESTING] Testing Synchronous Execution with Custom Results")
         print("=" * 80)
         
         tests = [
@@ -529,28 +529,28 @@ print(json.dumps(results, indent=2))
         overall_success = True
         
         for test_name, test_func in tests:
-            print(f"\n📋 Running: {test_name}")
+            print(f"\n[INFO] Running: {test_name}")
             try:
                 result = await test_func()
                 results[test_name] = result
                 
                 if result["status"] == "success":
-                    print(f"✅ {test_name}: PASSED")
+                    print(f"[PASS] {test_name}: PASSED")
                     
                     # Validate that we got structured data
                     if "structured_data" in result and result["structured_data"]:
-                        print(f"  📊 Structured data received: {type(result['structured_data']).__name__}")
-                        print(f"  📊 Data validation: {result.get('validation', {})}")
+                        print(f"  [STATS] Structured data received: {type(result['structured_data']).__name__}")
+                        print(f"  [STATS] Data validation: {result.get('validation', {})}")
                     else:
-                        print(f"  ⚠️ No structured data in response")
+                        print(f"  [WARNING] No structured data in response")
                         overall_success = False
                 else:
-                    print(f"❌ {test_name}: FAILED - {result.get('error', 'Unknown error')}")
+                    print(f"[FAIL] {test_name}: FAILED - {result.get('error', 'Unknown error')}")
                     overall_success = False
                     
             except Exception as e:
                 results[test_name] = {"status": "exception", "error": str(e)}
-                print(f"❌ {test_name}: EXCEPTION - {e}")
+                print(f"[FAIL] {test_name}: EXCEPTION - {e}")
                 overall_success = False
         
         # Summary
@@ -568,20 +568,20 @@ print(json.dumps(results, indent=2))
                 "overall_status": "PASS" if overall_success else "FAIL"
             },
             "critical_validation": {
-                "synchronous_response": "✅ All responses returned immediately",
-                "structured_data": "✅ All tests returned structured JSON data" if overall_success else "❌ Some tests failed to return structured data",
-                "custom_results": "✅ Custom Blender automation data returned" if overall_success else "❌ Custom automation failed"
+                "synchronous_response": "[PASS] All responses returned immediately",
+                "structured_data": "[PASS] All tests returned structured JSON data" if overall_success else "[FAIL] Some tests failed to return structured data",
+                "custom_results": "[PASS] Custom Blender automation data returned" if overall_success else "[FAIL] Custom automation failed"
             }
         }
         
         print("\n" + "=" * 80)
-        print("📊 Synchronous Execution Test Results:")
+        print("[STATS] Synchronous Execution Test Results:")
         for test_name, result in results.items():
-            status = "✅ PASS" if result.get("status") == "success" else "❌ FAIL"
+            status = "[PASS] PASS" if result.get("status") == "success" else "[FAIL] FAIL"
             print(f"  {status} {test_name}")
         
-        print(f"\n🎯 OVERALL RESULT: {final_result['summary']['overall_status']}")
-        print(f"📊 Success Rate: {final_result['summary']['success_rate']}")
+        print(f"\n[RESULT] OVERALL RESULT: {final_result['summary']['overall_status']}")
+        print(f"[STATS] Success Rate: {final_result['summary']['success_rate']}")
         print("=" * 80)
         
         return final_result
@@ -595,9 +595,9 @@ async def main():
     try:
         with open(log_file, "w") as f:
             json.dump(results, f, indent=2)
-        print(f"📝 Results saved to: {log_file}")
+        print(f"[LOG] Results saved to: {log_file}")
     except Exception as e:
-        print(f"⚠️ Could not save results: {e}")
+        print(f"[WARNING] Could not save results: {e}")
     
     # Exit with appropriate code
     sys.exit(0 if results["summary"]["overall_status"] == "PASS" else 1)

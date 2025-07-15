@@ -14,7 +14,7 @@ import sys
 
 def test_background_screenshot():
     """Test the get_viewport_screenshot functionality in background mode."""
-    print(f"🧪 Testing BLD Remote MCP get_viewport_screenshot in background mode...")
+    print(f"[TESTING] Testing BLD Remote MCP get_viewport_screenshot in background mode...")
     print("=" * 70)
 
     # Create a background script that keeps Blender running
@@ -45,7 +45,7 @@ except KeyboardInterrupt:
         script_path = f.name
 
     # Start Blender in background with the script
-    print(f"🚀 Starting Blender in background mode with script...")
+    print(f"[ROCKET] Starting Blender in background mode with script...")
     env = os.environ.copy()
     env["BLD_REMOTE_MCP_PORT"] = "6688"
     env["BLD_REMOTE_MCP_START_NOW"] = "0"  # Don't auto-start, we'll start manually
@@ -70,13 +70,13 @@ except KeyboardInterrupt:
 
         # Check if the process is still running
         if blender_process.poll() is not None:
-            print("❌ Blender process exited unexpectedly")
+            print("[FAIL] Blender process exited unexpectedly")
             stdout, stderr = blender_process.communicate()
             print(f"Output: {stdout}")
             return
 
         # Test the screenshot functionality
-        print(f"🔗 Testing viewport screenshot in background mode...")
+        print(f"[LINK] Testing viewport screenshot in background mode...")
 
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -91,7 +91,7 @@ except KeyboardInterrupt:
                 "params": {"filepath": temp_filepath, "max_size": 400, "format": "png"},
             }
 
-            print(f"📤 Sending get_viewport_screenshot command...")
+            print(f"[SEND] Sending get_viewport_screenshot command...")
             sock.sendall(json.dumps(command).encode("utf-8"))
             response_data = sock.recv(4096)
             response = json.loads(response_data.decode("utf-8"))
@@ -101,21 +101,21 @@ except KeyboardInterrupt:
             if response.get("status") == "error":
                 error_msg = response.get("message", "Unknown error")
                 if "background mode" in error_msg.lower():
-                    print(f"✅ Expected error for background mode: {error_msg}")
-                    print(f"✅ Background mode limitation handled correctly!")
+                    print(f"[PASS] Expected error for background mode: {error_msg}")
+                    print(f"[PASS] Background mode limitation handled correctly!")
                 else:
-                    print(f"❌ Unexpected error: {error_msg}")
+                    print(f"[FAIL] Unexpected error: {error_msg}")
             else:
-                print(f"❌ Expected error but got success: {response}")
+                print(f"[FAIL] Expected error but got success: {response}")
 
             sock.close()
 
         except ConnectionRefusedError:
-            print(f"❌ Connection refused - service not running on port 6688")
+            print(f"[FAIL] Connection refused - service not running on port 6688")
         except Exception as e:
-            print(f"❌ Test failed: {e}")
+            print(f"[FAIL] Test failed: {e}")
 
-        print(f"\n🎉 BACKGROUND MODE TEST COMPLETED!")
+        print(f"\n[SUCCESS] BACKGROUND MODE TEST COMPLETED!")
 
     finally:
         # Clean up

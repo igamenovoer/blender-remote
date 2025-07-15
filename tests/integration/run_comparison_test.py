@@ -17,30 +17,30 @@ sys.path.insert(0, str(Path(__file__).parent / "context" / "refcode"))
 try:
     from auto_mcp_remote.blender_mcp_client import BlenderMCPClient
 
-    print("✅ auto_mcp_remote client loaded")
+    print("[PASS] auto_mcp_remote client loaded")
 except ImportError as e:
-    print(f"❌ Cannot import auto_mcp_remote: {e}")
+    print(f"[FAIL] Cannot import auto_mcp_remote: {e}")
     sys.exit(1)
 
 
 def test_service_with_client(port, service_name, test_name, code):
     """Test a service using MCP client."""
-    print(f"🔄 Testing {service_name}: {test_name}")
+    print(f"[PROCESSING] Testing {service_name}: {test_name}")
 
     try:
         client = BlenderMCPClient(port=port)
         result = client.execute_python(code)
-        print(f"✅ {service_name}: {test_name} - SUCCESS")
+        print(f"[PASS] {service_name}: {test_name} - SUCCESS")
         return True, result
     except Exception as e:
-        print(f"❌ {service_name}: {test_name} - ERROR: {e}")
+        print(f"[FAIL] {service_name}: {test_name} - ERROR: {e}")
         return False, str(e)
 
 
 def compare_services(test_name, code):
     """Run identical test on both services and compare."""
     print(f"\n{'='*60}")
-    print(f"🧪 COMPARISON TEST: {test_name}")
+    print(f"[TESTING] COMPARISON TEST: {test_name}")
     print(f"{'='*60}")
 
     # Test BLD_Remote_MCP
@@ -55,21 +55,21 @@ def compare_services(test_name, code):
 
     # Compare results
     if bld_success and auto_success:
-        print(f"✅ BOTH SERVICES SUCCEEDED")
-        print(f"📊 Results comparison:")
+        print(f"[PASS] BOTH SERVICES SUCCEEDED")
+        print(f"[STATS] Results comparison:")
         print(f"   BLD_Remote_MCP: {str(bld_result)[:100]}...")
         print(f"   BlenderAutoMCP: {str(auto_result)[:100]}...")
 
         # Simple equivalence check
         both_have_results = bld_result is not None and auto_result is not None
         if both_have_results:
-            print(f"✅ Both services returned results")
+            print(f"[PASS] Both services returned results")
             return True
         else:
-            print(f"⚠️ One or both services returned None")
+            print(f"[WARNING] One or both services returned None")
             return False
     else:
-        print(f"❌ SERVICE FAILURE:")
+        print(f"[FAIL] SERVICE FAILURE:")
         if not bld_success:
             print(f"   BLD_Remote_MCP failed: {bld_result}")
         if not auto_success:
@@ -79,7 +79,7 @@ def compare_services(test_name, code):
 
 def main():
     """Run comparison tests."""
-    print("🧪 BLD_Remote_MCP vs BlenderAutoMCP Comparison Test")
+    print("[TESTING] BLD_Remote_MCP vs BlenderAutoMCP Comparison Test")
     print("=" * 60)
 
     # Test cases
@@ -106,22 +106,22 @@ def main():
 
     # Summary
     print(f"\n{'='*60}")
-    print("📊 TEST RESULTS SUMMARY")
+    print("[STATS] TEST RESULTS SUMMARY")
     print(f"{'='*60}")
 
     passed = 0
     total = len(results)
 
     for test_name, success in results:
-        status = "✅ PASS" if success else "❌ FAIL"
+        status = "[PASS] PASS" if success else "[FAIL] FAIL"
         print(f"{test_name:25} {status}")
         if success:
             passed += 1
 
-    print(f"\n🎯 OVERALL RESULT: {passed}/{total} tests passed")
+    print(f"\n[RESULT] OVERALL RESULT: {passed}/{total} tests passed")
 
     if passed == total:
-        print("🎉 SUCCESS: BLD_Remote_MCP functions identically to BlenderAutoMCP!")
+        print("[SUCCESS] SUCCESS: BLD_Remote_MCP functions identically to BlenderAutoMCP!")
         return True
     else:
         print("💥 ISSUES DETECTED: Functional differences found between services")

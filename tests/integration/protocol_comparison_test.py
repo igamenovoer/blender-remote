@@ -13,8 +13,8 @@ import json
 
 def test_protocol_format(port, service_name, message_format, test_name):
     """Test a specific protocol format on a service."""
-    print(f"\n🧪 Testing {service_name} with {test_name}")
-    print(f"📤 Sending: {json.dumps(message_format)}")
+    print(f"\n[TESTING] Testing {service_name} with {test_name}")
+    print(f"[SEND] Sending: {json.dumps(message_format)}")
 
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -29,7 +29,7 @@ def test_protocol_format(port, service_name, message_format, test_name):
 
         sock.close()
 
-        print(f"📥 Response: {response}")
+        print(f"[RECEIVE] Response: {response}")
 
         # Check if response indicates success
         is_success = (
@@ -38,18 +38,18 @@ def test_protocol_format(port, service_name, message_format, test_name):
             or "error" not in response.get("status", "").lower()
         )
 
-        status = "✅ SUCCESS" if is_success else "❌ ERROR"
-        print(f"🎯 Result: {status}")
+        status = "[PASS] SUCCESS" if is_success else "[FAIL] ERROR"
+        print(f"[RESULT] Result: {status}")
 
         return is_success, response
 
     except Exception as e:
-        print(f"❌ Exception: {e}")
+        print(f"[FAIL] Exception: {e}")
         return False, str(e)
 
 
 def main():
-    print("🔬 PROTOCOL COMPATIBILITY TEST")
+    print("[TESTING] PROTOCOL COMPATIBILITY TEST")
     print("=" * 60)
     print("Testing protocol format compatibility between services")
 
@@ -64,13 +64,13 @@ def main():
         "params": {"code": "test_result = 'BlenderAuto_format_test'"},
     }
 
-    print(f"\n📋 Protocol Formats Being Tested:")
+    print(f"\n[INFO] Protocol Formats Being Tested:")
     print(f"BLD_Remote format: {json.dumps(bld_remote_format)}")
     print(f"BlenderAuto format: {json.dumps(blender_auto_format)}")
 
     # Test BLD_Remote_MCP with both formats
     print(f"\n" + "=" * 60)
-    print("🎯 TESTING BLD_REMOTE_MCP (port 6688)")
+    print("[RESULT] TESTING BLD_REMOTE_MCP (port 6688)")
     print("=" * 60)
 
     bld_with_bld_format = test_protocol_format(
@@ -82,7 +82,7 @@ def main():
 
     # Test BlenderAutoMCP with both formats
     print(f"\n" + "=" * 60)
-    print("🎯 TESTING BLENDERAUTOMCP (port 9876)")
+    print("[RESULT] TESTING BLENDERAUTOMCP (port 9876)")
     print("=" * 60)
 
     auto_with_bld_format = test_protocol_format(
@@ -94,11 +94,11 @@ def main():
 
     # Summary
     print(f"\n" + "=" * 60)
-    print("📊 PROTOCOL COMPATIBILITY SUMMARY")
+    print("[STATS] PROTOCOL COMPATIBILITY SUMMARY")
     print("=" * 60)
 
     def format_result(success, desc):
-        return f"{'✅ WORKS' if success else '❌ FAILS':12} - {desc}"
+        return f"{'[PASS] WORKS' if success else '[FAIL] FAILS':12} - {desc}"
 
     print("BLD_Remote_MCP Protocol Support:")
     print(f"  {format_result(bld_with_bld_format[0], 'Native BLD_Remote format')}")
@@ -113,25 +113,25 @@ def main():
     print(f"  {format_result(auto_with_auto_format[0], 'Native BlenderAuto format')}")
 
     # Analysis
-    print(f"\n📋 ANALYSIS:")
+    print(f"\n[INFO] ANALYSIS:")
 
     bld_supports_both = bld_with_bld_format[0] and bld_with_auto_format[0]
     auto_supports_both = auto_with_bld_format[0] and auto_with_auto_format[0]
 
     if bld_supports_both and auto_supports_both:
-        print("🎉 FULL COMPATIBILITY: Both services support both protocol formats")
+        print("[SUCCESS] FULL COMPATIBILITY: Both services support both protocol formats")
     elif bld_with_bld_format[0] and auto_with_auto_format[0]:
-        print("⚠️ PARTIAL COMPATIBILITY: Each service works with its native format")
+        print("[WARNING] PARTIAL COMPATIBILITY: Each service works with its native format")
         print("   - This explains why BlenderMCPClient works (it translates protocols)")
         print("   - But raw TCP shows differences")
     else:
-        print("❌ COMPATIBILITY ISSUES: One or both services have protocol problems")
+        print("[FAIL] COMPATIBILITY ISSUES: One or both services have protocol problems")
 
     # Recommendations
-    print(f"\n💡 RECOMMENDATIONS:")
+    print(f"\n[TIP] RECOMMENDATIONS:")
     if not bld_with_auto_format[0]:
         print(
-            "   🔧 Add BlenderAuto protocol support to BLD_Remote_MCP for full compatibility"
+            "   [FIX] Add BlenderAuto protocol support to BLD_Remote_MCP for full compatibility"
         )
     if not auto_with_bld_format[0]:
         print("   ℹ️ BlenderAutoMCP doesn't support BLD_Remote format (expected)")

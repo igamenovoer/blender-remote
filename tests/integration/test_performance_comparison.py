@@ -68,7 +68,7 @@ class PerformanceTester:
         self, command_description, command_func, iterations=5, tolerance_factor=2.0
     ):
         """Compare performance between both services."""
-        print(f"⏱️ Performance test: {command_description}")
+        print(f"[TIME] Performance test: {command_description}")
 
         # Measure BLD_Remote_MCP
         bld_stats, bld_error = self.measure_execution_time(
@@ -101,7 +101,7 @@ class PerformanceTester:
                 f"  BlenderAutoMCP: {auto_stats['mean']:.4f}s (±{auto_stats['stdev']:.4f}s)"
             )
             print(
-                f"  Performance ratio: {ratio:.2f}x ({'✅ PASS' if ratio <= tolerance_factor else '❌ FAIL'})"
+                f"  Performance ratio: {ratio:.2f}x ({'[PASS] PASS' if ratio <= tolerance_factor else '[FAIL] FAIL'})"
             )
         else:
             result["performance_ratio"] = None
@@ -306,7 +306,7 @@ def test_performance_summary(dual_services):
         total_acceptable = 0
         for result in results:
             if result["performance_ratio"] is not None:
-                status = "✅ PASS" if result["performance_acceptable"] else "❌ FAIL"
+                status = "[PASS] PASS" if result["performance_acceptable"] else "[FAIL] FAIL"
                 print(
                     f"{result['command']:20} {result['performance_ratio']:6.2f}x {status}"
                 )

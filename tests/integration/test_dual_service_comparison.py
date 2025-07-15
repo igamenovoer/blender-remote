@@ -40,14 +40,14 @@ class DualServiceTester:
 
     def setup_environment(self):
         """Prepare clean test environment."""
-        print("🔧 Setting up dual-service test environment...")
+        print("[FIX] Setting up dual-service test environment...")
 
         # Kill any existing Blender processes
         try:
             subprocess.run(["pkill", "-f", "blender"], check=False, timeout=5)
             time.sleep(2)  # Allow processes to terminate
         except subprocess.TimeoutExpired:
-            print("⚠️ Warning: pkill timed out")
+            print("[WARNING] Warning: pkill timed out")
 
         # Verify ports are available
         if not self._is_port_available(self.bld_remote_port):
@@ -60,7 +60,7 @@ class DualServiceTester:
             )
 
         print(
-            f"✅ Ports available - BLD Remote: {self.bld_remote_port}, BlenderAuto: {self.blender_auto_port}"
+            f"[PASS] Ports available - BLD Remote: {self.bld_remote_port}, BlenderAuto: {self.blender_auto_port}"
         )
 
     def _is_port_available(self, port):
@@ -75,7 +75,7 @@ class DualServiceTester:
 
     def start_dual_services(self):
         """Start Blender with both MCP services in GUI mode."""
-        print("🚀 Starting Blender with dual MCP services...")
+        print("[ROCKET] Starting Blender with dual MCP services...")
 
         env = os.environ.copy()
         env["BLD_REMOTE_MCP_PORT"] = str(self.bld_remote_port)
@@ -101,7 +101,7 @@ class DualServiceTester:
 
     def _verify_service_startup(self):
         """Verify both services are running and responsive."""
-        print("🔍 Verifying service startup...")
+        print("[SEARCH] Verifying service startup...")
 
         # Test BLD_Remote_MCP
         bld_remote_ok = self._test_port_connection(
@@ -122,7 +122,7 @@ class DualServiceTester:
                 f"BlenderAutoMCP service not responding on port {self.blender_auto_port}"
             )
 
-        print("✅ Both services verified as running")
+        print("[PASS] Both services verified as running")
 
     def _test_port_connection(self, port, service_name):
         """Test basic TCP connection to a service port."""
@@ -133,16 +133,16 @@ class DualServiceTester:
             sock.close()
 
             if result == 0:
-                print(f"✅ {service_name} port {port}: TCP connection successful")
+                print(f"[PASS] {service_name} port {port}: TCP connection successful")
                 return True
             else:
                 print(
-                    f"❌ {service_name} port {port}: TCP connection failed (code: {result})"
+                    f"[FAIL] {service_name} port {port}: TCP connection failed (code: {result})"
                 )
                 return False
         except Exception as e:
             print(
-                f"❌ {service_name} port {port}: Exception during connection test: {e}"
+                f"[FAIL] {service_name} port {port}: Exception during connection test: {e}"
             )
             return False
 
@@ -152,19 +152,19 @@ class DualServiceTester:
 
         try:
             self.bld_remote_client = BlenderMCPClient(port=self.bld_remote_port)
-            print(f"✅ BLD_Remote_MCP client created (port {self.bld_remote_port})")
+            print(f"[PASS] BLD_Remote_MCP client created (port {self.bld_remote_port})")
         except Exception as e:
             raise RuntimeError(f"Failed to create BLD_Remote_MCP client: {e}")
 
         try:
             self.blender_auto_client = BlenderMCPClient(port=self.blender_auto_port)
-            print(f"✅ BlenderAutoMCP client created (port {self.blender_auto_port})")
+            print(f"[PASS] BlenderAutoMCP client created (port {self.blender_auto_port})")
         except Exception as e:
             raise RuntimeError(f"Failed to create BlenderAutoMCP client: {e}")
 
     def execute_command_on_both(self, command_description, command_func):
         """Execute identical command on both services and return results."""
-        print(f"🔄 Testing: {command_description}")
+        print(f"[PROCESSING] Testing: {command_description}")
 
         # Execute on BLD_Remote_MCP
         try:
@@ -173,7 +173,7 @@ class DualServiceTester:
         except Exception as e:
             bld_result = {"error": str(e)}
             bld_success = False
-            print(f"❌ BLD_Remote_MCP failed: {e}")
+            print(f"[FAIL] BLD_Remote_MCP failed: {e}")
 
         # Execute on BlenderAutoMCP
         try:
@@ -182,7 +182,7 @@ class DualServiceTester:
         except Exception as e:
             auto_result = {"error": str(e)}
             auto_success = False
-            print(f"❌ BlenderAutoMCP failed: {e}")
+            print(f"[FAIL] BlenderAutoMCP failed: {e}")
 
         return {
             "bld_remote": {"result": bld_result, "success": bld_success},
@@ -220,7 +220,7 @@ class DualServiceTester:
         except subprocess.TimeoutExpired:
             pass
 
-        print("✅ Cleanup completed")
+        print("[PASS] Cleanup completed")
 
 
 @pytest.fixture(scope="module")
@@ -393,5 +393,5 @@ result = {
 
 if __name__ == "__main__":
     # Allow running this test file directly for development
-    print("🧪 Running dual-service comparison tests...")
+    print("[TESTING] Running dual-service comparison tests...")
     pytest.main([__file__, "-v", "-s"])

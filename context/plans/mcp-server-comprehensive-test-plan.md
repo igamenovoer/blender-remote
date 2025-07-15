@@ -3,6 +3,7 @@
 **Date:** 2025-07-14  
 **Target:** Validate `uvx blender-remote` + `BLD_Remote_MCP` as drop-in replacement for `uvx blender-mcp` + `BlenderAutoMCP`  
 **Focus:** Functional equivalence testing of shared methods using `mcp[cli]` tools
+**Platform:** Cross-platform (Windows, Linux, macOS)
 
 ## Overview
 
@@ -111,24 +112,33 @@ if __name__ == "__main__":
 ```
 
 **Run comparison test:**
+```batch
+REM Windows
+pixi run python tests\test_functional_equivalence.py
+```
 ```bash
+# Linux/macOS
 pixi run python tests/test_functional_equivalence.py
 ```
 
 #### 1.2: MCP Inspector Interactive Testing
 **Goal**: Interactive validation of shared methods
 
-```bash
-# Test our stack interactively
-pixi run mcp dev src/blender_remote/mcp_server.py
-
-# Opens web interface at http://localhost:3000
-# Manually test each shared method:
-# 1. get_scene_info -> Should return scene and object information
-# 2. get_object_info -> Should return detailed object data
-# 3. execute_code -> Should execute Python code in Blender
-# 4. get_viewport_screenshot -> Should capture viewport (GUI mode)
+```batch
+REM Windows - Test our stack interactively
+pixi run mcp dev src\blender_remote\mcp_server.py
 ```
+```bash
+# Linux/macOS - Test our stack interactively
+pixi run mcp dev src/blender_remote/mcp_server.py
+```
+
+**Opens web interface at http://localhost:3000**
+**Manually test each shared method:**
+- `get_scene_info` -> Should return scene and object information
+- `get_object_info` -> Should return detailed object data
+- `execute_code` -> Should execute Python code in Blender
+- `get_viewport_screenshot` -> Should capture viewport (GUI mode)
 
 ### Method 2: Service Validation (SECONDARY)
 
@@ -541,12 +551,19 @@ async def main():
 
 if __name__ == "__main__":
     results = asyncio.run(main())
-    with open("context/logs/tests/synchronous-execution.log", "w") as f:
+    import os
+    log_file = os.path.join("context", "logs", "tests", "synchronous-execution.log")
+    with open(log_file, "w") as f:
         json.dump(results, f, indent=2)
 ```
 
 **Run synchronous execution tests:**
+```batch
+REM Windows
+pixi run python tests\test_synchronous_execution.py > context\logs\tests\synchronous-execution.log 2>&1
+```
 ```bash
+# Linux/macOS
 pixi run python tests/test_synchronous_execution.py > context/logs/tests/synchronous-execution.log 2>&1
 ```
 
@@ -1058,13 +1075,14 @@ async def main():
     results = await tester.run_all_tests()
     
     # Save results to log file
-    log_file = "context/logs/tests/base64-complex-code.log"
+    import os
+    log_file = os.path.join("context", "logs", "tests", "base64-complex-code.log")
     try:
         with open(log_file, "w") as f:
             json.dump(results, f, indent=2)
-        print(f"📝 Results saved to: {log_file}")
+        print(f"Results saved to: {log_file}")
     except Exception as e:
-        print(f"⚠️ Could not save results: {e}")
+        print(f"Could not save results: {e}")
     
     # Exit with appropriate code
     sys.exit(0 if results["summary"]["overall_status"] == "PASS" else 1)
@@ -1074,7 +1092,12 @@ if __name__ == "__main__":
 ```
 
 **Run base64 transmission tests:**
+```batch
+REM Windows
+pixi run python tests\test_base64_complex_code.py > context\logs\tests\base64-complex-code.log 2>&1
+```
 ```bash
+# Linux/macOS
 pixi run python tests/test_base64_complex_code.py > context/logs/tests/base64-complex-code.log 2>&1
 ```
 
@@ -1139,38 +1162,82 @@ result = await session.call_tool("execute_code", {
 ## Test Procedures
 
 ### Prerequisites
-- BLD_Remote_MCP service running on port 6688: `export BLD_REMOTE_MCP_START_NOW=1 && blender`
+- BLD_Remote_MCP service running on port 6688:
+  - **Windows**: `set BLD_REMOTE_MCP_START_NOW=1 && "C:\Program Files\Blender Foundation\Blender 4.4\blender.exe"`
+  - **Linux/macOS**: `export BLD_REMOTE_MCP_START_NOW=1 && blender`
 - `mcp[cli]` package installed: `pixi add mcp`
-- Test logs directory: `mkdir -p context/logs/tests`
+- Test logs directory:
+  - **Windows**: `mkdir context\logs\tests` (creates nested directories automatically)
+  - **Linux/macOS**: `mkdir -p context/logs/tests`
+
+### Windows-Specific Considerations
+- **Process Management**: Use `taskkill /F /IM blender.exe` to terminate Blender processes (instead of `pkill -f blender`)
+- **Path Handling**: All Python test scripts use `os.path.join()` for cross-platform compatibility
+- **Environment Variables**: Use `set VARIABLE=value` instead of `export VARIABLE=value`
+- **File Paths**: Use backslashes (`\`) in batch scripts, forward slashes (`/`) work in Python
+- **Output Redirection**: Both `2>&1` and `>` work the same way in Windows cmd
 
 ### Test Execution Steps
 
+**Note**: All Python test scripts are cross-platform and work identically on Windows, Linux, and macOS. Use `pixi run python` for consistent execution across platforms.
+
 #### Step 1: Service Validation
+```batch
+REM Windows
+echo 1. Validating BLD_Remote_MCP service availability...
+pixi run python tests\test_service_validation.py > context\logs\tests\service-validation.log 2>&1
+```
 ```bash
+# Linux/macOS
 echo "1. Validating BLD_Remote_MCP service availability..."
 pixi run python tests/test_service_validation.py > context/logs/tests/service-validation.log 2>&1
 ```
 
 #### Step 2: Functional Equivalence Testing  
+```batch
+REM Windows
+echo 2. Testing functional equivalence of shared methods...
+pixi run python tests\test_functional_equivalence.py > context\logs\tests\functional-equivalence.log 2>&1
+```
 ```bash
+# Linux/macOS
 echo "2. Testing functional equivalence of shared methods..."
 pixi run python tests/test_functional_equivalence.py > context/logs/tests/functional-equivalence.log 2>&1
 ```
 
 #### Step 3: Synchronous Execution Testing (CRITICAL)
+```batch
+REM Windows
+echo 3. Testing synchronous execution with custom results...
+pixi run python tests\test_synchronous_execution.py > context\logs\tests\synchronous-execution.log 2>&1
+```
 ```bash
+# Linux/macOS
 echo "3. Testing synchronous execution with custom results..."
 pixi run python tests/test_synchronous_execution.py > context/logs/tests/synchronous-execution.log 2>&1
 ```
 
 #### Step 4: Base64 Transmission Testing (CRITICAL)
+```batch
+REM Windows
+echo 4. Testing base64 encoding for complex code and large data...
+pixi run python tests\test_base64_complex_code.py > context\logs\tests\base64-complex-code.log 2>&1
+```
 ```bash
+# Linux/macOS
 echo "4. Testing base64 encoding for complex code and large data..."
 pixi run python tests/test_base64_complex_code.py > context/logs/tests/base64-complex-code.log 2>&1
 ```
 
 #### Step 5: Interactive Method Validation
+```batch
+REM Windows
+echo 5. Interactive testing of shared methods...
+REM Manual step: Run MCP Inspector and test each shared method
+pixi run mcp dev src\blender_remote\mcp_server.py
+```
 ```bash
+# Linux/macOS
 echo "5. Interactive testing of shared methods..."
 # Manual step: Run MCP Inspector and test each shared method
 pixi run mcp dev src/blender_remote/mcp_server.py
@@ -1178,11 +1245,78 @@ pixi run mcp dev src/blender_remote/mcp_server.py
 
 ### Test Runner Script
 
+#### Windows Batch Script
+```batch
+@echo off
+REM tests\run_drop_in_replacement_tests.bat
+
+echo Drop-in Replacement Testing
+echo ==============================
+echo.
+
+set LOG_DIR=context\logs\tests
+if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
+
+REM Step 1: Service Validation
+echo 1. Validating BLD_Remote_MCP service...
+pixi run python tests\test_service_validation.py | findstr "available" >nul
+if %ERRORLEVEL% EQU 0 (
+    echo [PASS] BLD_Remote_MCP service available
+) else (
+    echo [FAIL] BLD_Remote_MCP service unavailable
+    echo    Start Blender with: set BLD_REMOTE_MCP_START_NOW=1 ^&^& "C:\Program Files\Blender Foundation\Blender 4.4\blender.exe"
+    exit /b 1
+)
+
+REM Step 2: Functional Equivalence Testing
+echo 2. Testing functional equivalence...
+pixi run python tests\test_functional_equivalence.py | findstr "success" >nul
+if %ERRORLEVEL% EQU 0 (
+    echo [PASS] Functional equivalence tests passed
+) else (
+    echo [FAIL] Functional equivalence tests failed
+    exit /b 1
+)
+
+REM Step 3: Synchronous Execution Testing (CRITICAL)
+echo 3. Testing synchronous execution with custom results...
+pixi run python tests\test_synchronous_execution.py | findstr "success" >nul
+if %ERRORLEVEL% EQU 0 (
+    echo [PASS] Synchronous execution tests passed
+) else (
+    echo [FAIL] Synchronous execution tests failed
+    exit /b 1
+)
+
+REM Step 4: Base64 Transmission Testing (CRITICAL)
+echo 4. Testing base64 encoding for complex code and large data...
+pixi run python tests\test_base64_complex_code.py | findstr "PASS" >nul
+if %ERRORLEVEL% EQU 0 (
+    echo [PASS] Base64 transmission tests passed
+) else (
+    echo [FAIL] Base64 transmission tests failed
+    exit /b 1
+)
+
+REM Step 5: Shared Methods Validation
+echo 5. Validating shared methods...
+echo    Testing shared methods: get_scene_info, get_object_info, execute_code, get_viewport_screenshot
+
+REM Log results
+echo %date% %time%: Drop-in replacement tests completed >> "%LOG_DIR%\test-summary.log"
+
+echo.
+echo Drop-in replacement validation completed!
+echo Our stack (uvx blender-remote + BLD_Remote_MCP) is functionally equivalent to reference stack
+echo Test logs saved in: %LOG_DIR%\
+```
+
+#### Linux/macOS Shell Script
 ```bash
 #!/bin/bash
 # tests/run_drop_in_replacement_tests.sh
 
-echo "🚀 Drop-in Replacement Testing"
+echo "Drop-in Replacement Testing"
 echo "=============================="
 echo ""
 
@@ -1190,53 +1324,53 @@ LOG_DIR="context/logs/tests"
 mkdir -p "$LOG_DIR"
 
 # Step 1: Service Validation
-echo "1️⃣ Validating BLD_Remote_MCP service..."
+echo "1. Validating BLD_Remote_MCP service..."
 if pixi run python tests/test_service_validation.py | grep -q "available"; then
-    echo "✅ BLD_Remote_MCP service available"
+    echo "[PASS] BLD_Remote_MCP service available"
 else
-    echo "❌ BLD_Remote_MCP service unavailable"
+    echo "[FAIL] BLD_Remote_MCP service unavailable"
     echo "   Start Blender with: export BLD_REMOTE_MCP_START_NOW=1 && blender"
     exit 1
 fi
 
 # Step 2: Functional Equivalence Testing
-echo "2️⃣ Testing functional equivalence..."
+echo "2. Testing functional equivalence..."
 if pixi run python tests/test_functional_equivalence.py | grep -q "success"; then
-    echo "✅ Functional equivalence tests passed"
+    echo "[PASS] Functional equivalence tests passed"
 else
-    echo "❌ Functional equivalence tests failed"
+    echo "[FAIL] Functional equivalence tests failed"
     exit 1
 fi
 
 # Step 3: Synchronous Execution Testing (CRITICAL)
-echo "3️⃣ Testing synchronous execution with custom results..."
+echo "3. Testing synchronous execution with custom results..."
 if pixi run python tests/test_synchronous_execution.py | grep -q "success"; then
-    echo "✅ Synchronous execution tests passed"
+    echo "[PASS] Synchronous execution tests passed"
 else
-    echo "❌ Synchronous execution tests failed"
+    echo "[FAIL] Synchronous execution tests failed"
     exit 1
 fi
 
 # Step 4: Base64 Transmission Testing (CRITICAL)
-echo "4️⃣ Testing base64 encoding for complex code and large data..."
+echo "4. Testing base64 encoding for complex code and large data..."
 if pixi run python tests/test_base64_complex_code.py | grep -q "PASS"; then
-    echo "✅ Base64 transmission tests passed"
+    echo "[PASS] Base64 transmission tests passed"
 else
-    echo "❌ Base64 transmission tests failed"
+    echo "[FAIL] Base64 transmission tests failed"
     exit 1
 fi
 
 # Step 5: Shared Methods Validation
-echo "5️⃣ Validating shared methods..."
+echo "5. Validating shared methods..."
 echo "   Testing shared methods: get_scene_info, get_object_info, execute_code, get_viewport_screenshot"
 
 # Log results
 echo "$(date): Drop-in replacement tests completed" >> "$LOG_DIR/test-summary.log"
 
 echo ""
-echo "🎉 Drop-in replacement validation completed!"
-echo "📊 Our stack (uvx blender-remote + BLD_Remote_MCP) is functionally equivalent to reference stack"
-echo "📝 Test logs saved in: $LOG_DIR/"
+echo "Drop-in replacement validation completed!"
+echo "Our stack (uvx blender-remote + BLD_Remote_MCP) is functionally equivalent to reference stack"
+echo "Test logs saved in: $LOG_DIR/"
 ```
 
 ## Functional Equivalence Criteria
@@ -1282,10 +1416,62 @@ echo "📝 Test logs saved in: $LOG_DIR/"
 5. **Base64 Transmission**: Complex code and large data transmission via base64 encoding
 6. **Enhanced Functionality**: Additional features work correctly
 
+## Windows Testing Quick Start
+
+For rapid testing on Windows platform:
+
+1. **Setup Environment:**
+   ```batch
+   REM Create test directories
+   mkdir context\logs\tests
+   
+   REM Install MCP CLI tools
+   pixi add mcp
+   
+   REM Start Blender with BLD_Remote_MCP
+   set BLD_REMOTE_MCP_START_NOW=1
+   "C:\Program Files\Blender Foundation\Blender 4.4\blender.exe"
+   ```
+
+2. **Run Full Test Suite:**
+   ```batch
+   REM Execute Windows batch script
+   tests\run_drop_in_replacement_tests.bat
+   ```
+
+3. **Individual Test Commands:**
+   ```batch
+   REM Service validation
+   pixi run python tests\test_service_validation.py
+   
+   REM Functional equivalence
+   pixi run python tests\test_functional_equivalence.py
+   
+   REM Synchronous execution (Critical)
+   pixi run python tests\test_synchronous_execution.py
+   
+   REM Base64 transmission (Critical)
+   pixi run python tests\test_base64_complex_code.py
+   
+   REM Interactive testing
+   pixi run mcp dev src\blender_remote\mcp_server.py
+   ```
+
+4. **Check Results:**
+   ```batch
+   REM View test logs
+   type context\logs\tests\test-summary.log
+   
+   REM Check individual test results
+   type context\logs\tests\synchronous-execution.log
+   type context\logs\tests\base64-complex-code.log
+   ```
+
 ## Conclusion
 
 This test plan validates our stack as a **drop-in replacement** by focusing on:
 
+- **Cross-Platform Support**: Testing on Windows, Linux, and macOS with platform-specific considerations
 - **Shared Method Testing**: Ensuring functional equivalence of core methods
 - **Synchronous Execution**: Testing custom Blender code execution with structured result return
 - **Base64 Transmission**: Validating complex code and large data handling via base64 encoding
@@ -1301,3 +1487,4 @@ The goal is to demonstrate that `uvx blender-remote` + `BLD_Remote_MCP` can repl
 - **Critical**: Base64 encoding must handle complex code and large data (100KB+) reliably without formatting issues
 - Synchronous execution allows real-time Blender automation with immediate feedback
 - Backward compatibility ensures non-base64 operations continue to work
+- **Cross-Platform**: All tests work identically on Windows, Linux, and macOS

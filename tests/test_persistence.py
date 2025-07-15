@@ -48,17 +48,17 @@ def test_persistence_basic():
     host = "127.0.0.1"
     port = 6688
     
-    print("🧪 Testing basic persistence operations...")
+    print("[TESTING] Testing basic persistence operations...")
     
     # Test 1: Put data
-    print("  📝 Test 1: Storing data...")
+    print("  [LOG] Test 1: Storing data...")
     response = send_mcp_command(host, port, "put_persist_data", {
         "key": "test_key",
         "data": "Hello, persistence!"
     })
     print(f"    Response: {response}")
     assert response.get("status") == "success", f"Put failed: {response}"
-    print("    ✅ Data stored successfully")
+    print("    [PASS] Data stored successfully")
     
     # Test 2: Get data
     print("  📖 Test 2: Retrieving data...")
@@ -70,10 +70,10 @@ def test_persistence_basic():
     result = response.get("result", {})
     assert result.get("found") == True, f"Data not found: {result}"
     assert result.get("data") == "Hello, persistence!", f"Data mismatch: {result}"
-    print("    ✅ Data retrieved successfully")
+    print("    [PASS] Data retrieved successfully")
     
     # Test 3: Get non-existent data
-    print("  🔍 Test 3: Getting non-existent data...")
+    print("  [SEARCH] Test 3: Getting non-existent data...")
     response = send_mcp_command(host, port, "get_persist_data", {
         "key": "non_existent_key",
         "default": "default_value"
@@ -83,7 +83,7 @@ def test_persistence_basic():
     result = response.get("result", {})
     assert result.get("found") == False, f"Should not find non-existent key: {result}"
     assert result.get("data") == "default_value", f"Default value not returned: {result}"
-    print("    ✅ Non-existent data handled correctly")
+    print("    [PASS] Non-existent data handled correctly")
     
     # Test 4: Remove data
     print("  🗑️  Test 4: Removing data...")
@@ -94,10 +94,10 @@ def test_persistence_basic():
     assert response.get("status") == "success", f"Remove failed: {response}"
     result = response.get("result", {})
     assert result.get("removed") == True, f"Data not removed: {result}"
-    print("    ✅ Data removed successfully")
+    print("    [PASS] Data removed successfully")
     
     # Test 5: Verify data is gone
-    print("  🔍 Test 5: Verifying data is gone...")
+    print("  [SEARCH] Test 5: Verifying data is gone...")
     response = send_mcp_command(host, port, "get_persist_data", {
         "key": "test_key"
     })
@@ -105,9 +105,9 @@ def test_persistence_basic():
     assert response.get("status") == "success", f"Get failed: {response}"
     result = response.get("result", {})
     assert result.get("found") == False, f"Data should be gone: {result}"
-    print("    ✅ Data successfully removed")
+    print("    [PASS] Data successfully removed")
     
-    print("✅ All basic persistence tests passed!")
+    print("[PASS] All basic persistence tests passed!")
 
 
 def test_persistence_complex_data():
@@ -115,7 +115,7 @@ def test_persistence_complex_data():
     host = "127.0.0.1"
     port = 6688
     
-    print("🧪 Testing complex data persistence...")
+    print("[TESTING] Testing complex data persistence...")
     
     # Test complex data structure
     complex_data = {
@@ -128,14 +128,14 @@ def test_persistence_complex_data():
         "string": "Complex data test"
     }
     
-    print("  📝 Storing complex data...")
+    print("  [LOG] Storing complex data...")
     response = send_mcp_command(host, port, "put_persist_data", {
         "key": "complex_key",
         "data": complex_data
     })
     print(f"    Response: {response}")
     assert response.get("status") == "success", f"Put failed: {response}"
-    print("    ✅ Complex data stored successfully")
+    print("    [PASS] Complex data stored successfully")
     
     print("  📖 Retrieving complex data...")
     response = send_mcp_command(host, port, "get_persist_data", {
@@ -147,12 +147,12 @@ def test_persistence_complex_data():
     assert result.get("found") == True, f"Data not found: {result}"
     retrieved_data = result.get("data")
     assert retrieved_data == complex_data, f"Data mismatch: {retrieved_data} != {complex_data}"
-    print("    ✅ Complex data retrieved successfully")
+    print("    [PASS] Complex data retrieved successfully")
     
     # Cleanup
     send_mcp_command(host, port, "remove_persist_data", {"key": "complex_key"})
     
-    print("✅ Complex data persistence tests passed!")
+    print("[PASS] Complex data persistence tests passed!")
 
 
 def test_persistence_via_blender_api():
@@ -160,7 +160,7 @@ def test_persistence_via_blender_api():
     host = "127.0.0.1"
     port = 6688
     
-    print("🧪 Testing persistence via Blender API...")
+    print("[TESTING] Testing persistence via Blender API...")
     
     # Test storing data using bld_remote.persist API
     code = """
@@ -177,11 +177,11 @@ print(f"Retrieved via API: {retrieved}")
 bld_remote.persist.put_data("api_test_result", retrieved)
 """
     
-    print("  🐍 Executing Blender Python code...")
+    print("  [PYTHON] Executing Blender Python code...")
     response = send_mcp_command(host, port, "execute_code", {"code": code})
     print(f"    Response: {response}")
     assert response.get("status") == "success", f"Code execution failed: {response}"
-    print("    ✅ Blender API code executed successfully")
+    print("    [PASS] Blender API code executed successfully")
     
     # Verify the result externally
     print("  📖 Verifying result externally...")
@@ -195,28 +195,28 @@ bld_remote.persist.put_data("api_test_result", retrieved)
     data = result.get("data")
     expected = {"message": "From Blender API", "number": 123}
     assert data == expected, f"Data mismatch: {data} != {expected}"
-    print("    ✅ Blender API persistence works correctly")
+    print("    [PASS] Blender API persistence works correctly")
     
     # Cleanup
     send_mcp_command(host, port, "remove_persist_data", {"key": "api_test_key"})
     send_mcp_command(host, port, "remove_persist_data", {"key": "api_test_result"})
     
-    print("✅ Blender API persistence tests passed!")
+    print("[PASS] Blender API persistence tests passed!")
 
 
 def main():
     """Run all persistence tests."""
-    print("🚀 Starting BLD Remote MCP Persistence Tests")
+    print("[ROCKET] Starting BLD Remote MCP Persistence Tests")
     print("=" * 50)
     
     try:
         # Test connection first
-        print("🔗 Testing connection...")
+        print("[LINK] Testing connection...")
         response = send_mcp_command("127.0.0.1", 6688, "get_scene_info")
         if response.get("status") != "success":
-            print(f"❌ Connection failed: {response}")
+            print(f"[FAIL] Connection failed: {response}")
             return 1
-        print("✅ Connection established")
+        print("[PASS] Connection established")
         print()
         
         # Run tests
@@ -227,11 +227,11 @@ def main():
         test_persistence_via_blender_api()
         print()
         
-        print("🎉 All persistence tests passed!")
+        print("[SUCCESS] All persistence tests passed!")
         return 0
         
     except Exception as e:
-        print(f"❌ Test failed with error: {e}")
+        print(f"[FAIL] Test failed with error: {e}")
         import traceback
         traceback.print_exc()
         return 1

@@ -63,9 +63,9 @@ def test_simple_blocking():
     
     # Check if the quick command was blocked
     if result and result.get('status') == 'blocked':
-        print("✅ Blocking is working correctly!")
+        print("[PASS] Blocking is working correctly!")
     else:
-        print("❌ Blocking is NOT working - quick command was not blocked")
+        print("[FAIL] Blocking is NOT working - quick command was not blocked")
 
 if __name__ == "__main__":
     test_simple_blocking()

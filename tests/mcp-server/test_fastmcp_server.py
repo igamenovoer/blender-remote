@@ -14,7 +14,7 @@ async def test_blender_connection():
     try:
         from blender_remote.mcp_server import blender_conn
 
-        print("🔍 Testing connection to BLD_Remote_MCP service...")
+        print("[SEARCH] Testing connection to BLD_Remote_MCP service...")
 
         # Test connection
         response = await blender_conn.send_command(
@@ -22,19 +22,19 @@ async def test_blender_connection():
         )
 
         if response.get("status") == "success":
-            print("✅ Successfully connected to BLD_Remote_MCP service")
+            print("[PASS] Successfully connected to BLD_Remote_MCP service")
             scene_info = response.get("result", {})
             print(f"   Scene: {scene_info.get('name', 'Unknown')}")
             print(f"   Objects: {scene_info.get('object_count', 0)}")
             return True
         else:
             print(
-                f"❌ Connection test failed: {response.get('message', 'Unknown error')}"
+                f"[FAIL] Connection test failed: {response.get('message', 'Unknown error')}"
             )
             return False
 
     except Exception as e:
-        print(f"❌ Connection test error: {e}")
+        print(f"[FAIL] Connection test error: {e}")
         return False
 
 
@@ -44,10 +44,10 @@ def test_fastmcp_imports():
         from fastmcp import FastMCP, Context
         from fastmcp.utilities.types import Image
 
-        print("✅ FastMCP imports successful")
+        print("[PASS] FastMCP imports successful")
         return True
     except Exception as e:
-        print(f"❌ FastMCP import error: {e}")
+        print(f"[FAIL] FastMCP import error: {e}")
         return False
 
 
@@ -56,17 +56,17 @@ def test_server_creation():
     try:
         from blender_remote.mcp_server import mcp
 
-        print("✅ FastMCP server instance created successfully")
+        print("[PASS] FastMCP server instance created successfully")
         print(f"   Server name: {mcp.name}")
         return True
     except Exception as e:
-        print(f"❌ Server creation error: {e}")
+        print(f"[FAIL] Server creation error: {e}")
         return False
 
 
 async def main():
     """Run all tests."""
-    print("🧪 Testing FastMCP Blender Remote Server")
+    print("[TESTING] Testing FastMCP Blender Remote Server")
     print("=" * 50)
 
     tests = [
@@ -79,7 +79,7 @@ async def main():
     total = len(tests)
 
     for test_name, test_func in tests:
-        print(f"\n📋 {test_name}:")
+        print(f"\n[INFO] {test_name}:")
         try:
             if asyncio.iscoroutinefunction(test_func):
                 result = await test_func()
@@ -91,17 +91,17 @@ async def main():
         except Exception as e:
             print(f"   Test error: {e}")
 
-    print(f"\n📊 Results: {passed}/{total} tests passed")
+    print(f"\n[STATS] Results: {passed}/{total} tests passed")
 
     if passed == total:
-        print("🎉 All tests passed! FastMCP server is ready for VSCode integration.")
-        print("\n🚀 To use in VSCode:")
+        print("[SUCCESS] All tests passed! FastMCP server is ready for VSCode integration.")
+        print("\n[ROCKET] To use in VSCode:")
         print("   1. Make sure Blender is running with BLD_Remote_MCP addon")
         print("   2. Use the configuration in .vscode/settings.json")
         print("   3. Your MCP server will be available as 'blender-remote-dev'")
         return 0
     else:
-        print("⚠️  Some tests failed. Check the implementation.")
+        print("[WARNING]  Some tests failed. Check the implementation.")
         return 1
 
 

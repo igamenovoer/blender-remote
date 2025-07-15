@@ -57,11 +57,11 @@ def wait_for_service(port, timeout=15, service_name="service"):
 
     while time.time() - start_time < timeout:
         if not is_port_available(port):  # Port in use = service running
-            log(f"✅ {service_name} is running on port {port}")
+            log(f"[PASS] {service_name} is running on port {port}")
             return True
         time.sleep(0.5)
 
-    log(f"❌ {service_name} failed to start on port {port}")
+    log(f"[FAIL] {service_name} failed to start on port {port}")
     return False
 
 
@@ -77,7 +77,7 @@ def test_service_basic(port, service_name):
         sock.close()
 
         if result != 0:
-            log(f"❌ {service_name}: TCP connection failed", "ERROR")
+            log(f"[FAIL] {service_name}: TCP connection failed", "ERROR")
             return False
 
         # Test JSON communication
@@ -97,26 +97,26 @@ def test_service_basic(port, service_name):
             # Receive response
             response_data = sock.recv(4096)
             if not response_data:
-                log(f"❌ {service_name}: No response received", "ERROR")
+                log(f"[FAIL] {service_name}: No response received", "ERROR")
                 return False
 
             response = json.loads(response_data.decode("utf-8"))
 
             if not isinstance(response, dict):
-                log(f"❌ {service_name}: Invalid response format", "ERROR")
+                log(f"[FAIL] {service_name}: Invalid response format", "ERROR")
                 return False
 
-            log(f"✅ {service_name}: Basic communication successful")
+            log(f"[PASS] {service_name}: Basic communication successful")
             return True
 
         except Exception as e:
-            log(f"❌ {service_name}: Communication error: {e}", "ERROR")
+            log(f"[FAIL] {service_name}: Communication error: {e}", "ERROR")
             return False
         finally:
             sock.close()
 
     except Exception as e:
-        log(f"❌ {service_name}: Test error: {e}", "ERROR")
+        log(f"[FAIL] {service_name}: Test error: {e}", "ERROR")
         return False
 
 
@@ -141,25 +141,25 @@ def test_blender_api_access(port, service_name):
         sock.close()
 
         if isinstance(response, dict):
-            log(f"✅ {service_name}: Blender API access successful")
+            log(f"[PASS] {service_name}: Blender API access successful")
             return True
         else:
-            log(f"❌ {service_name}: Blender API access failed", "ERROR")
+            log(f"[FAIL] {service_name}: Blender API access failed", "ERROR")
             return False
 
     except Exception as e:
-        log(f"❌ {service_name}: Blender API test error: {e}", "ERROR")
+        log(f"[FAIL] {service_name}: Blender API test error: {e}", "ERROR")
         return False
 
 
 def run_smoke_test():
     """Run comprehensive smoke test."""
-    log("🚀 Starting BLD_Remote_MCP vs BlenderAutoMCP Smoke Test")
+    log("[ROCKET] Starting BLD_Remote_MCP vs BlenderAutoMCP Smoke Test")
     log("=" * 60)
 
     # Prerequisites check
     if not os.path.exists(BLENDER_PATH):
-        log(f"❌ Blender not found at {BLENDER_PATH}", "ERROR")
+        log(f"[FAIL] Blender not found at {BLENDER_PATH}", "ERROR")
         return False
 
     # Cleanup
@@ -169,7 +169,7 @@ def run_smoke_test():
     if not is_port_available(BLD_REMOTE_PORT) or not is_port_available(
         BLENDER_AUTO_PORT
     ):
-        log("❌ Required ports are not available", "ERROR")
+        log("[FAIL] Required ports are not available", "ERROR")
         return False
 
     # Start Blender with dual services
@@ -196,7 +196,7 @@ def run_smoke_test():
         )
 
         if not bld_remote_ok or not blender_auto_ok:
-            log("❌ Service startup failed", "ERROR")
+            log("[FAIL] Service startup failed", "ERROR")
             return False
 
         log("Both services started successfully")
@@ -217,11 +217,11 @@ def run_smoke_test():
 
         # Analyze results
         log("=" * 60)
-        log("📊 SMOKE TEST RESULTS")
+        log("[STATS] SMOKE TEST RESULTS")
         log("=" * 60)
 
         for test_name, success in results.items():
-            status = "✅ PASS" if success else "❌ FAIL"
+            status = "[PASS] PASS" if success else "[FAIL] FAIL"
             log(f"{test_name:25} {status}")
 
         # Summary
@@ -234,16 +234,16 @@ def run_smoke_test():
         )
 
         if passed_tests == total_tests:
-            log("🎉 SMOKE TEST PASSED - Both services are functional!")
+            log("[SUCCESS] SMOKE TEST PASSED - Both services are functional!")
             return True
         else:
             log("💥 SMOKE TEST FAILED - Issues detected")
 
             # Specific failure analysis
             if not results["bld_remote_basic"] or not results["bld_remote_api"]:
-                log("❌ BLD_Remote_MCP has issues")
+                log("[FAIL] BLD_Remote_MCP has issues")
             if not results["blender_auto_basic"] or not results["blender_auto_api"]:
-                log("❌ BlenderAutoMCP has issues")
+                log("[FAIL] BlenderAutoMCP has issues")
 
             return False
 
@@ -264,10 +264,10 @@ def main():
     success = run_smoke_test()
 
     if success:
-        log("✅ Smoke test completed successfully")
+        log("[PASS] Smoke test completed successfully")
         sys.exit(0)
     else:
-        log("❌ Smoke test failed")
+        log("[FAIL] Smoke test failed")
         sys.exit(1)
 
 

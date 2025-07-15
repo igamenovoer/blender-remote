@@ -119,8 +119,8 @@ def main():
     success2 = test_blender_mcp_tools()
     
     print(f"\n=== RESULTS ===")
-    print(f"Direct BlenderAutoMCP connection: {'✅ Success' if success1 else '❌ Failed'}")
-    print(f"blender-mcp tools test: {'✅ Success' if success2 else '❌ Failed'}")
+    print(f"Direct BlenderAutoMCP connection: {'[PASS] Success' if success1 else '[FAIL] Failed'}")
+    print(f"blender-mcp tools test: {'[PASS] Success' if success2 else '[FAIL] Failed'}")
 
 if __name__ == "__main__":
     main()

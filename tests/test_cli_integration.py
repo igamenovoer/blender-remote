@@ -54,30 +54,30 @@ def test_config_commands():
                 assert result.exit_code == 0
                 assert "mcp_service:" in result.output
                 assert "log_level: INFO" in result.output
-                print("✅ Config get all works")
+                print("[PASS] Config get all works")
                 
                 # Test get specific value
                 result = runner.invoke(cli, ['config', 'get', 'mcp_service.log_level'])
                 print(f"Get log_level result: {result.output}")
                 assert result.exit_code == 0
                 assert "INFO" in result.output
-                print("✅ Config get specific value works")
+                print("[PASS] Config get specific value works")
                 
                 # Test set value
                 result = runner.invoke(cli, ['config', 'set', 'mcp_service.log_level=DEBUG'])
                 print(f"Set log_level result: {result.output}")
                 assert result.exit_code == 0
-                print("✅ Config set works")
+                print("[PASS] Config set works")
                 
                 # Verify the set worked
                 result = runner.invoke(cli, ['config', 'get', 'mcp_service.log_level'])
                 print(f"Get updated log_level result: {result.output}")
                 assert result.exit_code == 0
                 assert "DEBUG" in result.output
-                print("✅ Config set verification works")
+                print("[PASS] Config set verification works")
                 
             except ImportError:
-                print("⚠️  Click testing not available, skipping CLI runner tests")
+                print("[WARNING]  Click testing not available, skipping CLI runner tests")
 
 
 def test_start_command_syntax():
@@ -137,7 +137,7 @@ def test_start_command_syntax():
                     assert f"Opening scene: {fake_scene}" in result.output
                     assert "Log level override: DEBUG" in result.output
                     assert "Background mode: Blender will run headless" in result.output
-                    print("✅ Start command with all options works")
+                    print("[PASS] Start command with all options works")
                     
                     # Verify the subprocess call had correct arguments
                     mock_run.assert_called_once()
@@ -148,10 +148,10 @@ def test_start_command_syntax():
                     assert str(fake_scene) in call_args
                     assert "--background" in call_args
                     assert "--python" in call_args
-                    print("✅ Blender command arguments are correct")
+                    print("[PASS] Blender command arguments are correct")
                     
             except ImportError:
-                print("⚠️  Click testing not available, skipping CLI runner tests")
+                print("[WARNING]  Click testing not available, skipping CLI runner tests")
 
 
 def main():
@@ -163,11 +163,11 @@ def main():
         test_start_command_syntax()
         
         print("\n" + "="*50)
-        print("✅ All CLI integration tests PASSED!")
+        print("[PASS] All CLI integration tests PASSED!")
         return 0
         
     except Exception as e:
-        print(f"\n❌ CLI integration tests FAILED: {e}")
+        print(f"\n[FAIL] CLI integration tests FAILED: {e}")
         import traceback
         traceback.print_exc()
         return 1

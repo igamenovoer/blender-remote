@@ -16,7 +16,7 @@ class StackComparison:
     
     async def test_our_stack(self):
         """Test our stack: uvx blender-remote + BLD_Remote_MCP"""
-        print("🔄 Testing Our Stack (blender-remote + BLD_Remote_MCP)")
+        print("[PROCESSING] Testing Our Stack (blender-remote + BLD_Remote_MCP)")
         
         server_params = StdioServerParameters(
             command="pixi",
@@ -29,13 +29,13 @@ class StackComparison:
             async with stdio_client(server_params) as (read, write):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
-                    print("✅ MCP session initialized")
+                    print("[PASS] MCP session initialized")
                     
                     # Test shared methods
-                    print("📋 Testing shared methods...")
+                    print("[INFO] Testing shared methods...")
                     
                     # 1. get_scene_info
-                    print("  🔍 Testing get_scene_info...")
+                    print("  [SEARCH] Testing get_scene_info...")
                     scene_result = await session.call_tool("get_scene_info", {})
                     if scene_result.content:
                         content = scene_result.content[0].text if scene_result.content[0].type == 'text' else str(scene_result.content[0])
@@ -47,10 +47,10 @@ class StackComparison:
                             "has_camera": any(obj.get("type") == "CAMERA" for obj in scene_data.get("objects", [])),
                             "has_light": any(obj.get("type") == "LIGHT" for obj in scene_data.get("objects", []))
                         }
-                        print(f"    ✅ Found {results['get_scene_info']['object_count']} objects")
+                        print(f"    [PASS] Found {results['get_scene_info']['object_count']} objects")
                     
                     # 2. get_object_info (test with default Cube)
-                    print("  🎲 Testing get_object_info with 'Cube'...")
+                    print("  [DICE] Testing get_object_info with 'Cube'...")
                     try:
                         cube_result = await session.call_tool("get_object_info", {"object_name": "Cube"})
                         if cube_result.content:
@@ -63,13 +63,13 @@ class StackComparison:
                                 "has_dimensions": "dimensions" in cube_data,
                                 "location": cube_data.get("location", [0, 0, 0])
                             }
-                            print(f"    ✅ Cube found at {results['get_object_info']['location']}")
+                            print(f"    [PASS] Cube found at {results['get_object_info']['location']}")
                     except Exception as e:
                         results["get_object_info"] = {"status": "error", "error": str(e)}
-                        print(f"    ⚠️ Cube not found or error: {e}")
+                        print(f"    [WARNING] Cube not found or error: {e}")
                     
                     # 3. execute_code (basic test)
-                    print("  🐍 Testing execute_code...")
+                    print("  [PYTHON] Testing execute_code...")
                     code = "import bpy; result = {'scene_name': bpy.context.scene.name, 'object_count': len(bpy.context.scene.objects)}; print(f'Test result: {result}')"
                     code_result = await session.call_tool("execute_code", {"code": code})
                     if code_result.content:
@@ -80,10 +80,10 @@ class StackComparison:
                             "has_output": "Test result:" in content,
                             "execution_successful": "executed successfully" in content.lower() or "test result:" in content.lower()
                         }
-                        print(f"    ✅ Code executed successfully")
+                        print(f"    [PASS] Code executed successfully")
                     
                     # 4. check_connection_status (our enhanced method)
-                    print("  🔗 Testing check_connection_status...")
+                    print("  [LINK] Testing check_connection_status...")
                     try:
                         status_result = await session.call_tool("check_connection_status", {})
                         if status_result.content:
@@ -95,30 +95,30 @@ class StackComparison:
                                 "blender_version": status_data.get("blender_version", "Unknown"),
                                 "connection_status": status_data.get("status", "Unknown")
                             }
-                            print(f"    ✅ Connection status: {results['check_connection_status']['connection_status']}")
+                            print(f"    [PASS] Connection status: {results['check_connection_status']['connection_status']}")
                     except Exception as e:
                         results["check_connection_status"] = {"status": "error", "error": str(e)}
-                        print(f"    ⚠️ Connection status check failed: {e}")
+                        print(f"    [WARNING] Connection status check failed: {e}")
                     
                     # 5. List available tools for completeness
-                    print("  📝 Listing available tools...")
+                    print("  [LOG] Listing available tools...")
                     tools = await session.list_tools()
                     results["available_tools"] = {
                         "count": len(tools.tools),
                         "shared_methods": ["get_scene_info", "get_object_info", "execute_code"],
                         "enhanced_methods": ["check_connection_status", "put_persist_data", "get_persist_data", "remove_persist_data"]
                     }
-                    print(f"    ✅ Found {results['available_tools']['count']} total tools")
+                    print(f"    [PASS] Found {results['available_tools']['count']} total tools")
         
         except Exception as e:
-            print(f"❌ Error testing our stack: {e}")
+            print(f"[FAIL] Error testing our stack: {e}")
             results["error"] = str(e)
         
         return results
     
     async def test_reference_behavior(self):
         """Document expected reference behavior (BlenderAutoMCP)"""
-        print("📚 Documenting Reference Stack Expected Behavior")
+        print("[DOCS] Documenting Reference Stack Expected Behavior")
         
         # Based on BlenderAutoMCP analysis - what we expect from the reference
         reference_expected = {
@@ -144,13 +144,13 @@ class StackComparison:
             }
         }
         
-        print("📋 Reference behavior expectations documented")
+        print("[INFO] Reference behavior expectations documented")
         return reference_expected
     
     async def compare_stacks(self):
         """Compare functional equivalence between stacks"""
         print("\n" + "=" * 60)
-        print("🔄 Testing Functional Equivalence...")
+        print("[PROCESSING] Testing Functional Equivalence...")
         print("=" * 60)
         
         # Test our stack
@@ -160,7 +160,7 @@ class StackComparison:
         reference_expected = await self.test_reference_behavior()
         
         # Analyze functional equivalence
-        print("\n📊 Functional Equivalence Analysis:")
+        print("\n[STATS] Functional Equivalence Analysis:")
         
         equivalence_results = {}
         
@@ -168,39 +168,39 @@ class StackComparison:
         shared_methods = ["get_scene_info", "get_object_info", "execute_code"]
         
         for method in shared_methods:
-            print(f"\n🔍 Analyzing {method}:")
+            print(f"\n[SEARCH] Analyzing {method}:")
             
             if method in our_results and our_results[method].get("status") == "success":
                 equivalence_results[method] = {
-                    "our_implementation": "✅ Working",
-                    "functional_equivalent": "✅ Expected behavior met",
+                    "our_implementation": "[PASS] Working",
+                    "functional_equivalent": "[PASS] Expected behavior met",
                     "details": our_results[method]
                 }
-                print(f"  ✅ Our implementation: Working")
-                print(f"  ✅ Functional equivalence: Expected behavior met")
+                print(f"  [PASS] Our implementation: Working")
+                print(f"  [PASS] Functional equivalence: Expected behavior met")
             else:
                 equivalence_results[method] = {
-                    "our_implementation": "❌ Issues found",
-                    "functional_equivalent": "❌ Does not meet expected behavior",
+                    "our_implementation": "[FAIL] Issues found",
+                    "functional_equivalent": "[FAIL] Does not meet expected behavior",
                     "details": our_results.get(method, {"status": "not_tested"})
                 }
-                print(f"  ❌ Our implementation: Issues found")
-                print(f"  ❌ Functional equivalence: Does not meet expected behavior")
+                print(f"  [FAIL] Our implementation: Issues found")
+                print(f"  [FAIL] Functional equivalence: Does not meet expected behavior")
         
         # Enhanced methods (our additions)
         enhanced_methods = ["check_connection_status"]
         for method in enhanced_methods:
             if method in our_results and our_results[method].get("status") == "success":
                 equivalence_results[method] = {
-                    "our_implementation": "✅ Working",
-                    "enhanced_feature": "✅ Additional functionality beyond reference",
+                    "our_implementation": "[PASS] Working",
+                    "enhanced_feature": "[PASS] Additional functionality beyond reference",
                     "details": our_results[method]
                 }
-                print(f"\n🚀 Enhanced method {method}: ✅ Working")
+                print(f"\n[ROCKET] Enhanced method {method}: [PASS] Working")
         
         # Overall assessment
         working_shared_methods = sum(1 for method in shared_methods 
-                                   if equivalence_results.get(method, {}).get("our_implementation") == "✅ Working")
+                                   if equivalence_results.get(method, {}).get("our_implementation") == "[PASS] Working")
         
         overall_status = "PASS" if working_shared_methods == len(shared_methods) else "FAIL"
         
@@ -219,15 +219,15 @@ class StackComparison:
         }
         
         print(f"\n" + "=" * 60)
-        print(f"🎯 FUNCTIONAL EQUIVALENCE RESULT: {overall_status}")
-        print(f"📊 Success Rate: {final_result['summary']['success_rate']}")
+        print(f"[RESULT] FUNCTIONAL EQUIVALENCE RESULT: {overall_status}")
+        print(f"[STATS] Success Rate: {final_result['summary']['success_rate']}")
         print("=" * 60)
         
         return final_result
 
 async def main():
     print("=" * 80)
-    print("🚀 Functional Equivalence Testing - Drop-in Replacement Validation")
+    print("[ROCKET] Functional Equivalence Testing - Drop-in Replacement Validation")
     print("=" * 80)
     
     comparison = StackComparison()
@@ -238,9 +238,9 @@ async def main():
     try:
         with open(log_file, "w") as f:
             json.dump(result, f, indent=2)
-        print(f"📝 Results saved to: {log_file}")
+        print(f"[LOG] Results saved to: {log_file}")
     except Exception as e:
-        print(f"⚠️ Could not save results: {e}")
+        print(f"[WARNING] Could not save results: {e}")
     
     # Exit with appropriate code
     sys.exit(0 if result["summary"]["overall_status"] == "PASS" else 1)

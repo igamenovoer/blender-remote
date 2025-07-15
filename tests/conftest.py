@@ -69,18 +69,18 @@ def wait_for_port(port, timeout=10, service_name="service"):
     start_time = time.time()
     while time.time() - start_time < timeout:
         if not is_port_available(port):  # Port is in use = service is running
-            print(f"✅ {service_name} is listening on port {port}")
+            print(f"[PASS] {service_name} is listening on port {port}")
             return True
         time.sleep(0.5)
 
-    print(f"❌ {service_name} failed to start on port {port} within {timeout}s")
+    print(f"[FAIL] {service_name} failed to start on port {port} within {timeout}s")
     return False
 
 
 @pytest.fixture(scope="session")
 def clean_environment():
     """Ensure clean test environment at session start."""
-    print("🔧 Setting up clean test environment...")
+    print("[FIX] Setting up clean test environment...")
     kill_blender_processes()
 
     # Verify required ports are available

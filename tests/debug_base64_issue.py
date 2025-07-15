@@ -10,7 +10,7 @@ import socket
 async def test_direct_blender_communication():
     """Test direct communication with Blender to see the raw response"""
     
-    print("🔍 Testing direct communication with Blender TCP service...")
+    print("[SEARCH] Testing direct communication with Blender TCP service...")
     
     # Simple code that produces JSON output
     simple_json_code = '''
@@ -39,7 +39,7 @@ print(json.dumps(result))
     ]
     
     for test_name, command in tests:
-        print(f"\n📋 Testing: {test_name}")
+        print(f"\n[INFO] Testing: {test_name}")
         
         try:
             # Connect to Blender
@@ -48,34 +48,34 @@ print(json.dumps(result))
             
             # Send command
             message = json.dumps(command)
-            print(f"  📤 Sending: {message[:100]}...")
+            print(f"  [SEND] Sending: {message[:100]}...")
             sock.sendall(message.encode('utf-8'))
             
             # Receive response
             response_data = sock.recv(8192)
             raw_response = response_data.decode('utf-8')
-            print(f"  📥 Raw response length: {len(raw_response)}")
-            print(f"  📥 Raw response preview: {raw_response[:200]}...")
+            print(f"  [RECEIVE] Raw response length: {len(raw_response)}")
+            print(f"  [RECEIVE] Raw response preview: {raw_response[:200]}...")
             
             try:
                 parsed_response = json.loads(raw_response)
-                print(f"  ✅ JSON parsing successful")
-                print(f"  📊 Response status: {parsed_response.get('status')}")
+                print(f"  [PASS] JSON parsing successful")
+                print(f"  [STATS] Response status: {parsed_response.get('status')}")
                 if 'result' in parsed_response:
                     result = parsed_response['result']
-                    print(f"  📊 Result type: {type(result)}")
+                    print(f"  [STATS] Result type: {type(result)}")
                     if isinstance(result, dict):
-                        print(f"  📊 Result keys: {list(result.keys())}")
+                        print(f"  [STATS] Result keys: {list(result.keys())}")
                         if 'result_is_base64' in result:
-                            print(f"  🔐 Base64 encoded: {result['result_is_base64']}")
+                            print(f"  [ENCODE] Base64 encoded: {result['result_is_base64']}")
             except json.JSONDecodeError as e:
-                print(f"  ❌ JSON parsing failed: {e}")
-                print(f"  📝 Raw response: {repr(raw_response)}")
+                print(f"  [FAIL] JSON parsing failed: {e}")
+                print(f"  [LOG] Raw response: {repr(raw_response)}")
                 
             sock.close()
             
         except Exception as e:
-            print(f"  ❌ Connection failed: {e}")
+            print(f"  [FAIL] Connection failed: {e}")
 
 if __name__ == "__main__":
     asyncio.run(test_direct_blender_communication())

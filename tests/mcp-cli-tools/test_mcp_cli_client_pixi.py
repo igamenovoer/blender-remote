@@ -33,7 +33,7 @@ async def interact_with_blender_mcp_pixi():
                 # Initialize the connection
                 print("Initializing MCP session...")
                 await session.initialize()
-                print("✅ Session initialized successfully")
+                print("[PASS] Session initialized successfully")
                 
                 # List available tools
                 print("\n1. Listing available tools...")
@@ -61,11 +61,11 @@ async def interact_with_blender_mcp_pixi():
                     content = code_result.content[0].text if code_result.content[0].type == 'text' else str(code_result.content[0])
                     print(f"Code execution result: {content}")
                 
-                print("\n✅ All pixi MCP CLI tests completed successfully!")
+                print("\n[PASS] All pixi MCP CLI tests completed successfully!")
                 return True
                 
     except Exception as e:
-        print(f"❌ Error during pixi MCP CLI testing: {e}")
+        print(f"[FAIL] Error during pixi MCP CLI testing: {e}")
         import traceback
         traceback.print_exc()
         return False

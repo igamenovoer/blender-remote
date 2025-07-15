@@ -9,9 +9,9 @@ import subprocess
 
 # Use pixi run to ensure correct environment
 if __name__ == "__main__":
-    print("🚀 Starting Blender Remote MCP Server (development mode)")
-    print("📡 This simulates what 'uvx blender-remote' will do after PyPI publication")
-    print("🔗 Connecting to BLD_Remote_MCP service on port 6688...")
+    print("[ROCKET] Starting Blender Remote MCP Server (development mode)")
+    print("[CONNECT] This simulates what 'uvx blender-remote' will do after PyPI publication")
+    print("[LINK] Connecting to BLD_Remote_MCP service on port 6688...")
 
     # Run using pixi environment
     result = subprocess.run(

@@ -82,15 +82,15 @@ print('Long task done!')
     blocked_count = 0
     for client_id, result in results:
         if result and result.get('status') == 'blocked':
-            print(f"✅ {client_id} was correctly blocked")
+            print(f"[PASS] {client_id} was correctly blocked")
             blocked_count += 1
         else:
-            print(f"❌ {client_id} was NOT blocked: {result}")
+            print(f"[FAIL] {client_id} was NOT blocked: {result}")
     
     if blocked_count > 0:
-        print(f"\n✅ Blocking is working! {blocked_count} clients were blocked.")
+        print(f"\n[PASS] Blocking is working! {blocked_count} clients were blocked.")
     else:
-        print(f"\n❌ Blocking is NOT working. No clients were blocked.")
+        print(f"\n[FAIL] Blocking is NOT working. No clients were blocked.")
 
 if __name__ == "__main__":
     test_precise_blocking()

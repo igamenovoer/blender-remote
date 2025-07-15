@@ -11,7 +11,7 @@ import base64
 async def test_failing_code():
     """Test the exact code that's failing in the base64 test"""
     
-    print("🔍 Testing the exact failing code...")
+    print("[SEARCH] Testing the exact failing code...")
     
     # This is the exact code from the failing test
     failing_code = '''
@@ -100,7 +100,7 @@ print(json.dumps(results, indent=2))
     ]
     
     for test_name, command in tests:
-        print(f"\n📋 Testing: {test_name}")
+        print(f"\n[INFO] Testing: {test_name}")
         
         try:
             # Connect to Blender
@@ -109,7 +109,7 @@ print(json.dumps(results, indent=2))
             
             # Send command
             message = json.dumps(command)
-            print(f"  📤 Sending command (length: {len(message)})")
+            print(f"  [SEND] Sending command (length: {len(message)})")
             sock.sendall(message.encode('utf-8'))
             
             # Receive response - might need larger buffer for complex output
@@ -132,42 +132,42 @@ print(json.dumps(results, indent=2))
                     break
             
             raw_response = response_data.decode('utf-8')
-            print(f"  📥 Raw response length: {len(raw_response)}")
+            print(f"  [RECEIVE] Raw response length: {len(raw_response)}")
             
             try:
                 parsed_response = json.loads(raw_response)
-                print(f"  ✅ JSON parsing successful")
-                print(f"  📊 Response status: {parsed_response.get('status')}")
+                print(f"  [PASS] JSON parsing successful")
+                print(f"  [STATS] Response status: {parsed_response.get('status')}")
                 
                 if 'result' in parsed_response:
                     result = parsed_response['result']
-                    print(f"  📊 Executed: {result.get('executed')}")
+                    print(f"  [STATS] Executed: {result.get('executed')}")
                     if result.get('result_is_base64'):
-                        print(f"  🔐 Result is base64 encoded")
+                        print(f"  [ENCODE] Result is base64 encoded")
                         # Decode to see actual content
                         try:
                             decoded = base64.b64decode(result['result']).decode('utf-8')
-                            print(f"  📊 Decoded result length: {len(decoded)}")
+                            print(f"  [STATS] Decoded result length: {len(decoded)}")
                             # Try to parse the decoded JSON
                             decoded_json = json.loads(decoded)
-                            print(f"  📊 Decoded JSON keys: {list(decoded_json.keys())}")
+                            print(f"  [STATS] Decoded JSON keys: {list(decoded_json.keys())}")
                         except Exception as e:
-                            print(f"  ⚠️ Could not decode base64 result: {e}")
+                            print(f"  [WARNING] Could not decode base64 result: {e}")
                     else:
                         result_text = result.get('result', '')
-                        print(f"  📊 Result length: {len(result_text)}")
+                        print(f"  [STATS] Result length: {len(result_text)}")
                         if result_text:
                             # Try to parse as JSON
                             try:
                                 result_json = json.loads(result_text)
-                                print(f"  📊 Result JSON keys: {list(result_json.keys())}")
+                                print(f"  [STATS] Result JSON keys: {list(result_json.keys())}")
                             except:
-                                print(f"  📊 Result preview: {result_text[:200]}...")
+                                print(f"  [STATS] Result preview: {result_text[:200]}...")
                         
             except json.JSONDecodeError as e:
-                print(f"  ❌ JSON parsing failed: {e}")
-                print(f"  📝 Error position: line {e.lineno}, column {e.colno}")
-                print(f"  📝 Raw response preview: {repr(raw_response[:300])}")
+                print(f"  [FAIL] JSON parsing failed: {e}")
+                print(f"  [LOG] Error position: line {e.lineno}, column {e.colno}")
+                print(f"  [LOG] Raw response preview: {repr(raw_response[:300])}")
                 
                 # Try to find where the JSON breaks
                 lines = raw_response.split('\n')
@@ -177,7 +177,7 @@ print(json.dumps(results, indent=2))
             sock.close()
             
         except Exception as e:
-            print(f"  ❌ Connection/execution failed: {e}")
+            print(f"  [FAIL] Connection/execution failed: {e}")
 
 if __name__ == "__main__":
     asyncio.run(test_failing_code())
