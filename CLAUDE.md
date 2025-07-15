@@ -49,7 +49,8 @@ BlenderClientAPI (Python API) ────────┘
 #### Preferred Method  
 - **Use `pixi run python src/blender_remote/cli.py start`** - Creates startup scripts, handles addon installation
 - **Blender Path**: 
-  - Linux/macOS: `/apps/blender-4.4.3-linux-x64/blender`
+  - Linux: `/apps/blender-4.4.3-linux-x64/blender`
+  - macOS: Default installation location (auto-detected via `blender-remote-cli init`)
   - Windows: `C:\Program Files\Blender Foundation\Blender 4.4\blender.exe`
 - **CRITICAL: Always use `&`** for background execution - **Blender will quit when Bash command times out without `&`**
 - **Environment Variables**: Set `BLD_REMOTE_MCP_START_NOW=true` and `BLD_REMOTE_MCP_PORT=6688` for auto-start
