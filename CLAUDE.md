@@ -98,4 +98,7 @@ mkdir -p tmp/debug-logs
 mkdir -p tmp/export-data
 ```
 
+### Cross-Platform Considerations
+- Do not use unicode emoji in console output, for better cross platform support
+
 [... rest of the existing content remains unchanged ...]
