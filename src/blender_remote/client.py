@@ -7,6 +7,7 @@ import socket
 import os
 import signal
 import platform
+import base64
 from typing import Dict, Any, Optional, cast
 
 from .exceptions import (
@@ -286,36 +287,68 @@ class BlenderMCPClient:
                 except:
                     pass
 
-    def execute_python(self, code: str) -> str:
+    def execute_python(self, code: str, send_as_base64: bool = True, return_as_base64: bool = True) -> str:
         """
         Execute Python code in Blender via BLD Remote MCP service.
 
-        Note: BLD Remote MCP service executes the code but does not capture
-        print output or return values. This method returns a success message
-        if the code executed without errors.
+        Uses base64 encoding by default for reliable cross-platform transmission.
+        Users can disable base64 encoding for compatibility with older systems.
 
         Parameters
         ----------
         code : str
             Python code string to execute.
+        send_as_base64 : bool, default True
+            If True, encode the code as base64 before sending to avoid formatting issues.
+            Recommended for cross-platform robustness.
+        return_as_base64 : bool, default True
+            If True, request that the result be returned as base64-encoded.
+            Recommended for reliable result transmission.
 
         Returns
         -------
         str
-            Execution status message (e.g., "Code executed successfully").
+            Execution result or status message.
 
         Raises
         ------
         BlenderMCPError
             If execution fails.
         """
-        response = self.execute_command("execute_code", {"code": code})
-        # Get the output from the correct field in the response
+        # Prepare the code for transmission
+        code_to_send = code
+        if send_as_base64:
+            # Encode the code as base64 to avoid formatting issues
+            code_to_send = base64.b64encode(code.encode('utf-8')).decode('ascii')
+        
+        # Send with base64 flags
+        params = {
+            "code": code_to_send,
+            "code_is_base64": send_as_base64,
+            "return_as_base64": return_as_base64
+        }
+        
+        response = self.execute_command("execute_code", params)
         result_data = response.get("result", {})
-        # Try to get output from 'result' field first, then 'output.stdout' as fallback
-        output = result_data.get("result", "")
-        if not output:
-            output = result_data.get("output", {}).get("stdout", "")
+        
+        # Handle base64 decoding if the result is base64-encoded
+        if return_as_base64 and result_data.get("result_is_base64", False):
+            try:
+                # Decode the base64-encoded result
+                encoded_result = result_data.get("result", "")
+                if encoded_result:
+                    output = base64.b64decode(encoded_result.encode('ascii')).decode('utf-8')
+                else:
+                    output = ""
+            except Exception as e:
+                # If decoding fails, return the raw result with error info
+                output = result_data.get("result", "") + f" [Base64 decode error: {str(e)}]"
+        else:
+            # Fallback to original behavior for compatibility
+            output = result_data.get("result", "")
+            if not output:
+                output = result_data.get("output", {}).get("stdout", "")
+        
         return cast(str, output)
 
     def get_scene_info(self) -> Dict[str, Any]:
