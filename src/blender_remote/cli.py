@@ -87,6 +87,43 @@ class BlenderRemoteConfig:
         OmegaConf.save(self.config, self.config_path)
 
 
+def find_blender_executable_macos() -> str | None:
+    """Find Blender executable on macOS using multiple methods"""
+    click.echo("  → Checking common installation locations...")
+    
+    # Common locations for Blender on macOS
+    possible_paths = [
+        "/Applications/Blender.app/Contents/MacOS/Blender",
+        "/Applications/Blender/Blender.app/Contents/MacOS/Blender",
+        Path.home() / "Applications/Blender.app/Contents/MacOS/Blender",
+    ]
+    
+    # Check each path
+    for path in possible_paths:
+        if Path(path).exists():
+            return str(path)
+    
+    # Use mdfind (Spotlight) to search for Blender.app
+    click.echo("  → Searching with Spotlight (mdfind)...")
+    try:
+        result = subprocess.run(
+            ["mdfind", "-name", "Blender.app"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            # Get first result
+            app_path = result.stdout.strip().split('\n')[0]
+            blender_exe = Path(app_path) / "Contents/MacOS/Blender"
+            if blender_exe.exists():
+                return str(blender_exe)
+    except Exception:
+        pass
+    
+    return None
+
+
 def detect_blender_info(blender_path: str | Path) -> dict[str, Any]:
     """Detect Blender version and paths using Blender's Python APIs"""
     blender_path_obj = Path(blender_path)
@@ -95,6 +132,7 @@ def detect_blender_info(blender_path: str | Path) -> dict[str, Any]:
         raise click.ClickException(f"Blender executable not found: {blender_path_obj}")
 
     click.echo(f"Detecting Blender info: {blender_path_obj}")
+    click.echo("  → Creating detection script...")
 
     # Create temporary detection script
     detection_script = '''
@@ -163,12 +201,14 @@ sys.exit(0)
             f.write(detection_script)
 
         # Execute Blender with the detection script
+        click.echo("  → Starting Blender in background mode (this may take a moment)...")
         result = subprocess.run(
             [str(blender_path_obj), "--background", "--python", temp_script],
             capture_output=True,
             text=True,
             timeout=30,
         )
+        click.echo("  → Blender execution completed, processing results...")
 
         if result.returncode != 0:
             raise click.ClickException(f"Blender detection script failed: {result.stderr}")
@@ -459,7 +499,8 @@ def cli() -> None:
 def init(blender_path: str | None, backup: bool) -> None:
     """Initialize blender-remote configuration.
 
-    If blender_path is not provided, you will be prompted to enter the path.
+    On macOS, if blender_path is not provided, will attempt auto-detection.
+    On other platforms, you will be prompted to enter the path.
     """
     click.echo("Initializing blender-remote configuration...")
 
@@ -469,18 +510,47 @@ def init(blender_path: str | None, backup: bool) -> None:
         shutil.copy2(CONFIG_FILE, backup_path)
         click.echo(f"Backup created: {backup_path}")
 
-    # Get blender path - prompt if not provided
+    # Get blender path - auto-detect on macOS if not provided
     if not blender_path:
-        blender_path = click.prompt(
-            "Please enter the path to your Blender executable",
-            type=click.Path(exists=True)
-        )
+        current_platform = platform.system()
+        
+        if current_platform == "Darwin":  # macOS
+            click.echo("Attempting to auto-detect Blender on macOS...")
+            detected_path = find_blender_executable_macos()
+            
+            if detected_path:
+                click.echo(f"Found Blender at: {detected_path}")
+                use_detected = click.confirm(
+                    "Use this detected path?",
+                    default=True
+                )
+                
+                if use_detected:
+                    blender_path = detected_path
+                else:
+                    blender_path = click.prompt(
+                        "Please enter the path to your Blender executable",
+                        type=click.Path(exists=True)
+                    )
+            else:
+                click.echo("Could not auto-detect Blender on macOS")
+                blender_path = click.prompt(
+                    "Please enter the path to your Blender executable",
+                    type=click.Path(exists=True)
+                )
+        else:
+            # For non-macOS platforms, prompt for path
+            blender_path = click.prompt(
+                "Please enter the path to your Blender executable",
+                type=click.Path(exists=True)
+            )
 
     # Detect Blender info
-    # Detection info will be printed by detect_blender_info
+    click.echo("\nAnalyzing Blender installation...")
     blender_info = detect_blender_info(blender_path)
 
     # Create config
+    click.echo("  → Generating configuration structure...")
     config = {
         "blender": blender_info,
         "mcp_service": {
@@ -490,16 +560,19 @@ def init(blender_path: str | None, backup: bool) -> None:
     }
 
     # Save config
+    click.echo("  → Saving configuration...")
     config_manager = BlenderRemoteConfig()
     config_manager.save(config)
 
     # Display final configuration
-    click.echo(f"\nConfiguration saved to: {CONFIG_FILE}")
-    click.echo("\nGenerated configuration:")
+    click.echo(f"\n✅ Configuration saved to: {CONFIG_FILE}")
+    click.echo("\n📋 Generated configuration:")
     
     # Display the configuration like 'config get' does
     config_yaml = OmegaConf.to_yaml(config)
     click.echo(config_yaml)
+    
+    click.echo("✅ Initialization complete! You can now use other blender-remote-cli commands.")
 
 
 @cli.command()
