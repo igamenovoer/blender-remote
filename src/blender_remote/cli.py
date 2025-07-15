@@ -94,7 +94,7 @@ def detect_blender_info(blender_path: str | Path) -> dict[str, Any]:
     if not blender_path_obj.exists():
         raise click.ClickException(f"Blender executable not found: {blender_path_obj}")
 
-    click.echo(f"[QUERY] Detecting Blender info using Python APIs: {blender_path_obj}")
+    click.echo(f"Detecting Blender info: {blender_path_obj}")
 
     # Create temporary detection script
     detection_script = '''
@@ -212,9 +212,7 @@ sys.exit(0)
         version_tuple = version_info["version_tuple"]
         build_date = version_info["build_date"]
 
-        click.echo(f"[FOUND] Blender version: {version_string}")
-        click.echo(f"[INFO] Version tuple: {version_tuple}")
-        click.echo(f"[INFO] Build date: {build_date}")
+        click.echo(f"Found Blender {version_string}")
 
         # Check version compatibility
         major, minor, _ = version_tuple
@@ -233,7 +231,7 @@ sys.exit(0)
         plugin_dir = None
         if user_addons and os.path.exists(user_addons):
             plugin_dir = user_addons
-            click.echo(f"[FOUND] User addon directory: {plugin_dir}")
+            click.echo(f"Using user addon directory: {plugin_dir}")
         elif all_addon_paths:
             # Find the first writable addon path
             for path in all_addon_paths:
@@ -245,7 +243,7 @@ sys.exit(0)
                             f.write('test')
                         os.remove(test_file)
                         plugin_dir = path
-                        click.echo(f"[FOUND] Writable addon directory: {plugin_dir}")
+                        click.echo(f"Using writable addon directory: {plugin_dir}")
                         break
                     except (OSError, IOError):
                         continue
@@ -255,23 +253,22 @@ sys.exit(0)
             try:
                 os.makedirs(user_addons, exist_ok=True)
                 plugin_dir = user_addons
-                click.echo(f"[SUCCESS] Created addon directory: {plugin_dir}")
+                click.echo(f"Created addon directory: {plugin_dir}")
             except OSError as e:
-                click.echo(f"[WARNING] Could not create addon directory: {e}")
+                click.echo(f"Warning: Could not create addon directory: {e}")
 
         # Fallback to manual detection if no directory found
         if not plugin_dir:
-            click.echo("[FALLBACK] Using manual path detection...")
-            
             # Show detected paths for debugging
-            click.echo(f"[INFO] User addons path: {user_addons}")
-            click.echo(f"[INFO] All addon paths: {all_addon_paths}")
+            click.echo(f"Searched paths:")
+            if user_addons:
+                click.echo(f"  - {user_addons}")
+            for path in all_addon_paths:
+                if path != user_addons:
+                    click.echo(f"  - {path}")
             
             # Ask user for plugin directory
-            click.echo("[WARNING] Could not automatically detect writable addon directory.")
-            click.echo("Available addon paths:")
-            for i, path in enumerate(all_addon_paths):
-                click.echo(f"  {i+1}. {path}")
+            click.echo("Could not automatically detect writable addon directory.")
             
             plugin_dir_input = click.prompt(
                 "Please enter the path to your Blender addons directory"
@@ -284,11 +281,14 @@ sys.exit(0)
         # Detect root directory
         root_dir = blender_path_obj.parent
 
-        click.echo(f"[SUCCESS] Blender detection completed")
-        click.echo(f"[INFO] Root directory: {root_dir}")
-        click.echo(f"[INFO] Plugin directory: {plugin_dir}")
-        if extensions_dir:
-            click.echo(f"[INFO] Extensions directory: {extensions_dir}")
+        # Show searched paths summary
+        click.echo(f"Searched paths:")
+        if user_addons:
+            click.echo(f"  - {user_addons}")
+        for path in all_addon_paths:
+            if path != user_addons:
+                click.echo(f"  - {path}")
+        click.echo(f"Selected addon directory: {plugin_dir}")
 
         return {
             "version": version_string,
@@ -455,13 +455,13 @@ def init(blender_path: str | None, backup: bool) -> None:
 
     If blender_path is not provided, you will be prompted to enter the path.
     """
-    click.echo("[INIT] Initializing blender-remote configuration...")
+    click.echo("Initializing blender-remote configuration...")
 
     # Backup existing config if requested
     if backup and CONFIG_FILE.exists():
         backup_path = CONFIG_FILE.with_suffix(".yaml.bak")
         shutil.copy2(CONFIG_FILE, backup_path)
-        click.echo(f"[BACKUP] Backup created: {backup_path}")
+        click.echo(f"Backup created: {backup_path}")
 
     # Get blender path - prompt if not provided
     if not blender_path:
@@ -471,7 +471,7 @@ def init(blender_path: str | None, backup: bool) -> None:
         )
 
     # Detect Blender info
-    click.echo("[DETECT] Detecting Blender information...")
+    # Detection info will be printed by detect_blender_info
     blender_info = detect_blender_info(blender_path)
 
     # Create config
@@ -487,15 +487,13 @@ def init(blender_path: str | None, backup: bool) -> None:
     config_manager = BlenderRemoteConfig()
     config_manager.save(config)
 
-    # Display results
-    click.echo("[SUCCESS] Configuration initialized successfully!")
-    click.echo(f"[CONFIG] Config file: {CONFIG_FILE}")
-    click.echo(f"[VERSION] Blender version: {blender_info['version']}")
-    click.echo(f"[EXEC] Blender executable: {blender_info['exec_path']}")
-    click.echo(f"[ROOT] Blender root directory: {blender_info['root_dir']}")
-    click.echo(f"[PLUGIN] Plugin directory: {blender_info['plugin_dir']}")
-    click.echo(f"[PORT] Default MCP port: {DEFAULT_PORT}")
-    click.echo("[LOG] Default log level: INFO")
+    # Display final configuration
+    click.echo(f"\nConfiguration saved to: {CONFIG_FILE}")
+    click.echo("\nGenerated configuration:")
+    
+    # Display the configuration like 'config get' does
+    config_yaml = OmegaConf.to_yaml(config)
+    click.echo(config_yaml)
 
 
 @cli.command()
@@ -732,7 +730,7 @@ try:
     if status.get('running'):
         print(f"[SUCCESS] MCP service is running on port {status.get('port')}")
     else:
-        print("⚠️ Warning: MCP service may not have started properly")
+        print("[WARN] Warning: MCP service may not have started properly")
 
     # Main keep-alive loop with background mode command processing
     while _keep_running:
@@ -891,7 +889,7 @@ def execute(code_file: str | None, code: str | None, use_base64: bool, return_ba
                 else:
                     click.echo("[SUCCESS] Code executed successfully (no output)")
         else:
-            click.echo("⚠️ Code execution completed but execution status unclear")
+            click.echo("[WARN] Code execution completed but execution status unclear")
             click.echo(f"Response: {result}")
     else:
         error_msg = response.get("message", "Unknown error")
@@ -904,7 +902,7 @@ def execute(code_file: str | None, code: str | None, use_base64: bool, return_ba
 @cli.command()
 def status() -> None:
     """Check connection status to Blender"""
-    click.echo("[CHECK] Checking connection to Blender BLD_Remote_MCP service...")
+    click.echo("Checking connection to Blender BLD_Remote_MCP service...")
 
     config = BlenderRemoteConfig()
     port = config.get("mcp_service.default_port") or DEFAULT_PORT
@@ -912,7 +910,7 @@ def status() -> None:
     response = connect_and_send_command("get_scene_info", port=port)
 
     if response.get("status") == "success":
-        click.echo(f"[SUCCESS] Connected to Blender BLD_Remote_MCP service (port {port})")
+        click.echo(f"Connected to Blender BLD_Remote_MCP service (port {port})")
         scene_info = response.get("result", {})
         scene_name = scene_info.get("name", "Unknown")
         object_count = scene_info.get("object_count", 0)
@@ -920,7 +918,7 @@ def status() -> None:
         click.echo(f"   Objects: {object_count}")
     else:
         error_msg = response.get("message", "Unknown error")
-        click.echo(f"[ERROR] Connection failed: {error_msg}")
+        click.echo(f"Connection failed: {error_msg}")
         click.echo("   Make sure Blender is running with BLD_Remote_MCP addon enabled")
 
 

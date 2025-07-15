@@ -39,7 +39,7 @@ def debug_log(message: str) -> None:
 # 4. Direct queue processing without depending on Blender's event system
 #
 # The architecture is:
-# TCP Server Thread → Queue → step() Method → Code Execution → Callback → Response
+# TCP Server Thread -> Queue -> step() Method -> Code Execution -> Callback -> Response
 
 class ExecutionJob:
     """Represents a job to be executed with callback for result handling"""

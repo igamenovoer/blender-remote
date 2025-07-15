@@ -965,7 +965,7 @@ def start_server_from_script():
             except Exception as e:
                 log_info(f"Cannot update scene property: {e}")
             
-            log_info("✅ Server started successfully")
+            log_info("[OK] Server started successfully")
         else:
             log_error("Failed to start server")
             _server_instance = None
@@ -1001,13 +1001,13 @@ def start_mcp_service():
     log_info("start_mcp_service() called")
     
     if _server_instance is not None and _server_instance.running:
-        log_info("⚠️ Server already running, nothing to do")
+        log_info("[WARN] Server already running, nothing to do")
         return
     
     log_info("Server not running, attempting to start...")
     try:
         start_server_from_script()
-        log_info("✅ Server start initiated successfully")
+        log_info("[OK] Server start initiated successfully")
         
     except Exception as e:
         error_msg = f"Failed to start server: {e}"
@@ -1057,7 +1057,7 @@ def get_mcp_service_port():
 def register():
     """Register the addon's properties and classes with Blender."""
     log_info("=== BLD REMOTE MCP ADDON REGISTRATION STARTING ===")
-    log_info(f"🚀 BLD Remote MCP {BldRemoteMCPConfig.VERSION_STRING} Loading! (DUAL-MODE VERSION)")
+    log_info(f"[START] BLD Remote MCP {BldRemoteMCPConfig.VERSION_STRING} Loading! (DUAL-MODE VERSION)")
     log_info("register() function called")
     
     # Check Blender environment
@@ -1074,7 +1074,7 @@ def register():
             description="Indicates if the BLD Remote server is active",
             default=False
         )
-        log_info("✅ Scene property 'bld_remote_server_running' added")
+        log_info("[OK] Scene property 'bld_remote_server_running' added")
     except Exception as e:
         log_error(f"ERROR: Failed to add scene property: {e}")
         raise
@@ -1084,7 +1084,7 @@ def register():
     try:
         from .config import log_startup_config
         log_startup_config()
-        log_info("✅ Startup configuration logged")
+        log_info("[OK] Startup configuration logged")
     except Exception as e:
         log_error(f"ERROR: Failed to log startup config: {e}")
     
@@ -1105,10 +1105,10 @@ def register():
                 # SIGTERM not available on this platform (e.g., Windows)
                 log_info("SIGTERM not available on this platform, using SIGINT only")
             
-            log_info(f"✅ Signal handlers ({', '.join(signals_installed)}) installed")
+            log_info(f"[OK] Signal handlers ({', '.join(signals_installed)}) installed")
             
             atexit.register(_cleanup_on_exit)
-            log_info("✅ Exit handler registered")
+            log_info("[OK] Exit handler registered")
         except Exception as e:
             log_error(f"ERROR: Failed to setup background mode handlers: {e}")
     else:
@@ -1121,23 +1121,23 @@ def register():
         log_info(f"Auto-start enabled: {auto_start}")
         
         if auto_start:
-            log_info("✅ Auto-start enabled, attempting to start server")
+            log_info("[OK] Auto-start enabled, attempting to start server")
             try:
                 start_mcp_service()
                 # Log the execution mode for the started server
                 if _server_instance:
                     mode = 'background (queue-based)' if _server_instance.background_mode else 'GUI (timer-based)'
-                    log_info(f"✅ Server started in {mode} mode")
-                log_info("✅ Auto-start server initialization completed")
+                    log_info(f"[OK] Server started in {mode} mode")
+                log_info("[OK] Auto-start server initialization completed")
             except Exception as e:
-                log_warning(f"⚠️ Auto-start failed: {e}")
+                log_warning(f"[WARN] Auto-start failed: {e}")
                 traceback.print_exc()
         else:
             log_info("Auto-start disabled, server will not start automatically")
     except Exception as e:
         log_error(f"ERROR: Failed to check auto-start config: {e}")
     
-    log_info("✅ BLD Remote MCP addon registered successfully")
+    log_info("[OK] BLD Remote MCP addon registered successfully")
     log_info("=== BLD REMOTE MCP ADDON REGISTRATION COMPLETED ===")
 
 
@@ -1150,7 +1150,7 @@ def unregister():
     log_info("Stopping server and cleaning up resources...")
     try:
         cleanup_server()
-        log_info("✅ Server cleanup completed")
+        log_info("[OK] Server cleanup completed")
     except Exception as e:
         log_error(f"ERROR: Failed to cleanup server: {e}")
     
@@ -1158,13 +1158,13 @@ def unregister():
     log_info("Removing scene properties...")
     try:
         del bpy.types.Scene.bld_remote_server_running
-        log_info("✅ Scene property 'bld_remote_server_running' removed")
+        log_info("[OK] Scene property 'bld_remote_server_running' removed")
     except (AttributeError, RuntimeError) as e:
         log_info(f"Scene property already removed or not accessible: {e}")
     except Exception as e:
         log_error(f"ERROR: Unexpected error removing scene property: {e}")
     
-    log_info("✅ BLD Remote MCP addon unregistered successfully")
+    log_info("[OK] BLD Remote MCP addon unregistered successfully")
     log_info("=== BLD REMOTE MCP ADDON UNREGISTRATION COMPLETED ===")
 
 

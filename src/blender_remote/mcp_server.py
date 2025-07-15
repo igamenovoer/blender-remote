@@ -6,7 +6,7 @@ the BLD_Remote_MCP service running inside Blender. This allows LLM IDEs to
 control Blender through the MCP protocol.
 
 Architecture:
-    IDE/Client → MCP Server (this, HTTP/MCP) → BLD_Remote_MCP (TCP) → Blender
+    IDE/Client -> MCP Server (this, HTTP/MCP) -> BLD_Remote_MCP (TCP) -> Blender
 
 Usage:
     uvx blender-remote                                  # Default: MCP server on 8000, connects to Blender TCP on 6688
@@ -587,7 +587,7 @@ async def check_connection_status(ctx: Context) -> Dict[str, Any]:
         )
 
         if response.get("status") == "success":
-            await ctx.info("✅ Connected to Blender BLD_Remote_MCP TCP service")
+            await ctx.info("[OK] Connected to Blender BLD_Remote_MCP TCP service")
             return {
                 "status": "connected",
                 "blender_host": blender_conn.blender_host,
@@ -678,10 +678,10 @@ def main() -> None:
     blender_conn = BlenderConnection(blender_host=blender_host, blender_port=blender_port)
     
     # Print connection info to stdout
-    logger.info("🚀 Starting Blender Remote MCP Server...")
-    logger.info(f"🌐 MCP Server will run on {mcp_host}:{mcp_port}")
-    logger.info(f"📡 Will connect to Blender BLD_Remote_MCP TCP service at {blender_host}:{blender_port}")
-    logger.info("🔗 Make sure Blender is running with the BLD_Remote_MCP addon enabled")
+    logger.info("[START] Starting Blender Remote MCP Server...")
+    logger.info(f"[NET] MCP Server will run on {mcp_host}:{mcp_port}")
+    logger.info(f"[TCP] Will connect to Blender BLD_Remote_MCP TCP service at {blender_host}:{blender_port}")
+    logger.info("[INFO] Make sure Blender is running with the BLD_Remote_MCP addon enabled")
     
     # Print to stdout for easy visibility
     print(f"Blender Remote MCP Server")

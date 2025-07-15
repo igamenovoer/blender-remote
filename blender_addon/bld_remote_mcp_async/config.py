@@ -68,14 +68,14 @@ def log_startup_config():
     try:
         options = get_startup_options()
         log_info("Current BLD Remote MCP configuration:")
-        log_info(f"  ⚙️  Configured Port: {options['configured_port']}")
-        log_info(f"  ▶️  Auto-start Enabled: {options['auto_start_enabled']}")
-        log_info(f"  🌍 Environment Variables:")
+        log_info(f"  [CONFIG] Configured Port: {options['configured_port']}")
+        log_info(f"  [AUTO] Auto-start Enabled: {options['auto_start_enabled']}")
+        log_info(f"  [ENV] Environment Variables:")
         log_info(f"    BLD_REMOTE_MCP_PORT: {options['BLD_REMOTE_MCP_PORT']}")
         log_info(f"    BLD_REMOTE_MCP_START_NOW: {options['BLD_REMOTE_MCP_START_NOW']}")
         
         # Additional environment info
-        log_info(f"  💻 Environment details:")
+        log_info(f"  [SYS] Environment details:")
         for key in ['BLD_REMOTE_MCP_PORT', 'BLD_REMOTE_MCP_START_NOW']:
             env_value = os.environ.get(key)
             if env_value:

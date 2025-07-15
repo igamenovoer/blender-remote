@@ -158,7 +158,7 @@ def ensure_async_loop():
         # Check for a valid context to run the modal operator
         if hasattr(bpy.context, 'window_manager') and bpy.context.window_manager and hasattr(bpy.context, 'window') and bpy.context.window:
             result = bpy.ops.bld_remote.async_loop()
-            log_info(f"✅ Modal operator started successfully: {result!r}")
+            log_info(f"[OK] Modal operator started successfully: {result!r}")
         else:
             log_info("No valid window context, falling back to app timer")
             raise RuntimeError("No valid window context for modal operator")
@@ -169,7 +169,7 @@ def ensure_async_loop():
         if not bpy.app.timers.is_registered(kick_async_loop):
             # The timer will automatically stop when kick_async_loop returns False
             bpy.app.timers.register(kick_async_loop, first_interval=0.01)
-            log_info("✅ Registered app timer for asyncio loop (fallback mode)")
+            log_info("[OK] Registered app timer for asyncio loop (fallback mode)")
         else:
             log_info("App timer for asyncio loop is already registered")
         return
@@ -246,13 +246,13 @@ class BLD_REMOTE_OT_async_loop(bpy.types.Operator):
         log_info(f"Current _loop_kicking_operator_running: {_loop_kicking_operator_running}")
         
         if _loop_kicking_operator_running:
-            log_info("⚠️ Another loop-kicking operator is already running, passing through")
+            log_info("[WARN] Another loop-kicking operator is already running, passing through")
             return {"PASS_THROUGH"}
 
         log_info("Starting new modal operator...")
         try:
             context.window_manager.modal_handler_add(self)
-            log_info("✅ Modal handler added to window manager")
+            log_info("[OK] Modal handler added to window manager")
         except Exception as e:
             log_error(f"ERROR: Failed to add modal handler: {e}")
             return {"CANCELLED"}
@@ -268,7 +268,7 @@ class BLD_REMOTE_OT_async_loop(bpy.types.Operator):
             # Use a fast timer for responsive asyncio processing
             timer_interval = 0.00025  # 0.25ms
             self.timer = wm.event_timer_add(timer_interval, window=context.window)
-            log_info(f"✅ Modal operator timer added (interval: {timer_interval}s): {self.timer}")
+            log_info(f"[OK] Modal operator timer added (interval: {timer_interval}s): {self.timer}")
         except Exception as e:
             log_error(f"ERROR: Failed to add timer: {e}")
             _loop_kicking_operator_running = False
@@ -285,7 +285,7 @@ class BLD_REMOTE_OT_async_loop(bpy.types.Operator):
         # erase_async_loop(). This is a signal that we really should stop
         # running.
         if not _loop_kicking_operator_running:
-            log_info("⚠️ _loop_kicking_operator_running is False, finishing modal operator")
+            log_info("[WARN] _loop_kicking_operator_running is False, finishing modal operator")
             try:
                 if hasattr(self, 'timer') and self.timer:
                     context.window_manager.event_timer_remove(self.timer)
@@ -324,14 +324,14 @@ class BLD_REMOTE_OT_async_loop(bpy.types.Operator):
             
             try:
                 context.window_manager.event_timer_remove(self.timer)
-                log_info("✅ Timer removed successfully")
+                log_info("[OK] Timer removed successfully")
             except Exception as e:
                 log_error(f"ERROR: Failed to remove timer: {e}")
             
             _loop_kicking_operator_running = False
             log_info(f"Set _loop_kicking_operator_running to: {_loop_kicking_operator_running}")
 
-            log_info("✅ Stopped asyncio loop kicking - modal operator finished")
+            log_info("[OK] Stopped asyncio loop kicking - modal operator finished")
             return {"FINISHED"}
 
         return {"RUNNING_MODAL"}
@@ -341,11 +341,11 @@ def register():
     log_info("Registering BLD_REMOTE_OT_async_loop operator...")
     try:
         bpy.utils.register_class(BLD_REMOTE_OT_async_loop)
-        log_info("✅ BLD_REMOTE_OT_async_loop operator registered successfully")
+        log_info("[OK] BLD_REMOTE_OT_async_loop operator registered successfully")
     except ValueError as e:
         if "already registered" in str(e):
             # Already registered, that's fine
-            log_info("⚠️ BLD_REMOTE_OT_async_loop operator already registered")
+            log_info("[WARN] BLD_REMOTE_OT_async_loop operator already registered")
         else:
             log_error(f"ERROR: Failed to register BLD_REMOTE_OT_async_loop operator: {e}")
             raise
@@ -358,10 +358,10 @@ def unregister():
     log_info("Unregistering BLD_REMOTE_OT_async_loop operator...")
     try:
         bpy.utils.unregister_class(BLD_REMOTE_OT_async_loop)
-        log_info("✅ BLD_REMOTE_OT_async_loop operator unregistered successfully")
+        log_info("[OK] BLD_REMOTE_OT_async_loop operator unregistered successfully")
     except (ValueError, RuntimeError) as e:
         # Not registered or already unregistered, that's fine
-        log_info(f"⚠️ BLD_REMOTE_OT_async_loop operator not registered or already unregistered: {e}")
+        log_info(f"[WARN] BLD_REMOTE_OT_async_loop operator not registered or already unregistered: {e}")
     except Exception as e:
         log_error(f"ERROR: Unexpected error unregistering operator: {e}")
         # Don't raise during unregistration

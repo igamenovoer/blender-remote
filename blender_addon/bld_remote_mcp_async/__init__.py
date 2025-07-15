@@ -644,13 +644,13 @@ async def start_server_task(port, scene_to_update):
         server_task = asyncio.ensure_future(tcp_server.serve_forever())
         log_info(f"Server task created: {server_task}")
         
-        log_info(f"✅ BLD Remote server STARTED successfully on port {port}")
+        log_info(f"[OK] BLD Remote server STARTED successfully on port {port}")
         log_info(f"Server is now listening for connections on 127.0.0.1:{port}")
         
         if scene_to_update:
             log_info(f"Updating scene property for scene: {scene_to_update}")
             scene_to_update.bld_remote_server_running = True
-            log_info("✅ Scene property bld_remote_server_running set to True")
+            log_info("[OK] Scene property bld_remote_server_running set to True")
         else:
             log_info("No scene to update (scene_to_update is None)")
         
@@ -732,14 +732,14 @@ def start_server_from_script():
         log_error(f"=== START_SERVER_FROM_SCRIPT FAILED - PORT PARSE ERROR ===")
         return
     
-    log_info(f"✅ Starting server on port {port}")
+    log_info(f"[OK] Starting server on port {port}")
     log_info(f"Background mode: {_is_background_mode()}")
     
     # Set up asyncio executor first
     log_info("Setting up asyncio executor...")
     try:
         async_loop.setup_asyncio_executor()
-        log_info("✅ Asyncio executor setup completed")
+        log_info("[OK] Asyncio executor setup completed")
     except Exception as e:
         log_error(f"ERROR: Failed to setup asyncio executor: {e}")
         log_error(f"=== START_SERVER_FROM_SCRIPT FAILED - ASYNCIO SETUP ERROR ===")
@@ -755,7 +755,7 @@ def start_server_from_script():
                 log_info("bpy.data.scenes is available")
                 if bpy.data.scenes:
                     scene = bpy.data.scenes[0]
-                    log_info(f"✅ Scene reference obtained: {scene} (name: {scene.name if hasattr(scene, 'name') else 'unknown'})")
+                    log_info(f"[OK] Scene reference obtained: {scene} (name: {scene.name if hasattr(scene, 'name') else 'unknown'})")
                 else:
                     log_info("bpy.data.scenes is empty")
             else:
@@ -774,7 +774,7 @@ def start_server_from_script():
     log_info(f"Scheduling server task for port {port}...")
     try:
         future = asyncio.ensure_future(start_server_task(port, scene))
-        log_info(f"✅ Server task scheduled: {future}")
+        log_info(f"[OK] Server task scheduled: {future}")
     except Exception as e:
         log_error(f"ERROR: Failed to schedule server task: {e}")
         log_error(f"=== START_SERVER_FROM_SCRIPT FAILED - TASK SCHEDULING ERROR ===")
@@ -784,7 +784,7 @@ def start_server_from_script():
     log_info("Registering async loop machinery...")
     try:
         async_loop.register()
-        log_info("✅ Async loop registered successfully")
+        log_info("[OK] Async loop registered successfully")
     except ValueError as e:
         # Already registered, which is fine
         log_info(f"Async loop already registered: {e}")
@@ -797,7 +797,7 @@ def start_server_from_script():
     log_info("Starting modal operator for asyncio event processing...")
     try:
         async_loop.ensure_async_loop()
-        log_info("✅ Modal operator started successfully")
+        log_info("[OK] Modal operator started successfully")
         log_info(f"=== START_SERVER_FROM_SCRIPT COMPLETED SUCCESSFULLY ===")
     except Exception as e:
         log_error(f"ERROR: Failed to start modal operator: {e}")
@@ -833,13 +833,13 @@ def start_mcp_service():
     log_info(f"Current server state: tcp_server={tcp_server is not None}")
     
     if tcp_server is not None:
-        log_info("⚠️ Server already running, nothing to do")
+        log_info("[WARN] Server already running, nothing to do")
         return
     
     log_info("Server not running, attempting to start...")
     try:
         start_server_from_script()
-        log_info("✅ Server start initiated successfully")
+        log_info("[OK] Server start initiated successfully")
         
     except Exception as e:
         error_msg = f"Failed to start server: {e}"
@@ -895,9 +895,9 @@ def get_mcp_service_port():
 def register():
     """Register the addon's properties and classes with Blender."""
     log_info("=== BLD REMOTE MCP ADDON REGISTRATION STARTING ===")
-    log_info("🚀 DEV-TEST-UPDATE: BLD Remote MCP v1.0.2 Loading!")
-    log_info("🔧 This is the UPDATED version with development test modifications")
-    log_info("🛠️ UPDATE #2: Added context fallback fix for modal operator")
+    log_info("[START] DEV-TEST-UPDATE: BLD Remote MCP v1.0.2 Loading!")
+    log_info("[DEV] This is the UPDATED version with development test modifications")
+    log_info("[UPDATE] UPDATE #2: Added context fallback fix for modal operator")
     log_info("register() function called")
     
     # Check Blender environment
@@ -909,7 +909,7 @@ def register():
     log_info("Registering async loop machinery...")
     try:
         async_loop.register()
-        log_info("✅ Async loop registered successfully")
+        log_info("[OK] Async loop registered successfully")
     except Exception as e:
         log_error(f"ERROR: Failed to register async loop: {e}")
         raise
@@ -922,7 +922,7 @@ def register():
             description="Indicates if the BLD Remote server is active",
             default=False
         )
-        log_info("✅ Scene property 'bld_remote_server_running' added")
+        log_info("[OK] Scene property 'bld_remote_server_running' added")
     except Exception as e:
         log_error(f"ERROR: Failed to add scene property: {e}")
         raise
@@ -931,7 +931,7 @@ def register():
     log_info("Setting up asyncio executor...")
     try:
         async_loop.setup_asyncio_executor()
-        log_info("✅ Asyncio executor setup completed")
+        log_info("[OK] Asyncio executor setup completed")
     except Exception as e:
         log_error(f"ERROR: Failed to setup asyncio executor: {e}")
         raise
@@ -941,7 +941,7 @@ def register():
     try:
         from .config import log_startup_config
         log_startup_config()
-        log_info("✅ Startup configuration logged")
+        log_info("[OK] Startup configuration logged")
     except Exception as e:
         log_error(f"ERROR: Failed to log startup config: {e}")
         # Don't raise here, this is non-critical
@@ -953,10 +953,10 @@ def register():
         try:
             signal.signal(signal.SIGTERM, _signal_handler)
             signal.signal(signal.SIGINT, _signal_handler)
-            log_info("✅ Signal handlers (SIGTERM, SIGINT) installed")
+            log_info("[OK] Signal handlers (SIGTERM, SIGINT) installed")
             
             atexit.register(_cleanup_on_exit)
-            log_info("✅ Exit handler registered")
+            log_info("[OK] Exit handler registered")
             
             log_info("Background mode setup completed")
         except Exception as e:
@@ -973,19 +973,19 @@ def register():
         log_info(f"Auto-start enabled: {auto_start}")
         
         if auto_start:
-            log_info("✅ Auto-start enabled, attempting to start server")
+            log_info("[OK] Auto-start enabled, attempting to start server")
             try:
                 start_mcp_service()
-                log_info("✅ Auto-start server initialization completed")
+                log_info("[OK] Auto-start server initialization completed")
                 
                 # In background mode, start keep-alive loop
                 if background_mode:
                     log_info("Background mode - starting keep-alive loop")
                     _start_background_keepalive()
-                    log_info("✅ Background keep-alive setup completed")
+                    log_info("[OK] Background keep-alive setup completed")
                     
             except Exception as e:
-                log_warning(f"⚠️ Auto-start failed: {e}")
+                log_warning(f"[WARN] Auto-start failed: {e}")
                 import traceback
                 log_warning(f"Auto-start failure traceback: {traceback.format_exc()}")
         else:
@@ -994,7 +994,7 @@ def register():
         log_error(f"ERROR: Failed to check auto-start config: {e}")
         # Don't raise, continue with registration
     
-    log_info("✅ BLD Remote MCP addon registered successfully")
+    log_info("[OK] BLD Remote MCP addon registered successfully")
     log_info("=== BLD REMOTE MCP ADDON REGISTRATION COMPLETED ===")
 
 
@@ -1007,7 +1007,7 @@ def unregister():
     log_info("Stopping server and cleaning up resources...")
     try:
         cleanup_server()
-        log_info("✅ Server cleanup completed")
+        log_info("[OK] Server cleanup completed")
     except Exception as e:
         log_error(f"ERROR: Failed to cleanup server: {e}")
         # Continue with unregistration
@@ -1016,7 +1016,7 @@ def unregister():
     log_info("Removing scene properties...")
     try:
         del bpy.types.Scene.bld_remote_server_running
-        log_info("✅ Scene property 'bld_remote_server_running' removed")
+        log_info("[OK] Scene property 'bld_remote_server_running' removed")
     except (AttributeError, RuntimeError) as e:
         log_info(f"Scene property already removed or not accessible: {e}")
     except Exception as e:
@@ -1026,12 +1026,12 @@ def unregister():
     log_info("Unregistering async loop machinery...")
     try:
         async_loop.unregister()
-        log_info("✅ Async loop unregistered successfully")
+        log_info("[OK] Async loop unregistered successfully")
     except Exception as e:
         log_error(f"ERROR: Failed to unregister async loop: {e}")
         # Continue anyway
     
-    log_info("✅ BLD Remote MCP addon unregistered successfully")
+    log_info("[OK] BLD Remote MCP addon unregistered successfully")
     log_info("=== BLD REMOTE MCP ADDON UNREGISTRATION COMPLETED ===")
 
 
