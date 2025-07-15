@@ -201,8 +201,16 @@ class BldRemoteMCPServer:
         
         # Install signal handlers for background mode
         if self.background_mode:
-            signal.signal(signal.SIGTERM, self._signal_handler)
+            # SIGINT is supported on all platforms
             signal.signal(signal.SIGINT, self._signal_handler)
+            
+            # SIGTERM is not available on Windows
+            try:
+                signal.signal(signal.SIGTERM, self._signal_handler)
+            except (AttributeError, ValueError):
+                # SIGTERM not available on this platform (e.g., Windows)
+                log_info("SIGTERM not available on this platform, using SIGINT only")
+            
             atexit.register(self._cleanup_on_exit)
             log_info("Background mode: Signal handlers and command queue initialized")
     
@@ -1085,9 +1093,19 @@ def register():
     if background_mode:
         log_info("Background mode detected, installing signal handlers...")
         try:
-            signal.signal(signal.SIGTERM, _signal_handler)
+            # SIGINT is supported on all platforms
             signal.signal(signal.SIGINT, _signal_handler)
-            log_info("✅ Signal handlers (SIGTERM, SIGINT) installed")
+            signals_installed = ["SIGINT"]
+            
+            # SIGTERM is not available on Windows
+            try:
+                signal.signal(signal.SIGTERM, _signal_handler)
+                signals_installed.append("SIGTERM")
+            except (AttributeError, ValueError):
+                # SIGTERM not available on this platform (e.g., Windows)
+                log_info("SIGTERM not available on this platform, using SIGINT only")
+            
+            log_info(f"✅ Signal handlers ({', '.join(signals_installed)}) installed")
             
             atexit.register(_cleanup_on_exit)
             log_info("✅ Exit handler registered")

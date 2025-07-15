@@ -4,6 +4,14 @@ Control Blender remotely using Python API and LLM through MCP (Model Context Pro
 
 **✅ Production Ready** - 97.5% success rate across comprehensive testing with robust error handling and reliable GLB export capabilities.
 
+## Platform Support
+
+**Cross-platform compatibility**: Fully supports Windows, Linux, and macOS
+- **Windows**: Native support with automatic Blender path detection
+- **Linux**: Native support with automatic Blender path detection
+- **macOS**: Native support with automatic Blender path detection
+- All features work identically across all platforms
+
 ## Key Features
 
 ### 1. **Dual Control Interface: Python API + LLM**

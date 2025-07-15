@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Platform Support
+
+**This project supports Windows, Linux, and macOS platforms.** All components are designed to work seamlessly across all operating systems:
+- **Windows**: Full support with Windows-specific paths and configurations
+- **Linux**: Full support with Unix-style paths and configurations
+- **macOS**: Full support with Unix-style paths and configurations (same as Linux)
+- Cross-platform compatibility is maintained throughout the codebase
+
 [... existing content remains unchanged ...]
 
 ## Project Memories
@@ -40,7 +48,9 @@ BlenderClientAPI (Python API) ────────┘
 
 #### Preferred Method  
 - **Use `pixi run python src/blender_remote/cli.py start`** - Creates startup scripts, handles addon installation
-- **Blender Path**: `/apps/blender-4.4.3-linux-x64/blender`
+- **Blender Path**: 
+  - Linux/macOS: `/apps/blender-4.4.3-linux-x64/blender`
+  - Windows: `C:\Program Files\Blender Foundation\Blender 4.4\blender.exe`
 - **Always use `&`** for background execution, **10-second timeout** in Bash (NOT 2-minute default)
 - **Kill processes**: `pkill -f blender`
 

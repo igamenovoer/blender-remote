@@ -6,6 +6,7 @@ import json
 import socket
 import os
 import signal
+import platform
 from typing import Dict, Any, Optional, cast
 
 from .exceptions import (
@@ -61,10 +62,14 @@ class BlenderMCPClient:
             Command timeout in seconds.
         """
         if host is None:
-            # Auto-detect environment
-            self.host = (
-                "host.docker.internal" if os.path.exists("/.dockerenv") else "localhost"
+            # Auto-detect environment - check for Docker in a cross-platform way
+            in_docker = (
+                os.path.exists("/.dockerenv") or  # Linux Docker containers
+                os.path.exists("/proc/1/cgroup") and 
+                any("docker" in line for line in open("/proc/1/cgroup").readlines() if os.path.exists("/proc/1/cgroup")) or
+                os.environ.get("DOCKER_CONTAINER") == "true"  # Cross-platform env var
             )
+            self.host = "host.docker.internal" if in_docker else "localhost"
             self.port = port
         else:
             # Check if host looks like a URL (contains : or http://)
@@ -483,13 +488,16 @@ class BlenderMCPClient:
             temp_path = temp_file.name
             temp_file.close()
             
+            # Use forward slashes for the path in the Python code to ensure cross-platform compatibility
+            temp_path_normalized = temp_path.replace('\\', '/')
+            
             # Execute code to write PID to temporary file
             code = f"""
 import os
 import tempfile
 
 # Write PID to temporary file
-with open('{temp_path}', 'w') as f:
+with open('{temp_path_normalized}', 'w') as f:
     f.write(str(os.getpid()))
 """
             self.execute_command("execute_code", {"code": code})
@@ -549,22 +557,31 @@ with open('{temp_path}', 'w') as f:
             # Get the Blender PID
             pid = self.get_blender_pid()
 
-            # Try to kill the process
+            # Try to kill the process - cross-platform approach
             try:
-                os.kill(pid, signal.SIGTERM)  # Try graceful termination first
+                if platform.system() == "Windows":
+                    # Windows doesn't support SIGTERM/SIGKILL, use SIGTERM equivalent
+                    os.kill(pid, signal.SIGTERM)  # Windows translates this to TerminateProcess
+                else:
+                    # Unix-like systems: try graceful termination first
+                    os.kill(pid, signal.SIGTERM)
                 return True
             except ProcessLookupError:
                 # Process already terminated
                 return True
             except PermissionError:
-                # Try with SIGKILL if SIGTERM fails due to permissions
-                try:
-                    os.kill(pid, signal.SIGKILL)
-                    return True
-                except ProcessLookupError:
-                    # Process already terminated
-                    return True
-                except Exception as e:
-                    raise BlenderMCPError(f"Permission denied and SIGKILL failed: {str(e)}")
+                # Try with SIGKILL on Unix systems if SIGTERM fails due to permissions
+                if platform.system() != "Windows":
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                        return True
+                    except ProcessLookupError:
+                        # Process already terminated
+                        return True
+                    except Exception as e:
+                        raise BlenderMCPError(f"Permission denied and SIGKILL failed: {str(e)}")
+                else:
+                    # On Windows, if SIGTERM fails with permission error, we can't do much more
+                    raise BlenderMCPError(f"Permission denied to terminate process {pid}")
         except Exception as e:
             raise BlenderMCPError(f"Failed to kill Blender process: {str(e)}")

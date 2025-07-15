@@ -182,6 +182,7 @@ result = client.execute_python("bpy.ops.mesh.primitive_sphere_add()")
 
 ### Advanced Topics
 - **[Development Guide](development.md)** - Architecture, contributing, and extending the system
+- **[Cross-Platform Path Handling](cross-platform-paths.md)** - Configuration storage, Blender detection, and file paths across Windows, Linux, and macOS
 
 ## CLI Tools
 
