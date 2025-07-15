@@ -51,6 +51,19 @@ check_prerequisites() {
     fi
     print_status "npm found: $(npm --version)"
     
+    # Check bunx (part of Bun)
+    if ! command -v bunx &> /dev/null; then
+        print_error "bunx not found. Please install Bun first:"
+        echo ""
+        echo "📦 Install Bun (includes bunx):"
+        echo "   curl -fsSL https://bun.com/install | bash"
+        echo ""
+        echo "   Or visit: https://bun.com/docs/installation"
+        echo ""
+        exit 1
+    fi
+    print_status "bunx found: $(bunx --version)"
+    
     # Check Python and uv/uvx
     if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
         print_error "Python is not installed. Please install Python 3.8+"
@@ -58,13 +71,15 @@ check_prerequisites() {
     fi
     
     if ! command -v uvx &> /dev/null; then
-        print_warning "uvx not found. Installing uv package manager..."
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        source $HOME/.cargo/env
-        if ! command -v uvx &> /dev/null; then
-            print_error "Failed to install uvx. Please install uv manually: https://docs.astral.sh/uv/"
-            exit 1
-        fi
+        print_error "uvx not found. Please install uv first:"
+        echo ""
+        echo "📦 Install uv (includes uvx):"
+        echo "   curl -LsSf https://astral.sh/uv/install.sh | sh"
+        echo "   source \$HOME/.cargo/env"
+        echo ""
+        echo "   Or visit: https://docs.astral.sh/uv/"
+        echo ""
+        exit 1
     fi
     print_status "uvx found"
 }
@@ -73,16 +88,15 @@ check_prerequisites() {
 install_mcp_servers() {
     echo "📦 Installing MCP servers..."
     
-    # Install Tavily MCP (Node.js)
+    # Install Tavily MCP (via bunx)
     print_status "Installing Tavily MCP server..."
-    npm install -g tavily-mcp@latest
+    bunx tavily-mcp@latest --help >/dev/null 2>&1 || echo "Tavily MCP will be installed on first use via bunx"
     
-    # Install Context7 MCP (Node.js)
-    print_status "Installing Context7 MCP server..."
-    npm install -g @upstash/context7-mcp
+    # Context7 uses HTTP transport - no installation needed
+    print_status "Context7 MCP uses HTTP transport - no installation required"
     
     # Note: fetch and blender-mcp will be installed via uvx on first use
-    print_status "MCP server packages installed"
+    print_status "MCP server dependencies checked"
 }
 
 # Get API keys
@@ -109,9 +123,9 @@ add_mcp_servers() {
     claude mcp remove blender-mcp 2>/dev/null || true
     claude mcp remove context7 2>/dev/null || true
     
-    # Add Tavily MCP server (without -y flag)
+    # Add Tavily MCP server (using bunx)
     print_status "Adding Tavily MCP server..."
-    claude mcp add tavily npx tavily-mcp@latest -e TAVILY_API_KEY="$TAVILY_API_KEY"
+    claude mcp add tavily bunx tavily-mcp@latest -e TAVILY_API_KEY="$TAVILY_API_KEY"
     
     # Add Fetch MCP server
     print_status "Adding Fetch MCP server..."
@@ -121,9 +135,9 @@ add_mcp_servers() {
     print_status "Adding Blender MCP server..."
     claude mcp add blender-mcp uvx blender-mcp
     
-    # Add Context7 MCP server (without -y flag)
+    # Add Context7 MCP server (using HTTP transport)
     print_status "Adding Context7 MCP server..."
-    claude mcp add context7 npx @upstash/context7-mcp
+    claude mcp add --transport http context7 https://mcp.context7.com/mcp
     
     print_status "All MCP servers added to Claude Code"
 }

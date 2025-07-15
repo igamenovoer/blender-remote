@@ -72,6 +72,22 @@ function Test-Prerequisites {
         exit 1
     }
     
+    # Check bunx (part of Bun)
+    try {
+        $null = bunx --version
+        Write-Status "bunx found: $(bunx --version)"
+    }
+    catch {
+        Write-Error "bunx not found. Please install Bun first:"
+        Write-Host ""
+        Write-Host "📦 Install Bun (includes bunx):" -ForegroundColor Cyan
+        Write-Host "   powershell -c `"irm bun.sh/install.ps1|iex`"" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "   Or visit: https://bun.com/docs/installation" -ForegroundColor Yellow
+        Write-Host ""
+        exit 1
+    }
+    
     # Check Python
     $pythonCmd = $null
     foreach ($cmd in @("python", "python3", "py")) {
@@ -96,27 +112,14 @@ function Test-Prerequisites {
         Write-Status "uvx found"
     }
     catch {
-        Write-Warning "uvx not found. Installing uv package manager..."
-        try {
-            if ($IsWindows -or $env:OS -eq "Windows_NT") {
-                # Install uv for Windows
-                powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-            }
-            else {
-                # Install uv for Unix-like systems
-                curl -LsSf https://astral.sh/uv/install.sh | sh
-            }
-            
-            # Refresh PATH
-            $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
-            
-            $null = uvx --version
-            Write-Status "uvx installed successfully"
-        }
-        catch {
-            Write-Error "Failed to install uvx. Please install uv manually: https://docs.astral.sh/uv/"
-            exit 1
-        }
+        Write-Error "uvx not found. Please install uv first:"
+        Write-Host ""
+        Write-Host "📦 Install uv (includes uvx):" -ForegroundColor Cyan
+        Write-Host "   powershell -c `"irm https://astral.sh/uv/install.ps1 | iex`"" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "   Or visit: https://docs.astral.sh/uv/" -ForegroundColor Yellow
+        Write-Host ""
+        exit 1
     }
 }
 
@@ -124,25 +127,18 @@ function Test-Prerequisites {
 function Install-McpServers {
     Write-Info "📦 Installing MCP servers..."
     
-    # Install Tavily MCP (Node.js)
-    Write-Status "Installing Tavily MCP server..."
+    # Install Tavily MCP (via bunx)
+    Write-Status "Checking Tavily MCP server..."
     try {
-        npm install -g tavily-mcp@latest
-        Write-Status "Tavily MCP installed successfully"
+        $null = bunx tavily-mcp@latest --help
+        Write-Status "Tavily MCP available via bunx"
     }
     catch {
-        Write-Warning "Failed to install Tavily MCP: $_"
+        Write-Status "Tavily MCP will be installed on first use via bunx"
     }
     
-    # Install Context7 MCP (Node.js)
-    Write-Status "Installing Context7 MCP server..."
-    try {
-        npm install -g @upstash/context7-mcp
-        Write-Status "Context7 MCP installed successfully"
-    }
-    catch {
-        Write-Warning "Failed to install Context7 MCP: $_"
-    }
+    # Context7 uses HTTP transport - no installation needed
+    Write-Status "Context7 MCP uses HTTP transport - no installation required"
     
     # Note: fetch and blender-mcp will be installed via uvx on first use
     Write-Status "MCP server packages installed"
@@ -178,9 +174,9 @@ function Add-McpServers {
     try { claude mcp remove blender-mcp } catch { }
     try { claude mcp remove context7 } catch { }
     
-    # Add Tavily MCP server (without -y flag)
+    # Add Tavily MCP server (using bunx)
     Write-Status "Adding Tavily MCP server..."
-    claude mcp add tavily npx tavily-mcp@latest -e TAVILY_API_KEY="$ApiKey"
+    claude mcp add tavily bunx tavily-mcp@latest -e TAVILY_API_KEY="$ApiKey"
     
     # Add Fetch MCP server
     Write-Status "Adding Fetch MCP server..."
@@ -190,9 +186,9 @@ function Add-McpServers {
     Write-Status "Adding Blender MCP server..."
     claude mcp add blender-mcp uvx blender-mcp
     
-    # Add Context7 MCP server (without -y flag)
+    # Add Context7 MCP server (using HTTP transport)
     Write-Status "Adding Context7 MCP server..."
-    claude mcp add context7 npx @upstash/context7-mcp
+    claude mcp add --transport http context7 https://mcp.context7.com/mcp
     
     Write-Status "All MCP servers added to Claude Code"
 }
