@@ -178,3 +178,4 @@ htmltest.log
 
 # Blender Python Reference, symlinked to local directory
 context/refcode/blender_python_reference_4_4
+.claude/settings.local.json
