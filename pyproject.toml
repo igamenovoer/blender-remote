@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "blender-remote"
-version = "1.2.2"
+version = "1.2.3"
 description = "Automate Blender workflows with external Python control, background operation, and LLM integration"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -32,9 +32,11 @@ dependencies = [
     "click>=8.0.0", "pydantic>=2.11.7",  # for CLI tools
     "omegaconf>=2.3.0", "platformdirs", "attrs>=25.3.0",  # Advanced configuration management with YAML support
     "numpy>=1.24.0",  # 3D math operations and coordinate transformations
+    "scipy>=1.16.0",  # Scientific computing and statistical functions
     "trimesh>=3.0.0",  # 3D mesh processing and GLB export functionality
     "requests>=2.32.4",  # HTTP operations for external services
     "uvicorn>=0.35.0",  # ASGI server for FastMCP
+    "importlib_resources>=1.3.0",  # Fallback for older Python versions resource access
 ]
 
 [project.optional-dependencies]
@@ -147,7 +149,6 @@ uvicorn = ">=0.35.0,<0.36"
 # PyPI-only dependencies that don't have conda equivalents
 [tool.pixi.pypi-dependencies]
 blender-remote = { path = ".", editable = true }
-trimesh = "*"  # For 3D mesh processing and GLB export
 mcp = { version = "*", extras = ["cli"] }  # MCP CLI tools
 
 # Platform-specific dependencies

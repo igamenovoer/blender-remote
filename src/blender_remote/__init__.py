@@ -6,7 +6,7 @@ A Python package for remotely controlling Blender through MCP server connections
 
 from typing import Optional, Callable, Any
 
-__version__ = "1.2.2"
+__version__ = "1.2.3"
 __author__ = "blender-remote contributors"
 
 # Import main entry points (conditionally)

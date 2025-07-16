@@ -64,7 +64,7 @@ class BldRemoteMCPConfig:
     DEFAULT_SCENE_INDEX = 0
     
     # Version Information
-    ADDON_VERSION = (1, 2, 2)
+    ADDON_VERSION = (1, 2, 3)
     BLENDER_MIN_VERSION = (3, 0, 0)
     
     # Initial State Values
@@ -74,7 +74,7 @@ class BldRemoteMCPConfig:
     SOCKET_REUSE_ADDRESS = 1
     
     # Version String for Logging
-    VERSION_STRING = "v1.2.2"
+    VERSION_STRING = "v1.2.3"
     
     # Counter and State Values
     INITIAL_COUNTER_VALUE = 0
@@ -88,7 +88,7 @@ class BldRemoteMCPConfig:
 bl_info = {
     "name": "BLD Remote MCP",
     "author": "Claude Code", 
-    "version": (1, 2, 2),
+    "version": (1, 2, 3),
     "blender": (3, 0, 0),
     "location": "N/A",
     "description": "Dual-mode command server for remote Blender control (GUI timer + background queue)",

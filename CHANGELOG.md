@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
+## [1.2.3] - 2025-07-16
+
+### Fixed
+- **Critical**: Fixed missing `scipy` and `importlib_resources` dependencies for `uvx blender-remote` command
+- Added `scipy>=1.16.0` to main dependencies (required for rotation transformations in data_types.py)
+- Added `importlib_resources>=1.3.0` to main dependencies (fallback for resource access in CLI)
+- Resolved package installation issues where `uvx blender-remote` failed with "No module named 'scipy'"
+
 ## [1.2.2] - 2025-07-16
 
 ### Fixed
