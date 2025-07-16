@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
+## [1.2.2] - 2025-07-16
+
+### Fixed
+- **Critical**: Fixed Blender addon GUI installation failure caused by non-literal values in bl_info dictionary
+- bl_info now uses literal values instead of config constants to satisfy ast.literal_eval requirements
+- Resolves `ValueError: malformed node or string` when installing addon through Blender's GUI
+
 ## [1.2.1] - 2025-07-16
 
 ### Fixed

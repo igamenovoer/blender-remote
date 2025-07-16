@@ -640,7 +640,7 @@ def connect_and_send_command(
 
 
 @click.group()
-@click.version_option(version="1.2.1")
+@click.version_option(version="1.2.2")
 def cli() -> None:
     """Enhanced CLI tools for blender-remote"""
     pass
