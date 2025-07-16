@@ -20,7 +20,7 @@
 - **MCP Server** - Forwards MCP commands from LLM IDEs (VSCode, Claude, Cursor) to Blender addon  
 - **Python Client** - Direct control of Blender addon, bypassing MCP server for automation scripts
 
-![System Architecture](docs/architecture-full.svg)
+![System Architecture](docs/figures/architecture-full.svg)
 
 **Key Features**:
 - Seamless bridge between LLM-generated Blender-side code and external Python APIs

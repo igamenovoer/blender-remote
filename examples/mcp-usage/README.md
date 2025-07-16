@@ -144,7 +144,7 @@ Alternative approaches or modifications.
 
 ### Getting Help
 
-1. **Check Documentation**: [MCP Server Guide](../../docs/mcp-server.md)
+1. **Check Documentation**: [MCP Server API](../../docs/api/mcp-server-api.md)
 2. **Test Direct Connection**: Use CLI tools to verify functionality
 3. **Review Logs**: Check Blender console for error messages
 4. **Community Support**: Use GitHub discussions for questions

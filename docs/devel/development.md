@@ -6,7 +6,7 @@ This guide covers the development of blender-remote, including architecture, add
 
 ### System Components
 
-![System Architecture](system-architecture.svg)
+![System Architecture](../figures/system-architecture.svg)
 
 ### Data Flow
 
@@ -85,7 +85,7 @@ blender-remote/
 
 6. **Verify Setup**
    ```bash
-   pixi run python tests/smoke_test.py
+   pixi run pytest tests/mcp-server/test_fastmcp_server.py::test_connection
    ```
 
 ## MCP Server Architecture
@@ -138,7 +138,58 @@ async def get_scene_info(ctx: Context) -> dict:
         return {"status": "error", "message": str(e)}
 ```
 
-#### 3. Connection Management
+#### 3. Python Client API (`src/blender_remote/client.py`)
+
+Direct Python API for interacting with Blender without going through MCP:
+
+```python
+from blender_remote import BlenderClientAPI
+
+# Create client instance
+client = BlenderClientAPI()
+
+# Connect to Blender
+client.connect()
+
+# Execute operations directly
+result = client.send_command({
+    "type": "execute_code",
+    "params": {"code": "bpy.ops.mesh.primitive_cube_add()"}
+})
+```
+
+#### 4. Scene Manager (`src/blender_remote/scene_manager.py`)
+
+High-level scene management API:
+
+```python
+from blender_remote import SceneManager
+
+# Create scene manager
+scene = SceneManager(client)
+
+# Scene operations
+scene.create_object("Cube", "mesh")
+scene.set_object_transform("Cube", location=(1, 2, 3))
+scene.get_scene_info()
+```
+
+#### 5. Asset Manager (`src/blender_remote/asset_manager.py`)
+
+Asset management functionality:
+
+```python
+from blender_remote import AssetManager
+
+# Create asset manager
+assets = AssetManager(client)
+
+# Asset operations
+assets.import_file("/path/to/model.obj")
+assets.export_scene("/path/to/output.fbx")
+```
+
+#### 6. Connection Management
 
 ```python
 class ConnectionManager:
@@ -287,7 +338,7 @@ async def test_my_new_tool():
 
 ### Step 4: Update Documentation
 
-Add to `docs/api-reference.md`:
+Add to `docs/api/mcp-server-api.md`:
 
 ```markdown
 ## my_new_tool
@@ -330,10 +381,10 @@ tests/
 │   ├── test_scene_info.py        # Scene info tool tests
 │   ├── test_code_execution.py    # Code execution tests
 │   └── test_screenshots.py       # Screenshot tests
-├── integration/             # Integration tests
-│   ├── test_dual_service.py      # Compare with BlenderAutoMCP
-│   └── test_performance.py       # Performance benchmarks
-├── others/                  # Development scripts
+├── client-api/              # Client API tests
+│   ├── test_client.py            # BlenderClientAPI tests
+│   ├── test_scene_manager.py     # Scene manager tests
+│   └── test_asset_manager.py     # Asset manager tests
 └── conftest.py             # Test configuration
 ```
 
@@ -341,16 +392,19 @@ tests/
 
 ```bash
 # Run all tests
-pixi run python tests/run_dual_service_tests.py
+pixi run pytest tests/
 
-# Run specific test category
-pixi run python tests/run_dual_service_tests.py --mcp-server
+# Run MCP server tests
+pixi run pytest tests/mcp-server/
+
+# Run client API tests
+pixi run pytest tests/client-api/
 
 # Run with verbose output
-pixi run python tests/run_dual_service_tests.py --verbose
+pixi run pytest tests/ -v
 
-# Quick smoke test
-pixi run python tests/smoke_test.py
+# Run specific test file
+pixi run pytest tests/mcp-server/test_fastmcp_server.py
 ```
 
 ### Test Categories
@@ -671,7 +725,7 @@ async def safe_execute(func, *args, **kwargs):
 
 4. **Test Changes**
    ```bash
-   pixi run python tests/run_dual_service_tests.py
+   pixi run pytest tests/
    ```
 
 5. **Commit Changes**
@@ -807,9 +861,9 @@ pytest tests/mcp-server/test_fastmcp_server.py --pdb
 ## Resources
 
 ### Documentation
-- [MCP Server Guide](mcp-server.md)
-- [API Reference](api-reference.md)
-- [LLM Integration](llm-integration.md)
+- [MCP Server API](../api/mcp-server-api.md)
+- [Blender Addon API](../api/blender-addon-api.md)
+- [Python Client API](../api/python-client-api.md)
 
 ### External Resources
 - [FastMCP Documentation](https://fastmcp.readthedocs.io/)

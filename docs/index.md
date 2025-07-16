@@ -120,15 +120,24 @@ Then ask your LLM:
 
 ## Architecture
 
-![Blender Remote Full Architecture](architecture-full.svg)
+![Blender Remote Full Architecture](figures/architecture-full.svg)
 
 ## Documentation
 
-- **[CLI Tool](cli-tool.md)** - Command-line interface reference
-- **[Python API](python-control-api.md)** - Programming interface
-- **[LLM Integration](llm-integration.md)** - MCP server usage  
-- **[MCP Server](mcp-server.md)** - Server setup and tools
-- **[API Reference](api-reference.md)** - Complete tool reference
+### Manual
+
+- **[CLI Tool](manual/cli-tool.md)** - Command-line interface reference
+- **[Python Control API](manual/python-control-api.md)** - Programming interface
+
+### API Reference
+
+- **[Blender Addon API](api/blender-addon-api.md)** - BLD_Remote_MCP addon reference
+- **[MCP Server API](api/mcp-server-api.md)** - MCP server implementation
+- **[Python Client API](api/python-client-api.md)** - Python client library reference
+
+### Development
+
+- **[Development Guide](devel/development.md)** - Contributing and development setup
 
 ## CLI Reference
 

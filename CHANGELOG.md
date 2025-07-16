@@ -12,6 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
+## [1.2.4] - 2025-07-16
+
+### Changed
+- **Documentation**: Reorganized documentation structure for better maintainability
+  - Created `docs/api/` directory for API reference documentation
+  - Created `docs/manual/` directory for user guides and tutorials
+  - Created `docs/devel/` directory for development documentation
+  - Created `docs/deprecated/` directory to preserve old documentation
+  - Fixed all internal documentation links to reflect new structure
+  - Updated architecture diagram paths to use `docs/figures/` directory
+
 ## [1.2.3] - 2025-07-16
 
 ### Fixed
