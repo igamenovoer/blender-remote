@@ -23,7 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `uvx blender-mcp` (3rd party MCP server) → **`uvx blender-remote`** (our MCP server replacement)
 
 #### Our Project Components
-- **`BLD_Remote_MCP`** (`blender_addon/bld_remote_mcp/`) - Blender addon with background mode support
+- **`BLD_Remote_MCP`** (`src/blender_remote/addon/bld_remote_mcp/`) - Blender addon with background mode support
 - **`BlenderRemoteMCPServer`** (`src/blender_remote/mcp_server.py`) - MCP server implementation  
 - **`BlenderClientAPI`** (`src/blender_remote/client.py`, `scene_manager.py`) - Direct Python API (bypasses MCP server)
 - **`blender-remote-cli`** (`src/blender_remote/cli.py`) - CLI for process management and configuration
@@ -51,7 +51,7 @@ BlenderClientAPI (Python API) ────────┘
 - **Blender Path**: 
   - Linux: `/apps/blender-4.4.3-linux-x64/blender`
   - macOS: Default installation location (auto-detected via `blender-remote-cli init`)
-  - Windows: `C:\Program Files\Blender Foundation\Blender 4.4\blender.exe`
+  - Windows: Default installation location (auto-detected via `blender-remote-cli init`)
 - **CRITICAL: Always use `&`** for background execution - **Blender will quit when Bash command times out without `&`**
 - **Environment Variables**: Set `BLD_REMOTE_MCP_START_NOW=true` and `BLD_REMOTE_MCP_PORT=6688` for auto-start
 - **Timeout**: Use **10-second timeout** in Bash (NOT 2-minute default) with `&` background execution
