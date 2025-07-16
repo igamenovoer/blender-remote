@@ -2,64 +2,43 @@
 
 Control Blender remotely using Python API and LLM through MCP (Model Context Protocol).
 
-**✅ Production Ready** - 97.5% success rate across comprehensive testing with robust error handling and reliable GLB export capabilities.
+## Overview
 
-## Key Features
+**blender-remote** provides two control interfaces:
+- **Python API** for direct programmatic control
+- **MCP server** for LLM integration (Claude, VSCode, Cursor)
 
-### 1. **Dual Control Interface: Python API + LLM**
-Use both Python API and LLM simultaneously to control Blender. The MCP protocol enables LLMs to experiment with Blender operations and help you create new APIs based on their interactions.
+Both interfaces run Blender in background mode for automation or GUI mode for interactive work.
 
 ```python
 # Python API
-import blender_remote
-client = blender_remote.connect_to_blender(port=6688)
-scene_manager = blender_remote.create_scene_manager(client)
-# Create objects using direct Blender Python API
-client.execute_python('bpy.ops.mesh.primitive_cube_add(location=(2, 0, 0), size=1.5)')
+from blender_remote.client import BlenderMCPClient
+from blender_remote.scene_manager import BlenderSceneManager
+
+client = BlenderMCPClient()
+scene_manager = BlenderSceneManager(client)
+client.execute_python('bpy.ops.mesh.primitive_cube_add(location=(2, 0, 0))')
 ```
 
 ```bash
-# LLM via MCP
-uvx blender-remote  # Start MCP server for Claude, VSCode, Cursor, etc.
+# MCP server for LLMs
+uvx blender-remote
 ```
 
-### 2. **Background Mode Support**
-Run Blender completely headless for automation without GUI.
+## Key Features
+
+- **Background Mode**: Run Blender headless for automation
+- **GUI Mode**: Interactive development with full Blender interface  
+- **Cross-Platform**: Windows, Linux, macOS support
+- **GLB Export**: Export 3D models for web/game engines
+- **CLI Management**: Process control and configuration tools
 
 ```bash
-# GUI mode with auto-start service
-export BLD_REMOTE_MCP_START_NOW=1
-blender &
+# Background mode
+blender-remote-cli start --background
 
-# Background mode for automation
-blender --background --python start_service.py &
-```
-
-### 3. **Flexible Connection Management**
-Connect to Blender instances on different hosts and ports.
-
-```bash
-# Connect to local Blender on custom port
-uvx blender-remote --port 7777
-
-# Connect to remote Blender instance
-uvx blender-remote --host 192.168.1.100 --port 6688
-
-# Multiple configurations for different projects
-uvx blender-remote --host 127.0.0.1 --port 6688  # Development
-uvx blender-remote --host 10.0.0.5 --port 6688   # Production
-```
-
-### 4. **Advanced CLI Control**
-Comprehensive command-line interface with scene loading and logging control.
-
-```bash
-# Start with specific scene and logging level
-blender-remote-cli start --scene=assets.blend --log-level=DEBUG
-
-# Configure service settings
-blender-remote-cli config set mcp_service.log_level=INFO
-blender-remote-cli config set mcp_service.default_port=7777
+# GUI mode  
+blender-remote-cli start
 ```
 
 ## Installation
@@ -70,54 +49,49 @@ pip install blender-remote
 
 ## Quick Start
 
-### 1. Install Blender Addon
+### 1. Setup
 
-**Option A: Automated (Recommended)**
 ```bash
-blender-remote-cli init [blender_path]
+# Install package
+pip install blender-remote
+
+# Setup Blender addon
+blender-remote-cli init
 blender-remote-cli install
 ```
 
-**Option B: Manual**
-```bash
-cd blender-remote/blender_addon/
-zip -r bld_remote_mcp.zip bld_remote_mcp/
-# Install via Blender: Edit > Preferences > Add-ons > Install > Enable "BLD Remote MCP"
-```
-
-### 2. Start Blender with Service
+### 2. Start Service
 
 ```bash
-# GUI mode
-export BLD_REMOTE_MCP_START_NOW=1
-blender &
+# Background mode (automation)
+blender-remote-cli start --background
 
-# Background mode
-echo 'import bld_remote; bld_remote.start_mcp_service()' > start_service.py
-blender --background --python start_service.py &
+# GUI mode (interactive)  
+blender-remote-cli start
 ```
 
 ### 3. Use Python API
 
 ```python
-import blender_remote
+from blender_remote.client import BlenderMCPClient
+from blender_remote.scene_manager import BlenderSceneManager
 
-# Connect to Blender
-client = blender_remote.connect_to_blender(port=6688)
+# Connect
+client = BlenderMCPClient()
+scene_manager = BlenderSceneManager(client)
 
-# High-level scene operations
-scene_manager = blender_remote.create_scene_manager(client)
-# Create objects using direct Blender Python API
-client.execute_python('bpy.ops.mesh.primitive_cube_add(location=(0, 0, 0), size=2.0)')
-scene_manager.set_camera_location(location=(7, -7, 5), target=(0, 0, 0))
+# Create objects
+scene_manager.add_cube(location=(0, 0, 0), name="MyCube")
+scene_manager.add_sphere(location=(2, 0, 0), name="MySphere")
 
-# Direct code execution
-result = client.execute_python("bpy.ops.mesh.primitive_sphere_add()")
+# Export GLB
+glb_data = scene_manager.get_object_as_glb("MyCube")
 ```
 
 ### 4. Use with LLM
 
-**Configure LLM IDE (VSCode/Claude/Cursor):**
+Configure MCP in your IDE (Claude Desktop, VSCode, Cursor):
+
 ```json
 {
   "mcpServers": {
@@ -129,94 +103,55 @@ result = client.execute_python("bpy.ops.mesh.primitive_sphere_add()")
 }
 ```
 
-**Advanced Configuration (Custom Host/Port):**
-```json
-{
-  "mcpServers": {
-    "blender-remote": {
-      "command": "uvx",
-      "args": ["blender-remote", "--host", "127.0.0.1", "--port", "6688"]
-    }
-  }
-}
-```
+Then ask your LLM:
+- "What objects are in the Blender scene?"
+- "Create a cube at position (2, 0, 0)"
+- "Export the scene as GLB"
 
-**Then ask your LLM:**
-- "What objects are in the current Blender scene?"
-- "Create a blue metallic cube at position (2, 0, 0)"
-- "Export the current scene as GLB"
-- "Position the camera for a better view and render the scene"
-- "Help me create a new API function for batch object creation"
-
-## Available MCP Tools
+## MCP Tools
 
 | Tool | Description | GUI Required |
 |------|-------------|--------------|
-| `get_scene_info()` | List all objects, materials, and scene properties | No |
-| `get_object_info(name)` | Get detailed object properties | No |
-| `execute_code(code, send_as_base64, return_as_base64)` | Run Python code in Blender context with optional base64 encoding | No |
-| `get_viewport_screenshot()` | Capture viewport image | **Yes** |
-| `check_connection_status()` | Verify service health | No |
+| `get_scene_info` | List objects and scene properties | No |
+| `get_object_info` | Get object details | No |
+| `execute_code` | Run Python code in Blender | No |
+| `get_viewport_screenshot` | Capture viewport image | Yes |
+| `check_connection_status` | Verify service health | No |
 
-## How It Works
+## Architecture
 
 ![Blender Remote Full Architecture](architecture-full.svg)
 
-## Example: LLM-Assisted API Development
-
-1. **LLM experiments**: "Try creating 10 cubes in a grid pattern"
-2. **LLM observes**: Uses `execute_code()` to test different approaches
-3. **LLM creates API**: "Based on what worked, let me create a `create_cube_grid()` function"
-4. **You integrate**: Add the LLM-created function to your Python automation
-
 ## Documentation
 
-### Quick Start Guides
-- **[Installation & Setup](cli-tool.md)** - Get started with CLI tools and addon installation
-- **[LLM Integration](llm-integration.md)** - Connect to Claude, VSCode, Cursor, and other AI IDEs
-- **[Python API Usage](python-control-api.md)** - Control Blender programmatically with Python
+- **[CLI Tool](cli-tool.md)** - Command-line interface reference
+- **[Python API](python-control-api.md)** - Programming interface
+- **[LLM Integration](llm-integration.md)** - MCP server usage  
+- **[MCP Server](mcp-server.md)** - Server setup and tools
+- **[API Reference](api-reference.md)** - Complete tool reference
 
-### Reference Documentation
-- **[MCP Server Reference](mcp-server.md)** - Complete server setup and tool documentation
-- **[API Reference](api-reference.md)** - Detailed tool parameters and examples
-
-### Advanced Topics
-- **[Development Guide](development.md)** - Architecture, contributing, and extending the system
-- **[Cross-Platform Path Handling](cross-platform-paths.md)** - Configuration storage, Blender detection, and file paths across Windows, Linux, and macOS
-
-## CLI Tools
+## CLI Reference
 
 ```bash
-# One-time setup
-blender-remote-cli init [blender_path]
-blender-remote-cli install
+# Setup
+blender-remote-cli init          # Auto-detect Blender
+blender-remote-cli install       # Install addon
 
-# Start and manage service
-blender-remote-cli start --background
-blender-remote-cli start --scene=my_project.blend --log-level=DEBUG
-blender-remote-cli status
-
-# Configuration management
-blender-remote-cli config set mcp_service.log_level=DEBUG
-blender-remote-cli config get mcp_service.default_port
+# Control
+blender-remote-cli start          # Start GUI mode
+blender-remote-cli start --background  # Start background mode  
+blender-remote-cli status         # Check service status
 ```
 
 ## Troubleshooting
 
-**"Connection refused" error:**
-- Ensure Blender is running with BLD_Remote_MCP addon enabled
-- Check: `netstat -tlnp | grep 6688`
+**Connection refused:**
+- Check Blender is running: `blender-remote-cli status`
+- Verify addon enabled: Blender > Preferences > Add-ons > "BLD Remote MCP"
 
 **Screenshots not working:**
-- Only available in GUI mode (`blender`, not `blender --background`)
-
-**MCP server not found:**
-- Install with uvx: `uvx blender-remote`
+- Requires GUI mode (not background)
 
 ## License
 
 [MIT License](../LICENSE)
-
-## Credits
-
-Inspired by [ahujasid/blender-mcp](https://github.com/ahujasid/blender-mcp) with enhanced background mode support, thread-safe operations, and production-ready deployment.

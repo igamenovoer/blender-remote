@@ -160,7 +160,7 @@ uvx blender-remote --help
 |------|-------------|--------------|
 | `get_scene_info()` | List all objects, materials, properties | No |
 | `get_object_info(name)` | Get detailed object properties | No |
-| `execute_blender_code(code)` | Run Python code in Blender | No |
+| `execute_code(code)` | Run Python code in Blender | No |
 | `get_viewport_screenshot()` | Capture viewport image | **Yes** |
 | `check_connection_status()` | Verify service health | No |
 
@@ -307,7 +307,7 @@ uvx blender-remote --host 127.0.0.1 --port 6688 2>&1 | head -20
 ### Experimental Development
 ```
 You: "Try different ways to create a material with procedural textures"
-LLM: [Experiments with various approaches using execute_blender_code()]
+LLM: [Experiments with various approaches using execute_code()]
 LLM: "Based on the experiments, here's the most effective approach..."
 You: "Now create a Python function I can use in my automation scripts"
 ```
