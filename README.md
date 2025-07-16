@@ -20,7 +20,7 @@
 - **MCP Server** - Forwards MCP commands from LLM IDEs (VSCode, Claude, Cursor) to Blender addon  
 - **Python Client** - Direct control of Blender addon, bypassing MCP server for automation scripts
 
-![System Architecture](docs/architecture-full.svg)
+![System Architecture](docs/figures/architecture-full.svg)
 
 **Key Features**:
 - Seamless bridge between LLM-generated Blender-side code and external Python APIs
@@ -59,8 +59,16 @@ Use `blender-remote-cli` to set up and manage Blender integration:
 ```bash
 # Auto-detect Blender (Windows/macOS) or specify path
 blender-remote-cli init
+
+# Install the addon automatically (recommended)
 blender-remote-cli install
 ```
+
+> **Note for manual installation**: If you prefer to install the addon manually or inspect its source code, you can export it first:
+> ```bash
+> blender-remote-cli export --content=addon -o ./exported_addon
+> ```
+> This creates a `bld_remote_mcp` directory inside `./exported_addon`. You can then zip this directory and install it via Blender's `Edit > Preferences > Add-ons`.
 
 **2. Verify installation in Blender GUI**:
 - Open Blender → Edit → Preferences → Add-ons
@@ -103,6 +111,15 @@ blender-remote-cli execute my_script.py
 
 # Complex code with base64 encoding (recommended for multiline code)
 blender-remote-cli execute -c "import bpy; [bpy.ops.mesh.primitive_cube_add(location=(i*2, 0, 0)) for i in range(3)]" --use-base64
+```
+
+**6. Export addon or scripts for manual use**:
+```bash
+# Export addon source code for inspection or manual installation
+blender-remote-cli export --content=addon -o ./exported_addon
+
+# Export the keep-alive script for custom background startup
+blender-remote-cli export --content=keep-alive.py -o .
 ```
 
 #### The MCP Server Approach
@@ -204,7 +221,45 @@ create_cube_spiral(client, count=15, radius=5)
 
 #### Batch Processing Using Background Mode
 
-**Automated batch workflow**:
+For full control over the background process, you can export the keep-alive script, modify it if needed, and run it directly with Blender. This is useful for custom startup logic or integration into larger automation frameworks.
+
+**1. Export the keep-alive script**
+```bash
+blender-remote-cli export --content=keep-alive.py -o .
+```
+
+**2. Start Blender with the script and required environment variables**
+
+The addon requires environment variables to know which port to use and to enable auto-start.
+
+**On Linux/macOS:**
+```bash
+# Set environment variables and start Blender in the background
+export BLD_REMOTE_MCP_PORT=7788
+export BLD_REMOTE_MCP_START_NOW=1
+export BLD_REMOTE_LOG_LEVEL=DEBUG # Optional: for detailed logs
+blender --background --python keep-alive.py &
+```
+
+**On Windows (Command Prompt):**
+```cmd
+C:\> set BLD_REMOTE_MCP_PORT=7788
+C:\> set BLD_REMOTE_MCP_START_NOW=1
+C:\> set BLD_REMOTE_LOG_LEVEL=DEBUG
+C:\> start /b blender --background --python keep-alive.py
+```
+
+**On Windows (PowerShell):**
+```powershell
+PS C:\> $env:BLD_REMOTE_MCP_PORT="7788"
+PS C:\> $env:BLD_REMOTE_MCP_START_NOW="1"
+PS C:\> $env:BLD_REMOTE_LOG_LEVEL="DEBUG"
+PS C:\> Start-Process blender -ArgumentList "--background", "--python", "keep-alive.py" -NoNewWindow
+```
+
+The Python client can then connect to this manually started instance on the specified port.
+
+**Automated batch workflow (using the CLI to start)**:
 
 ```python
 import blender_remote

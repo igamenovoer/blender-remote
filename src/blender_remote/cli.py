@@ -19,6 +19,7 @@ import shutil
 import socket
 import subprocess
 import tempfile
+import textwrap
 from pathlib import Path
 from typing import Any, cast
 
@@ -42,6 +43,91 @@ DEFAULT_PORT = 6688  # Should match MCPServerConfig.FALLBACK_BLENDER_PORT
 SOCKET_TIMEOUT_SECONDS = 60.0  # Should match MCPServerConfig.SOCKET_TIMEOUT_SECONDS
 SOCKET_RECV_CHUNK_SIZE = 131072  # Should match MCPServerConfig.SOCKET_RECV_CHUNK_SIZE (128KB)
 SOCKET_MAX_RESPONSE_SIZE = 10 * 1024 * 1024  # Should match MCPServerConfig.SOCKET_MAX_RESPONSE_SIZE (10MB)
+
+
+KEEPALIVE_SCRIPT = """
+# Keep Blender running in background mode
+import time
+import signal
+import sys
+import threading
+import platform
+
+# Global flag to control the keep-alive loop
+_keep_running = True
+
+def signal_handler(signum, frame):
+    global _keep_running
+    print(f"Received signal {signum}, shutting down...")
+    _keep_running = False
+
+    # Try to gracefully shutdown the MCP service
+    try:
+        import bld_remote
+        if bld_remote.is_mcp_service_up():
+            bld_remote.stop_mcp_service()
+            print("MCP service stopped")
+    except Exception as e:
+        print(f"Error stopping MCP service: {e}")
+
+    # Allow a moment for cleanup
+    time.sleep(0.5)
+    sys.exit(0)
+
+# Install signal handlers
+signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+
+# SIGTERM is not available on Windows
+if platform.system() != "Windows":
+    signal.signal(signal.SIGTERM, signal_handler)  # Termination
+
+print("Blender running in background mode. Press Ctrl+C to exit.")
+print("MCP service should be starting on the configured port...")
+
+# Keep the main thread alive with simple sleep loop (sync version)
+# This prevents Blender from exiting after the script finishes
+try:
+    # Give the MCP service time to start up
+    print("Waiting for MCP service to fully initialize...")
+    time.sleep(2)
+
+    print("[SUCCESS] Starting main background loop...")
+
+    # Import BLD Remote module for status checking
+    import bld_remote
+
+    # Verify service started successfully
+    status = bld_remote.get_status()
+    if status.get('running'):
+        print(f"[SUCCESS] MCP service is running on port {status.get('port')}")
+    else:
+        print("[WARN] Warning: MCP service may not have started properly")
+
+    # Main keep-alive loop with background mode command processing
+    while _keep_running:
+        # Process any queued commands in background mode
+        try:
+            import bld_remote
+            if bld_remote.is_background_mode():
+                # Call step() to process queued commands in background mode
+                bld_remote.step()
+        except ImportError:
+            # bld_remote module not available, skip step processing
+            pass
+        except Exception as e:
+            print(f"Warning: Error in background step processing: {e}")
+
+        # Simple keep-alive loop for synchronous threading-based server
+        # The server runs in its own daemon threads, we just need to prevent
+        # the main thread from exiting
+        time.sleep(0.05)  # 50ms sleep for responsive signal handling
+
+except KeyboardInterrupt:
+    print("Interrupted by user, shutting down...")
+    _keep_running = False
+
+print("Background mode keep-alive loop finished, Blender will exit.")
+"""
 
 
 class BlenderRemoteConfig:
@@ -1004,6 +1090,45 @@ def get(key: str | None) -> None:
         click.echo(OmegaConf.to_yaml(config_manager.config))
 
 
+def export_addon(output_dir: Path):
+    """Exports the addon source to the specified directory."""
+    try:
+        addon_zip_path = get_addon_zip_path()
+        click.echo(f"  → Found addon zip at {addon_zip_path}")
+        
+        # Unpack to the target directory. This will create a 'bld_remote_mcp' subdir.
+        shutil.unpack_archive(addon_zip_path, output_dir)
+        
+        click.echo(f"  → Extracted addon to {output_dir / 'bld_remote_mcp'}")
+
+    except Exception as e:
+        raise click.ClickException(f"Failed to export addon: {e}")
+
+def export_keep_alive_script(output_dir: Path):
+    """Exports the keep-alive script to the specified directory."""
+    script_path = output_dir / "keep-alive.py"
+    with open(script_path, "w", encoding="utf-8") as f:
+        # Dedent the script to remove leading whitespace from the multiline string
+        f.write(textwrap.dedent(KEEPALIVE_SCRIPT).strip())
+    click.echo(f"  → Wrote keep-alive script to {script_path}")
+
+@cli.command()
+@click.option('--content', type=click.Choice(['addon', 'keep-alive.py']), required=True, help="Content to export: 'addon' or 'keep-alive.py'")
+@click.option('-o', '--output-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True, resolve_path=True), required=True, help="Output directory to export content to.")
+def export(content: str, output_dir: str) -> None:
+    """Export addon source code or keep-alive script."""
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    click.echo(f"Exporting '{content}' to '{output_dir}'...")
+
+    if content == 'addon':
+        export_addon(output_path)
+    elif content == 'keep-alive.py':
+        export_keep_alive_script(output_path)
+
+    click.echo(f"Successfully exported '{content}' to '{output_dir}'")
+
+
 @cli.command()
 @click.option("--background", is_flag=True, help="Start Blender in background mode")
 @click.option(
@@ -1075,91 +1200,7 @@ print("[INFO] MCP service will start via addon auto-start mechanism")
 
     # In background mode, add proper keep-alive mechanism
     if background:
-        startup_code.append(
-            """
-# Keep Blender running in background mode
-import time
-import signal
-import sys
-import threading
-import platform
-
-# Global flag to control the keep-alive loop
-_keep_running = True
-
-def signal_handler(signum, frame):
-    global _keep_running
-    print(f"Received signal {signum}, shutting down...")
-    _keep_running = False
-
-    # Try to gracefully shutdown the MCP service
-    try:
-        import bld_remote
-        if bld_remote.is_mcp_service_up():
-            bld_remote.stop_mcp_service()
-            print("MCP service stopped")
-    except Exception as e:
-        print(f"Error stopping MCP service: {e}")
-
-    # Allow a moment for cleanup
-    time.sleep(0.5)
-    sys.exit(0)
-
-# Install signal handlers
-signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
-
-# SIGTERM is not available on Windows
-if platform.system() != "Windows":
-    signal.signal(signal.SIGTERM, signal_handler)  # Termination
-
-print("Blender running in background mode. Press Ctrl+C to exit.")
-print("MCP service should be starting on the configured port...")
-
-# Keep the main thread alive with simple sleep loop (sync version)
-# This prevents Blender from exiting after the script finishes
-try:
-    # Give the MCP service time to start up
-    print("Waiting for MCP service to fully initialize...")
-    time.sleep(2)
-
-    print("[SUCCESS] Starting main background loop...")
-
-    # Import BLD Remote module for status checking
-    import bld_remote
-
-    # Verify service started successfully
-    status = bld_remote.get_status()
-    if status.get('running'):
-        print(f"[SUCCESS] MCP service is running on port {status.get('port')}")
-    else:
-        print("[WARN] Warning: MCP service may not have started properly")
-
-    # Main keep-alive loop with background mode command processing
-    while _keep_running:
-        # Process any queued commands in background mode
-        try:
-            import bld_remote
-            if bld_remote.is_background_mode():
-                # Call step() to process queued commands in background mode
-                bld_remote.step()
-        except ImportError:
-            # bld_remote module not available, skip step processing
-            pass
-        except Exception as e:
-            print(f"Warning: Error in background step processing: {e}")
-
-        # Simple keep-alive loop for synchronous threading-based server
-        # The server runs in its own daemon threads, we just need to prevent
-        # the main thread from exiting
-        time.sleep(0.05)  # 50ms sleep for responsive signal handling
-
-except KeyboardInterrupt:
-    print("Interrupted by user, shutting down...")
-    _keep_running = False
-
-print("Background mode keep-alive loop finished, Blender will exit.")
-"""
-        )
+        startup_code.append(KEEPALIVE_SCRIPT)
 
     # Create temporary script file
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as temp_file:
