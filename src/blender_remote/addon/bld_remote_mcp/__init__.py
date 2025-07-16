@@ -64,7 +64,7 @@ class BldRemoteMCPConfig:
     DEFAULT_SCENE_INDEX = 0
     
     # Version Information
-    ADDON_VERSION = (1, 2, 0)
+    ADDON_VERSION = (1, 2, 1)
     BLENDER_MIN_VERSION = (3, 0, 0)
     
     # Initial State Values
@@ -74,7 +74,7 @@ class BldRemoteMCPConfig:
     SOCKET_REUSE_ADDRESS = 1
     
     # Version String for Logging
-    VERSION_STRING = "v1.2.0"
+    VERSION_STRING = "v1.2.1"
     
     # Counter and State Values
     INITIAL_COUNTER_VALUE = 0

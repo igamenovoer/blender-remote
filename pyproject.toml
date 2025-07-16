@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "blender-remote"
-version = "1.2.0"
+version = "1.2.1"
 description = "Automate Blender workflows with external Python control, background operation, and LLM integration"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -71,11 +71,7 @@ exclude = ["tests*", "context*", "tmp*", "build*", "dist*", "*.egg-info*"]
 "" = "src"
 
 [tool.setuptools.package-data]
-"blender_remote" = ["*.py", "*.json", "*.md"]
-
-# Include blender addon files
-[tool.setuptools.data-files]
-"share/blender_remote/blender_addon" = ["blender_addon/bld_remote_mcp/*.py"]
+"blender_remote" = ["*.py", "*.json", "*.md", "addon/**/*"]
 
 [tool.black]
 line-length = 88

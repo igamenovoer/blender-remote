@@ -443,7 +443,7 @@ def get_addon_zip_path() -> Path:
     # Check if we're in development mode
     current_dir = Path.cwd()
 
-    # Look for addon in development directory
+    # Look for addon in development directory (legacy location)
     dev_addon_dir = current_dir / "blender_addon" / "bld_remote_mcp"
 
     if dev_addon_dir.exists():
@@ -466,11 +466,41 @@ def get_addon_zip_path() -> Path:
 
     # Look for installed package data
     try:
-        import pkg_resources
-
-        package_data = pkg_resources.resource_filename("blender_remote", "addon")
-        if Path(package_data).exists():
-            return Path(package_data) / "bld_remote_mcp.zip"
+        # Try modern importlib approach first
+        try:
+            import importlib.resources as importlib_resources
+            package_path = importlib_resources.files("blender_remote") / "addon" / "bld_remote_mcp"
+            if package_path.exists():
+                addon_dir = package_path
+        except (ImportError, AttributeError):
+            # Fallback to older importlib.resources API
+            try:
+                import importlib_resources
+                package_path = importlib_resources.files("blender_remote") / "addon" / "bld_remote_mcp"
+                if package_path.exists():
+                    addon_dir = package_path
+            except ImportError:
+                # Final fallback to pkg_resources
+                import pkg_resources
+                addon_dir = Path(pkg_resources.resource_filename("blender_remote", "addon/bld_remote_mcp"))
+        
+        if addon_dir and Path(addon_dir).exists():
+            # Create zip from installed package data
+            temp_dir = Path(tempfile.gettempdir())
+            addon_zip = temp_dir / "bld_remote_mcp.zip"
+            
+            # Remove existing temp zip if present
+            if addon_zip.exists():
+                addon_zip.unlink()
+            
+            # Create zip from package data
+            shutil.make_archive(
+                str(addon_zip.with_suffix("")),
+                "zip",
+                str(Path(addon_dir).parent),
+                "bld_remote_mcp",
+            )
+            return addon_zip
     except Exception:
         pass
 
@@ -482,7 +512,7 @@ def get_debug_addon_zip_path() -> Path:
     # Check if we're in development mode
     current_dir = Path.cwd()
 
-    # Look for debug addon in development directory
+    # Look for debug addon in development directory (legacy location)
     dev_addon_dir = current_dir / "blender_addon" / "simple-tcp-executor"
 
     if dev_addon_dir.exists():
@@ -502,6 +532,46 @@ def get_debug_addon_zip_path() -> Path:
             "simple-tcp-executor",
         )
         return dev_addon_zip
+
+    # Look for installed package data
+    try:
+        # Try modern importlib approach first
+        try:
+            import importlib.resources as importlib_resources
+            package_path = importlib_resources.files("blender_remote") / "addon" / "simple-tcp-executor"
+            if package_path.exists():
+                addon_dir = package_path
+        except (ImportError, AttributeError):
+            # Fallback to older importlib.resources API
+            try:
+                import importlib_resources
+                package_path = importlib_resources.files("blender_remote") / "addon" / "simple-tcp-executor"
+                if package_path.exists():
+                    addon_dir = package_path
+            except ImportError:
+                # Final fallback to pkg_resources
+                import pkg_resources
+                addon_dir = Path(pkg_resources.resource_filename("blender_remote", "addon/simple-tcp-executor"))
+        
+        if addon_dir and Path(addon_dir).exists():
+            # Create zip from installed package data
+            temp_dir = Path(tempfile.gettempdir())
+            addon_zip = temp_dir / "simple-tcp-executor.zip"
+            
+            # Remove existing temp zip if present
+            if addon_zip.exists():
+                addon_zip.unlink()
+            
+            # Create zip from package data
+            shutil.make_archive(
+                str(addon_zip.with_suffix("")),
+                "zip",
+                str(Path(addon_dir).parent),
+                "simple-tcp-executor",
+            )
+            return addon_zip
+    except Exception:
+        pass
 
     raise click.ClickException("Could not find simple-tcp-executor addon files")
 
@@ -570,7 +640,7 @@ def connect_and_send_command(
 
 
 @click.group()
-@click.version_option(version="1.2.0")
+@click.version_option(version="1.2.1")
 def cli() -> None:
     """Enhanced CLI tools for blender-remote"""
     pass
