@@ -1,256 +1,159 @@
-# Tests
+# blender-remote Test Suite
 
-This directory contains the comprehensive test suite for the blender-remote project, with specialized dual-service comparison tests for BLD_Remote_MCP vs BlenderAutoMCP.
+This directory contains comprehensive tests for the blender-remote project, organized according to the test plans in `context/plans/`.
 
-## Purpose
+## Test Directory Structure
 
-Tests ensure:
-- **BLD_Remote_MCP functions identically to BlenderAutoMCP** (primary focus)
-- Remote control library functions correctly
-- Communication protocols work as expected
-- CLI tools behave properly
-- Add-ons integrate correctly with Blender
-- Error handling works in various scenarios
-- Performance characteristics are acceptable
+### `mcp-server/` - MCP Server Drop-in Replacement Tests
+Tests that validate our MCP server (`uvx blender-remote` + `BLD_Remote_MCP`) serves as a drop-in replacement for the reference implementation (`uvx blender-mcp` + `BlenderAutoMCP`).
 
-## Structure
+**Key Test Files:**
+- `test_functional_equivalence.py` - Compare shared methods between our stack and reference stack
+- `test_synchronous_execution.py` - Real-world Blender automation with custom structured results
+- `test_base64_complex_code.py` - Base64 encoding for complex code and large data transmission
+- `test_service_validation.py` - Basic TCP service availability and health checks
 
-```
-tests/
-├── integration/                           # Integration and comparison tests
-│   ├── test_dual_service_comparison.py   # Functional equivalence tests
-│   ├── test_performance_comparison.py    # Performance comparison tests
-│   ├── detailed_comparison_test.py       # Detailed service comparison
-│   ├── protocol_comparison_test.py       # Protocol compatibility tests
-│   └── run_comparison_test.py            # Service comparison runner
-├── mcp-server/                           # MCP server functionality tests
-│   ├── test_fastmcp_server.py           # FastMCP server validation
-│   ├── test_base64_screenshot.py        # Base64 screenshot tests
-│   ├── test_viewport_screenshot.py      # Viewport screenshot tests
-│   └── (see mcp-server/README.md)       # Full MCP server test suite
-├── mcp-cli-tools/                        # MCP CLI tools and protocol tests
-│   ├── test_mcp_cli_client_pixi.py      # MCP CLI client (pixi) - RECOMMENDED
-│   ├── test_mcp_cli_client.py           # MCP CLI client (uv)
-│   ├── test_blender_mcp_direct.py       # Direct TCP and FastMCP tool tests
-│   ├── test_blender_mcp_programmatic.py # HTTP-based programmatic tests
-│   └── (see mcp-cli-tools/README.md)    # MCP CLI tools documentation
-├── api-tests/                            # External API integration tests
-│   ├── test_gemini_api.sh               # Gemini API connectivity test
-│   └── (see api-tests/README.md)        # External API test documentation
-├── blocking/                             # Blocking and concurrency tests
-│   ├── test_multi_client.py             # Multi-client blocking functionality
-│   ├── test_blocking_simple.py          # Simple blocking mechanism test
-│   ├── test_blocking_execute.py         # Execute code blocking tests
-│   ├── test_debug_blocking.py           # Debug blocking mechanism
-│   ├── test_precise_blocking.py         # Precise timing blocking tests
-│   └── (see blocking/README.md)         # Blocking tests documentation
-├── python_control_api/                   # Python control API tests
-│   ├── test_basic_connection.py         # Basic connection tests
-│   ├── test_scene_operations.py         # Scene manipulation tests
-│   └── (see python_control_api/README.md) # Python API test suite
-├── others/                               # Miscellaneous test scripts
-│   ├── simple_test.py                   # Basic connection test
-│   ├── start_bld_remote.py              # Service startup helper
-│   └── test_compatibility_fix.py        # Compatibility testing
-├── test_bld_remote_mcp.py                # Unit tests for our MCP service
-├── run_dual_service_tests.py             # Comprehensive test runner
-├── smoke_test.py                          # Quick verification script
-└── conftest.py                           # pytest configuration and fixtures
-```
+**Based on:** `context/plans/mcp-server-comprehensive-test-plan.md`
 
-## Quick Start
+### `client-api/` - Blender Remote Client API Tests
+Tests for the Python client API classes (`BlenderMCPClient` and `BlenderSceneManager`) that communicate directly with the `BLD_Remote_MCP` addon.
 
-### Smoke Test (30 seconds)
+**Key Test Files:**
+- `test_corrected_issues_investigation.py` - **Priority I/O handling focused tests**
+- `test_client_connection.py` - Connection management (renamed from `test_basic_connection.py`)
+- `test_client_commands.py` - Command execution functionality
+- `test_client_scene_info.py` - Scene information retrieval
+- `test_scene_manager_objects.py` - Object creation/manipulation (renamed from `test_scene_operations.py`)
+- `test_scene_manager_export.py` - GLB export functionality (renamed from `test_asset_operations.py`)
+- `test_integration_mcp.py` - Integration tests (renamed from `test_integration.py`)
+- `test_error_handling.py` - Error scenarios and edge cases
+
+**Based on:** `context/plans/blender-remote-client-test-plan.md`
+
+## Test Focus Areas
+
+### MCP Server Tests Priority
+1. **Functional Equivalence** - Drop-in replacement validation
+2. **Synchronous Execution** - Custom structured results from Blender code
+3. **Base64 Transmission** - Complex code and large data handling
+4. **Service Validation** - Basic connectivity and health
+
+### Client API Tests Priority
+1. **I/O Handling Correctness** ⭐ - Parameter validation, response parsing, data transmission
+2. **Core Client Functionality** - Connection, commands, scene info
+3. **Scene Manager Operations** - Object manipulation, export capabilities
+4. **Error Handling** - Network issues, invalid parameters, API errors
+
+## Running Tests
+
+### Prerequisites
+- Blender 4.4.3+ running with `BLD_Remote_MCP` addon installed and enabled
+- Service listening on port 6688 (or configured port)
+- Python environment with blender-remote package installed
+
+### Quick Start
 ```bash
-# Quick verification that both services work
-./tests/smoke_test.py
-```
+# From project root directory
 
-### Full Comparison Suite (5-10 minutes)
-```bash
-# Run complete comparison between BLD_Remote_MCP and BlenderAutoMCP
-./tests/run_dual_service_tests.py
+# Run MCP server tests
+pixi run python tests/mcp-server/test_functional_equivalence.py
+pixi run python tests/mcp-server/test_synchronous_execution.py
+pixi run python tests/mcp-server/test_base64_complex_code.py
+pixi run python tests/mcp-server/test_service_validation.py
 
-# Quick tests only (skip performance tests)
-./tests/run_dual_service_tests.py --quick
-
-# Performance tests only
-./tests/run_dual_service_tests.py --performance
+# Run client API tests (priority first)
+pixi run python tests/client-api/test_corrected_issues_investigation.py
+pixi run python tests/client-api/test_client_connection.py
+pixi run python tests/client-api/test_client_commands.py
+pixi run python tests/client-api/test_error_handling.py
 ```
 
 ### Individual Test Categories
 ```bash
-# Unit tests (our service only)
-./tests/run_dual_service_tests.py --unit
+# MCP Server drop-in replacement validation
+cd tests/mcp-server && pixi run python test_functional_equivalence.py
 
-# Integration tests (dual service comparison)
-./tests/run_dual_service_tests.py --integration
+# Client API I/O handling correctness (priority)
+cd tests/client-api && pixi run python test_corrected_issues_investigation.py
 
-# MCP CLI tools tests
-pixi run python tests/mcp-cli-tools/test_mcp_cli_client_pixi.py
-
-# External API tests
-bash tests/api-tests/test_gemini_api.sh "your_api_key"
-
-# Verbose output
-./tests/run_dual_service_tests.py --verbose
+# Error handling and edge cases
+cd tests/client-api && pixi run python test_error_handling.py
 ```
 
-## Test Categories
+## Setting up Blender for Testing
 
-### 1. Dual Service Comparison Tests
-**File**: `integration/test_dual_service_comparison.py`
-- Tests functional equivalence between BLD_Remote_MCP and BlenderAutoMCP
-- Both services run simultaneously in GUI mode
-- Identical commands sent to both services
-- Responses compared for consistency
-- **Key Tests**:
-  - Basic connectivity
-  - Python code execution
-  - Blender API access
-  - Scene object manipulation
-  - Error handling consistency
-  - Large code block execution
-
-### 2. Performance Comparison Tests  
-**File**: `integration/test_performance_comparison.py`
-- Measures execution time for identical operations
-- Ensures BLD_Remote_MCP performance is within acceptable range (≤2x slower)
-- **Performance Tests**:
-  - Simple command latency
-  - Blender API call performance
-  - Object creation speed
-  - Large code execution time
-  - Connection overhead
-
-### 3. BLD_Remote_MCP Unit Tests
-**File**: `test_bld_remote_mcp.py`
-- Tests specific functionality of our service implementation
-- **Unit Tests**:
-  - Service startup and connectivity
-  - Python execution capabilities
-  - Blender API integration
-  - Scene manipulation
-  - Error handling robustness
-  - Memory management
-  - Concurrent connections
-
-### 4. MCP CLI Tools Tests
-**Directory**: `mcp-cli-tools/`
-- Tests official MCP protocol implementations and programmatic interaction methods
-- **Test Categories**:
-  - **Official Protocol Tests**: MCP CLI client using Python SDK (recommended)
-  - **Low-level Protocol Tests**: Direct TCP socket communication
-  - **FastMCP Integration Tests**: Direct tool imports and function calls
-  - **Legacy/Reference Tests**: HTTP-based programmatic approaches
-- **Key Tests**:
-  - MCP session initialization and tool discovery
-  - Scene information retrieval via MCP protocol
-  - Code execution through MCP tools
-  - Screenshot capture and image handling
-  - Error handling and connection management
-
-### 5. External API Tests
-**Directory**: `api-tests/`
-- Tests external API integrations and connectivity
-- **Test Categories**:
-  - **Gemini API**: LLM integration testing
-  - **Authentication**: API key validation
-  - **Connectivity**: Network and endpoint testing
-
-## Prerequisites
-
-- **Blender 4.4.3** installed at `/apps/blender-4.4.3-linux-x64/blender`
-- **BLD_Remote_MCP addon** installed at `~/.config/blender/4.4/scripts/addons/bld_remote_mcp/`
-- **BlenderAutoMCP** reference service (should auto-load in Blender)
-- **Python packages**: `pytest`, `auto_mcp_remote` client modules
-
-## Test Environment
-
-### Service Configuration
-- **BLD_Remote_MCP**: Port 6688 (configurable via `BLD_REMOTE_MCP_PORT`)
-- **BlenderAutoMCP**: Port 9876 (reference implementation)
-- **Test Mode**: GUI mode with both services running simultaneously
-
-### Environment Variables
+### Option 1: Using CLI (Recommended)
 ```bash
-export BLD_REMOTE_MCP_PORT=6688
+# Configure and start Blender with service
+blender-remote-cli init
+blender-remote-cli install
+blender-remote-cli start --background
+```
+
+### Option 2: Manual Environment Setup
+```bash
+# Windows
+set BLD_REMOTE_MCP_START_NOW=1
+set BLD_REMOTE_MCP_PORT=6688
+"C:\Program Files\Blender Foundation\Blender 4.4\blender.exe"
+
+# Linux/macOS
 export BLD_REMOTE_MCP_START_NOW=1
-export BLENDER_AUTO_MCP_SERVICE_PORT=9876
-export BLENDER_AUTO_MCP_START_NOW=1
+export BLD_REMOTE_MCP_PORT=6688
+/apps/blender-4.4.3-linux-x64/blender &
 ```
 
-## Running Individual Tests
-
+### Verify Service
 ```bash
-# Run all tests with pytest
-pytest
+# Check if service is listening
+netstat -tlnp | grep 6688
 
-# Specific test files
-pytest tests/test_bld_remote_mcp.py
-pytest tests/integration/test_dual_service_comparison.py  
-pytest tests/integration/test_performance_comparison.py
-
-# With coverage
-pytest --cov=blender_remote tests/
-
-# Exclude slow tests
-pytest -m "not slow"
-
-# Only dual-service tests
-pytest -m "dual_service"
+# Test basic connectivity
+pixi run python tests/mcp-server/test_service_validation.py
 ```
 
 ## Test Results Interpretation
 
-### ✅ Success Criteria
-- All dual-service comparison tests pass
-- Performance within 2x of BlenderAutoMCP
-- No functional differences detected
-- Error handling behaves consistently
+### Success Criteria
+- **MCP Server Tests**: All shared methods return functionally equivalent results
+- **Client API Tests**: 90%+ success rate for I/O handling correctness
+- **Error Handling**: Proper exception handling and graceful degradation
+- **Integration Tests**: Full workflow validation
 
-### ❌ Failure Indicators
-- Response differences between services
-- Performance regressions >2x slower
-- Service startup failures
-- Inconsistent error handling
+### Expected Performance
+- **BlenderMCPClient**: 95%+ success rate for core functionality
+- **BlenderSceneManager**: 100% success rate for scene operations  
+- **Overall System**: 97%+ success rate for production readiness
 
 ## Troubleshooting
 
-### Common Issues
-1. **Port conflicts**: Services fail to start
-   - Solution: Kill existing Blender processes: `pkill -f blender`
+### Connection Issues
+1. Verify Blender is running with BLD_Remote_MCP addon enabled
+2. Check port 6688 availability: `netstat -tlnp | grep 6688`
+3. Test service validation: `pixi run python tests/mcp-server/test_service_validation.py`
 
-2. **Service startup timeout**: Services don't respond within timeout
-   - Solution: Increase timeout or check addon installation
+### Import Errors
+1. Run tests from project root directory
+2. Use `pixi run python` for consistent environment
+3. Verify dependencies: `pixi install`
 
-3. **Import errors**: `auto_mcp_remote` not found
-   - Solution: Verify `context/refcode/auto_mcp_remote/` exists
+### Service Errors
+1. Restart Blender if service becomes unresponsive
+2. Check Blender console for BLD_Remote_MCP addon errors
+3. Verify addon installation: Edit → Preferences → Add-ons → "BLD Remote MCP"
 
-4. **Test failures**: Functional differences detected
-   - Solution: Review test output and compare service logs
+## Test Plan Updates
 
-### Debug Mode
-```bash
-# Run with maximum verbosity
-./tests/run_dual_service_tests.py --verbose
+Both test suites are regularly updated based on:
+- **MCP Server Plan**: `context/plans/mcp-server-comprehensive-test-plan.md`
+- **Client API Plan**: `context/plans/blender-remote-client-test-plan.md`
 
-# Check service logs during test
-tail -f /tmp/blender_dual_services.log
-```
+Refer to these plans for detailed test specifications, expected results, and validation criteria.
 
-## Development Workflow
+## Cleanup
 
-1. **Make changes** to BLD_Remote_MCP
-2. **Run smoke test** for quick verification: `./tests/smoke_test.py`
-3. **Run full suite** for comprehensive validation: `./tests/run_dual_service_tests.py`
-4. **Check performance** if needed: `./tests/run_dual_service_tests.py --performance`
-
-## Testing Challenges
-
-Testing Blender MCP services requires special consideration:
-- **Dual service coordination**: Both services must start successfully
-- **GUI mode requirement**: BlenderAutoMCP only works in GUI mode
-- **Service startup timing**: Services need time to initialize
-- **Process cleanup**: Blender processes must be killed between tests
-- **Port management**: Avoid conflicts between test runs
+The test directory has been cleaned and reorganized as of 2025-07-16:
+- **Removed**: Outdated test files and directories not aligned with current test plans
+- **Reorganized**: Tests now follow the exact structure specified in test plans
+- **Focus**: Priority on I/O correctness and drop-in replacement validation
+- **Maintained**: All working tests were preserved and properly categorized
