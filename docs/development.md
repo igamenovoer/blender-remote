@@ -708,11 +708,11 @@ async def safe_execute(func, *args, **kwargs):
 
 ```bash
 # Update version in pyproject.toml
-version = "1.1.0"
+version = "1.2.0"
 
 # Create git tag
-git tag -a v1.1.0 -m "Release version 1.1.0"
-git push origin v1.1.0
+git tag -a v1.2.0 -m "Release version 1.2.0"
+git push origin v1.2.0
 ```
 
 ### Build Process
