@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "blender-remote"
-version = "1.2.4"
+version = "1.2.5"
 description = "Automate Blender workflows with external Python control, background operation, and LLM integration"
 readme = "README.md"
 requires-python = ">=3.11"
