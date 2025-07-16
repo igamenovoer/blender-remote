@@ -26,6 +26,12 @@ import click
 import platformdirs
 from omegaconf import DictConfig, OmegaConf
 
+# Windows-specific imports
+try:
+    import winreg
+except ImportError:
+    winreg = None  # Not available on non-Windows systems
+
 # Cross-platform configuration directory using platformdirs
 CONFIG_DIR = Path(platformdirs.user_config_dir(appname="blender-remote", appauthor="blender-remote"))
 CONFIG_FILE = CONFIG_DIR / "bld-remote-config.yaml"
@@ -117,6 +123,83 @@ def find_blender_executable_macos() -> str | None:
             app_path = result.stdout.strip().split('\n')[0]
             blender_exe = Path(app_path) / "Contents/MacOS/Blender"
             if blender_exe.exists():
+                return str(blender_exe)
+    except Exception:
+        pass
+    
+    return None
+
+
+def find_blender_executable_windows() -> str | None:
+    """Find Blender executable on Windows using registry and common paths"""
+    if winreg is None:
+        click.echo("  → Windows registry module not available")
+        return None
+    
+    click.echo("  → Searching Windows Registry for Blender 4.x installations...")
+    
+    # First try registry search (most reliable for MSI installations)
+    blender_paths = []
+    uninstall_key_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
+    
+    for hkey in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
+        for arch_key in [0, winreg.KEY_WOW64_32KEY, winreg.KEY_WOW64_64KEY]:
+            try:
+                with winreg.OpenKey(hkey, uninstall_key_path, 0, winreg.KEY_READ | arch_key) as uninstall_key:
+                    for i in range(winreg.QueryInfoKey(uninstall_key)[0]):
+                        subkey_name = winreg.EnumKey(uninstall_key, i)
+                        with winreg.OpenKey(uninstall_key, subkey_name) as subkey:
+                            try:
+                                display_name = winreg.QueryValueEx(subkey, "DisplayName")[0]
+                                display_version = winreg.QueryValueEx(subkey, "DisplayVersion")[0]
+                                if "blender" in display_name.lower() and display_version.startswith("4."):
+                                    install_location = winreg.QueryValueEx(subkey, "InstallLocation")[0]
+                                    if install_location:
+                                        blender_exe = Path(install_location) / "blender.exe"
+                                        if blender_exe.exists():
+                                            click.echo(f"  → Found {display_name} {display_version} at: {install_location}")
+                                            return str(blender_exe)
+                                        blender_paths.append(install_location)
+                            except OSError:
+                                continue
+            except OSError:
+                continue
+    
+    # If registry search found paths but no valid executable, show them
+    if blender_paths:
+        click.echo("  → Found installation paths in registry but no valid blender.exe:")
+        for path in set(blender_paths):
+            click.echo(f"    - {path}")
+    
+    # Try common installation paths as fallback
+    click.echo("  → Checking common installation locations...")
+    common_paths = [
+        "C:\\Program Files\\Blender Foundation\\Blender 4.4\\blender.exe",
+        "C:\\Program Files\\Blender Foundation\\Blender 4.3\\blender.exe",
+        "C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe",
+        "C:\\Program Files\\Blender Foundation\\Blender 4.1\\blender.exe",
+        "C:\\Program Files\\Blender Foundation\\Blender 4.0\\blender.exe",
+        "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Blender\\blender.exe",
+    ]
+    
+    for path in common_paths:
+        if Path(path).exists():
+            click.echo(f"  → Found Blender at: {path}")
+            return str(path)
+    
+    # Try to find via Windows PATH
+    click.echo("  → Checking if blender.exe is in system PATH...")
+    try:
+        result = subprocess.run(
+            ["where", "blender"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            blender_exe = result.stdout.strip().split('\n')[0]
+            if Path(blender_exe).exists():
+                click.echo(f"  → Found Blender in PATH: {blender_exe}")
                 return str(blender_exe)
     except Exception:
         pass
@@ -499,7 +582,7 @@ def cli() -> None:
 def init(blender_path: str | None, backup: bool) -> None:
     """Initialize blender-remote configuration.
 
-    On macOS, if blender_path is not provided, will attempt auto-detection.
+    On macOS and Windows, if blender_path is not provided, will attempt auto-detection.
     On other platforms, you will be prompted to enter the path.
     """
     click.echo("Initializing blender-remote configuration...")
@@ -510,7 +593,7 @@ def init(blender_path: str | None, backup: bool) -> None:
         shutil.copy2(CONFIG_FILE, backup_path)
         click.echo(f"Backup created: {backup_path}")
 
-    # Get blender path - auto-detect on macOS if not provided
+    # Get blender path - auto-detect on macOS and Windows if not provided
     if not blender_path:
         current_platform = platform.system()
         
@@ -538,8 +621,32 @@ def init(blender_path: str | None, backup: bool) -> None:
                     "Please enter the path to your Blender executable",
                     type=click.Path(exists=True)
                 )
+        elif current_platform == "Windows":  # Windows
+            click.echo("Attempting to auto-detect Blender on Windows...")
+            detected_path = find_blender_executable_windows()
+            
+            if detected_path:
+                click.echo(f"Found Blender at: {detected_path}")
+                use_detected = click.confirm(
+                    "Use this detected path?",
+                    default=True
+                )
+                
+                if use_detected:
+                    blender_path = detected_path
+                else:
+                    blender_path = click.prompt(
+                        "Please enter the path to your Blender executable",
+                        type=click.Path(exists=True)
+                    )
+            else:
+                click.echo("Could not auto-detect Blender on Windows")
+                blender_path = click.prompt(
+                    "Please enter the path to your Blender executable",
+                    type=click.Path(exists=True)
+                )
         else:
-            # For non-macOS platforms, prompt for path
+            # For other platforms, prompt for path
             blender_path = click.prompt(
                 "Please enter the path to your Blender executable",
                 type=click.Path(exists=True)
@@ -577,34 +684,175 @@ def init(blender_path: str | None, backup: bool) -> None:
 
 @cli.command()
 def install() -> None:
-    """Install bld_remote_mcp addon to Blender"""
+    """Install bld_remote_mcp addon to Blender.
+    
+    If no configuration exists, will attempt to auto-detect Blender on Windows and macOS.
+    """
     click.echo("[INSTALL] Installing bld_remote_mcp addon...")
 
-    # Load config
+    # Try to load existing config
     config = BlenderRemoteConfig()
-    blender_config = config.get("blender")
+    blender_config = None
+    blender_path = None
+    
+    try:
+        blender_config = config.get("blender")
+        if blender_config:
+            blender_path = blender_config.get("exec_path")
+    except click.ClickException:
+        # Config file doesn't exist
+        pass
 
-    if not blender_config:
-        raise click.ClickException("Blender configuration not found. Run 'init' first.")
-
-    blender_path = blender_config.get("exec_path")
-
+    # If no config or no blender path, try auto-detection
+    if not blender_config or not blender_path:
+        current_platform = platform.system()
+        
+        if current_platform == "Windows":
+            click.echo("[AUTO-DETECT] Attempting to auto-detect Blender on Windows...")
+            detected_path = find_blender_executable_windows()
+            
+            if detected_path:
+                click.echo(f"[FOUND] Blender found at: {detected_path}")
+                use_detected = click.confirm(
+                    "Use this detected path?",
+                    default=True
+                )
+                
+                if use_detected:
+                    blender_path = detected_path
+                else:
+                    blender_path = click.prompt(
+                        "Please enter the path to your Blender executable",
+                        type=click.Path(exists=True)
+                    )
+            else:
+                click.echo("[NOT FOUND] Could not auto-detect Blender on Windows")
+                blender_path = click.prompt(
+                    "Please enter the path to your Blender executable",
+                    type=click.Path(exists=True)
+                )
+        elif current_platform == "Darwin":  # macOS
+            click.echo("[AUTO-DETECT] Attempting to auto-detect Blender on macOS...")
+            detected_path = find_blender_executable_macos()
+            
+            if detected_path:
+                click.echo(f"[FOUND] Blender found at: {detected_path}")
+                use_detected = click.confirm(
+                    "Use this detected path?",
+                    default=True
+                )
+                
+                if use_detected:
+                    blender_path = detected_path
+                else:
+                    blender_path = click.prompt(
+                        "Please enter the path to your Blender executable",
+                        type=click.Path(exists=True)
+                    )
+            else:
+                click.echo("[NOT FOUND] Could not auto-detect Blender on macOS")
+                blender_path = click.prompt(
+                    "Please enter the path to your Blender executable",
+                    type=click.Path(exists=True)
+                )
+        else:
+            # For other platforms, prompt for path
+            click.echo("[MANUAL] Please enter your Blender executable path:")
+            blender_path = click.prompt(
+                "Path to Blender executable",
+                type=click.Path(exists=True)
+            )
+        
+        # If we got a blender path, detect its info and save config
+        if blender_path:
+            click.echo(f"[CONFIG] Analyzing Blender installation at: {blender_path}")
+            try:
+                blender_info = detect_blender_info(blender_path)
+                
+                # Create and save config
+                new_config = {
+                    "blender": blender_info,
+                    "mcp_service": {
+                        "default_port": DEFAULT_PORT,
+                        "log_level": "INFO"
+                    }
+                }
+                
+                config.save(new_config)
+                click.echo(f"[CONFIG] Configuration saved to: {CONFIG_FILE}")
+                blender_config = blender_info
+                
+            except Exception as e:
+                raise click.ClickException(f"Failed to analyze Blender installation: {e}")
+        else:
+            raise click.ClickException("No Blender executable path provided")
+    
+    # At this point we should have a valid blender_path and blender_config
     if not blender_path:
-        raise click.ClickException("Blender executable path not found in config")
+        raise click.ClickException("Blender executable path not found")
 
     # Get addon zip path
     addon_zip = get_addon_zip_path()
 
     click.echo(f"[ADDON] Using addon: {addon_zip}")
 
-    # Install addon using Blender CLI
+    # Create Python script for addon installation
     # Use as_posix() to ensure forward slashes on all platforms
     addon_zip_posix = addon_zip.as_posix()
-    python_expr = f"import bpy; bpy.ops.preferences.addon_install(filepath='{addon_zip_posix}', overwrite=True); bpy.ops.preferences.addon_enable(module='bld_remote_mcp'); bpy.ops.wm.save_userpref()"
+    
+    install_script = f'''
+import bpy
+import sys
+import os
+
+def install_and_enable_addon(addon_zip_path, addon_module_name):
+    """
+    Installs and enables a Blender addon.
+    
+    :param addon_zip_path: Absolute path to the addon's .zip file.
+    :param addon_module_name: The module name of the addon to enable.
+    """
+    if not os.path.exists(addon_zip_path):
+        print(f"Error: Addon file not found at '{{addon_zip_path}}'")
+        sys.exit(1)
 
     try:
+        print(f"Installing addon from: {{addon_zip_path}}")
+        bpy.ops.preferences.addon_install(filepath=addon_zip_path, overwrite=True)
+        
+        print(f"Enabling addon: {{addon_module_name}}")
+        bpy.ops.preferences.addon_enable(module=addon_module_name)
+        
+        print("Saving user preferences...")
+        bpy.ops.wm.save_userpref()
+        
+        print(f"Addon '{{addon_module_name}}' installed and enabled successfully.")
+        
+    except Exception as e:
+        print(f"An error occurred: {{e}}")
+        # Attempt to get more details from the exception if possible
+        if hasattr(e, 'args') and e.args:
+            print("Details:", e.args[0])
+        sys.exit(1)
+
+# Main execution
+addon_path = "{addon_zip_posix}"
+addon_name = "bld_remote_mcp"
+
+install_and_enable_addon(addon_path, addon_name)
+'''
+
+    # Create temporary script file
+    temp_script = None
+    try:
+        # Create temporary file
+        temp_fd, temp_script = tempfile.mkstemp(suffix='.py', text=True)
+        with os.fdopen(temp_fd, 'w') as f:
+            f.write(install_script)
+
+        # Install addon using Blender CLI with Python script
         result = subprocess.run(
-            [blender_path, "--background", "--python-expr", python_expr],
+            [blender_path, "--background", "--python", temp_script],
             capture_output=True,
             text=True,
             timeout=30,
@@ -618,12 +866,20 @@ def install() -> None:
         else:
             click.echo("[ERROR] Installation failed!")
             click.echo(f"Error: {result.stderr}")
+            click.echo(f"Output: {result.stdout}")
             raise click.ClickException("Addon installation failed")
 
     except subprocess.TimeoutExpired:
         raise click.ClickException("Installation timeout")
     except Exception as e:
         raise click.ClickException(f"Installation error: {e}")
+    finally:
+        # Clean up temporary file
+        if temp_script and os.path.exists(temp_script):
+            try:
+                os.unlink(temp_script)
+            except OSError:
+                pass  # Ignore cleanup errors
 
 
 @cli.group()
@@ -1033,14 +1289,63 @@ def install() -> None:
 
     click.echo(f"[ADDON] Using debug addon: {debug_addon_zip}")
 
-    # Install addon using Blender CLI
+    # Create Python script for debug addon installation
     # Use as_posix() to ensure forward slashes on all platforms
     debug_addon_zip_posix = debug_addon_zip.as_posix()
-    python_expr = f"import bpy; bpy.ops.preferences.addon_install(filepath='{debug_addon_zip_posix}', overwrite=True); bpy.ops.preferences.addon_enable(module='simple-tcp-executor'); bpy.ops.wm.save_userpref()"
+    
+    install_script = f'''
+import bpy
+import sys
+import os
+
+def install_and_enable_addon(addon_zip_path, addon_module_name):
+    """
+    Installs and enables a Blender addon.
+    
+    :param addon_zip_path: Absolute path to the addon's .zip file.
+    :param addon_module_name: The module name of the addon to enable.
+    """
+    if not os.path.exists(addon_zip_path):
+        print(f"Error: Addon file not found at '{{addon_zip_path}}'")
+        sys.exit(1)
 
     try:
+        print(f"Installing addon from: {{addon_zip_path}}")
+        bpy.ops.preferences.addon_install(filepath=addon_zip_path, overwrite=True)
+        
+        print(f"Enabling addon: {{addon_module_name}}")
+        bpy.ops.preferences.addon_enable(module=addon_module_name)
+        
+        print("Saving user preferences...")
+        bpy.ops.wm.save_userpref()
+        
+        print(f"Addon '{{addon_module_name}}' installed and enabled successfully.")
+        
+    except Exception as e:
+        print(f"An error occurred: {{e}}")
+        # Attempt to get more details from the exception if possible
+        if hasattr(e, 'args') and e.args:
+            print("Details:", e.args[0])
+        sys.exit(1)
+
+# Main execution
+addon_path = "{debug_addon_zip_posix}"
+addon_name = "simple-tcp-executor"
+
+install_and_enable_addon(addon_path, addon_name)
+'''
+
+    # Create temporary script file
+    temp_script = None
+    try:
+        # Create temporary file
+        temp_fd, temp_script = tempfile.mkstemp(suffix='.py', text=True)
+        with os.fdopen(temp_fd, 'w') as f:
+            f.write(install_script)
+
+        # Install addon using Blender CLI with Python script
         result = subprocess.run(
-            [blender_path, "--background", "--python-expr", python_expr],
+            [blender_path, "--background", "--python", temp_script],
             capture_output=True,
             text=True,
             timeout=30,
@@ -1054,12 +1359,20 @@ def install() -> None:
         else:
             click.echo("[ERROR] Installation failed!")
             click.echo(f"Error: {result.stderr}")
+            click.echo(f"Output: {result.stdout}")
             raise click.ClickException("Debug addon installation failed")
 
     except subprocess.TimeoutExpired:
         raise click.ClickException("Installation timeout")
     except Exception as e:
         raise click.ClickException(f"Installation error: {e}")
+    finally:
+        # Clean up temporary file
+        if temp_script and os.path.exists(temp_script):
+            try:
+                os.unlink(temp_script)
+            except OSError:
+                pass  # Ignore cleanup errors
 
 
 @debug.command()
