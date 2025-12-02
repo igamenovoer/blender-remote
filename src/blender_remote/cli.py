@@ -14,7 +14,6 @@ import base64
 import json
 import os
 import platform
-import re
 import shutil
 import socket
 import subprocess
@@ -31,7 +30,7 @@ from omegaconf import DictConfig, OmegaConf
 try:
     import winreg
 except ImportError:
-    winreg = None  # Not available on non-Windows systems
+    winreg = None  # type: ignore[assignment]  # Not available on non-Windows systems
 
 # Cross-platform configuration directory using platformdirs
 CONFIG_DIR = Path(platformdirs.user_config_dir(appname="blender-remote", appauthor="blender-remote"))
@@ -56,7 +55,8 @@ import platform
 # Global flag to control the keep-alive loop
 _keep_running = True
 
-def signal_handler(signum, frame):
+
+def signal_handler(signum: int, frame: Any) -> None:
     global _keep_running
     print(f"Received signal {signum}, shutting down...")
     _keep_running = False
@@ -144,7 +144,9 @@ class BlenderRemoteConfig:
                 f"Configuration file not found: {self.config_path}\nRun 'blender-remote-cli init [blender_path]' first"
             )
 
-        self.config = OmegaConf.load(self.config_path)
+        loaded = OmegaConf.load(self.config_path)
+        # We expect the root of the config to be a mapping (DictConfig)
+        self.config = cast(DictConfig, loaded)
         return self.config
 
     def save(self, config: dict[str, Any] | DictConfig) -> None:
@@ -163,6 +165,7 @@ class BlenderRemoteConfig:
         """Get configuration value using dot notation"""
         if self.config is None:
             self.load()
+        assert self.config is not None
 
         # Use OmegaConf.select for safe access with None default
         return OmegaConf.select(self.config, key)
@@ -171,6 +174,7 @@ class BlenderRemoteConfig:
         """Set configuration value using dot notation"""
         if self.config is None:
             self.load()
+        assert self.config is not None
 
         # Use OmegaConf.update for dot notation setting
         OmegaConf.update(self.config, key, value, merge=True)
@@ -182,19 +186,19 @@ class BlenderRemoteConfig:
 def find_blender_executable_macos() -> str | None:
     """Find Blender executable on macOS using multiple methods"""
     click.echo("  → Checking common installation locations...")
-    
+
     # Common locations for Blender on macOS
-    possible_paths = [
-        "/Applications/Blender.app/Contents/MacOS/Blender",
-        "/Applications/Blender/Blender.app/Contents/MacOS/Blender",
+    possible_paths: list[Path] = [
+        Path("/Applications/Blender.app/Contents/MacOS/Blender"),
+        Path("/Applications/Blender/Blender.app/Contents/MacOS/Blender"),
         Path.home() / "Applications/Blender.app/Contents/MacOS/Blender",
     ]
-    
+
     # Check each path
     for path in possible_paths:
-        if Path(path).exists():
+        if path.exists():
             return str(path)
-    
+
     # Use mdfind (Spotlight) to search for Blender.app
     click.echo("  → Searching with Spotlight (mdfind)...")
     try:
@@ -202,17 +206,17 @@ def find_blender_executable_macos() -> str | None:
             ["mdfind", "-name", "Blender.app"],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
         if result.returncode == 0 and result.stdout.strip():
             # Get first result
-            app_path = result.stdout.strip().split('\n')[0]
+            app_path = result.stdout.strip().split("\n")[0]
             blender_exe = Path(app_path) / "Contents/MacOS/Blender"
             if blender_exe.exists():
                 return str(blender_exe)
     except Exception:
         pass
-    
+
     return None
 
 
@@ -221,7 +225,7 @@ def find_blender_executable_windows() -> str | None:
     if winreg is None:
         click.echo("  → Windows registry module not available")
         return None
-    
+
     click.echo("  → Searching Windows Registry for Blender 4.x installations...")
     
     # First try registry search (most reliable for MSI installations)
@@ -280,13 +284,13 @@ def find_blender_executable_windows() -> str | None:
             ["where", "blender"],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
         if result.returncode == 0 and result.stdout.strip():
-            blender_exe = result.stdout.strip().split('\n')[0]
-            if Path(blender_exe).exists():
-                click.echo(f"  → Found Blender in PATH: {blender_exe}")
-                return str(blender_exe)
+            blender_exe_str = result.stdout.strip().split("\n")[0]
+            if Path(blender_exe_str).exists():
+                click.echo(f"  → Found Blender in PATH: {blender_exe_str}")
+                return blender_exe_str
     except Exception:
         pass
     
@@ -409,7 +413,9 @@ sys.exit(0)
                 raise click.ClickException(f"No valid JSON found in Blender output. Raw output: {result.stdout}")
             
         except json.JSONDecodeError as e:
-            raise click.ClickException(f"Failed to parse Blender detection output: {e}\nOutput: {result.stdout}")
+            raise click.ClickException(
+                f"Failed to parse Blender detection output: {e}\nOutput: {result.stdout}"
+            ) from e
 
         if not detection_data.get("success"):
             error_msg = detection_data.get("error", "Unknown error")
@@ -454,7 +460,7 @@ sys.exit(0)
                         plugin_dir = path
                         click.echo(f"Using writable addon directory: {plugin_dir}")
                         break
-                    except (OSError, IOError):
+                    except OSError:
                         continue
 
         # Create addon directory if it doesn't exist
@@ -469,7 +475,7 @@ sys.exit(0)
         # Fallback to manual detection if no directory found
         if not plugin_dir:
             # Show detected paths for debugging
-            click.echo(f"Searched paths:")
+            click.echo("Searched paths:")
             if user_addons:
                 click.echo(f"  - {user_addons}")
             for path in all_addon_paths:
@@ -487,11 +493,11 @@ sys.exit(0)
             if not plugin_dir.exists():
                 raise click.ClickException(f"Addons directory not found: {plugin_dir}")
 
-        # Detect root directory
-        root_dir = blender_path_obj.parent
+    # Detect root directory
+        root_dir_str = str(blender_path_obj.parent)
 
         # Show searched paths summary
-        click.echo(f"Searched paths:")
+        click.echo("Searched paths:")
         if user_addons:
             click.echo(f"  - {user_addons}")
         for path in all_addon_paths:
@@ -504,17 +510,17 @@ sys.exit(0)
             "version_tuple": version_tuple,
             "build_date": build_date,
             "exec_path": str(blender_path_obj),
-            "root_dir": str(root_dir),
+            "root_dir": root_dir_str,
             "plugin_dir": str(plugin_dir),
             "user_addons": user_addons,
             "all_addon_paths": all_addon_paths,
             "extensions_dir": extensions_dir,
         }
 
-    except subprocess.TimeoutExpired:
-        raise click.ClickException("Timeout while detecting Blender info")
+    except subprocess.TimeoutExpired as exc:
+        raise click.ClickException("Timeout while detecting Blender info") from exc
     except Exception as e:
-        raise click.ClickException(f"Error detecting Blender info: {e}")
+        raise click.ClickException(f"Error detecting Blender info: {e}") from e
     finally:
         # Clean up temporary file
         if temp_script and os.path.exists(temp_script):
@@ -552,38 +558,34 @@ def get_addon_zip_path() -> Path:
 
     # Look for installed package data
     try:
-        # Try modern importlib approach first
+        from importlib import resources as importlib_resources
+
         try:
-            import importlib.resources as importlib_resources
             package_path = importlib_resources.files("blender_remote") / "addon" / "bld_remote_mcp"
-            if package_path.exists():
-                addon_dir = package_path
-        except (ImportError, AttributeError):
-            # Fallback to older importlib.resources API
+            addon_dir = Path(str(package_path))
+        except Exception:
+            # Final fallback to pkg_resources
             try:
-                import importlib_resources
-                package_path = importlib_resources.files("blender_remote") / "addon" / "bld_remote_mcp"
-                if package_path.exists():
-                    addon_dir = package_path
-            except ImportError:
-                # Final fallback to pkg_resources
                 import pkg_resources
+
                 addon_dir = Path(pkg_resources.resource_filename("blender_remote", "addon/bld_remote_mcp"))
-        
-        if addon_dir and Path(addon_dir).exists():
+            except Exception:
+                addon_dir = None
+
+        if addon_dir is not None and addon_dir.exists():
             # Create zip from installed package data
             temp_dir = Path(tempfile.gettempdir())
             addon_zip = temp_dir / "bld_remote_mcp.zip"
-            
+
             # Remove existing temp zip if present
             if addon_zip.exists():
                 addon_zip.unlink()
-            
+
             # Create zip from package data
             shutil.make_archive(
                 str(addon_zip.with_suffix("")),
                 "zip",
-                str(Path(addon_dir).parent),
+                str(addon_dir.parent),
                 "bld_remote_mcp",
             )
             return addon_zip
@@ -621,38 +623,36 @@ def get_debug_addon_zip_path() -> Path:
 
     # Look for installed package data
     try:
-        # Try modern importlib approach first
+        from importlib import resources as importlib_resources
+
         try:
-            import importlib.resources as importlib_resources
             package_path = importlib_resources.files("blender_remote") / "addon" / "simple-tcp-executor"
-            if package_path.exists():
-                addon_dir = package_path
-        except (ImportError, AttributeError):
-            # Fallback to older importlib.resources API
+            addon_dir = Path(str(package_path))
+        except Exception:
+            # Final fallback to pkg_resources
             try:
-                import importlib_resources
-                package_path = importlib_resources.files("blender_remote") / "addon" / "simple-tcp-executor"
-                if package_path.exists():
-                    addon_dir = package_path
-            except ImportError:
-                # Final fallback to pkg_resources
                 import pkg_resources
-                addon_dir = Path(pkg_resources.resource_filename("blender_remote", "addon/simple-tcp-executor"))
-        
-        if addon_dir and Path(addon_dir).exists():
+
+                addon_dir = Path(
+                    pkg_resources.resource_filename("blender_remote", "addon/simple-tcp-executor")
+                )
+            except Exception:
+                addon_dir = None
+
+        if addon_dir is not None and addon_dir.exists():
             # Create zip from installed package data
             temp_dir = Path(tempfile.gettempdir())
             addon_zip = temp_dir / "simple-tcp-executor.zip"
-            
+
             # Remove existing temp zip if present
             if addon_zip.exists():
                 addon_zip.unlink()
-            
+
             # Create zip from package data
             shutil.make_archive(
                 str(addon_zip.with_suffix("")),
                 "zip",
-                str(Path(addon_dir).parent),
+                str(addon_dir.parent),
                 "simple-tcp-executor",
             )
             return addon_zip
@@ -728,7 +728,11 @@ def connect_and_send_command(
 @click.group()
 @click.version_option(version="1.2.2")
 def cli() -> None:
-    """Enhanced CLI tools for blender-remote"""
+    """Top-level command group for blender-remote.
+
+    Provides subcommands for configuring Blender, starting services, running code,
+    and debugging integrations. Usually invoked via the ``blender-remote-cli`` entrypoint.
+    """
     pass
 
 
@@ -738,8 +742,17 @@ def cli() -> None:
 def init(blender_path: str | None, backup: bool) -> None:
     """Initialize blender-remote configuration.
 
-    On macOS and Windows, if blender_path is not provided, will attempt auto-detection.
-    On other platforms, you will be prompted to enter the path.
+    On macOS and Windows this will auto-detect Blender if ``blender_path`` is not
+    provided; on other platforms the user is prompted for the executable path.
+
+    Parameters
+    ----------
+    blender_path:
+        Optional explicit path to the Blender executable. If omitted, the CLI
+        attempts platform-specific auto-detection or prompts the user.
+    backup:
+        If ``True``, create a ``.yaml.bak`` backup of any existing configuration
+        file before writing a new one.
     """
     click.echo("Initializing blender-remote configuration...")
 
@@ -840,9 +853,13 @@ def init(blender_path: str | None, backup: bool) -> None:
 
 @cli.command()
 def install() -> None:
-    """Install bld_remote_mcp addon to Blender.
-    
-    If no configuration exists, will attempt to auto-detect Blender on Windows and macOS.
+    """Install the ``bld_remote_mcp`` addon into Blender.
+
+    If no configuration exists yet, attempts to auto-detect a suitable Blender
+    installation (on Windows and macOS) and then writes configuration pointing
+    at the selected executable and addon directory.
+
+    This command is typically run once per environment, or after upgrading Blender.
     """
     click.echo("[INSTALL] Installing bld_remote_mcp addon...")
 
@@ -916,36 +933,32 @@ def install() -> None:
             click.echo("[MANUAL] Please enter your Blender executable path:")
             blender_path = click.prompt(
                 "Path to Blender executable",
-                type=click.Path(exists=True)
+                type=click.Path(exists=True),
             )
-        
-        # If we got a blender path, detect its info and save config
-        if blender_path:
-            click.echo(f"[CONFIG] Analyzing Blender installation at: {blender_path}")
-            try:
-                blender_info = detect_blender_info(blender_path)
-                
-                # Create and save config
-                new_config = {
-                    "blender": blender_info,
-                    "mcp_service": {
-                        "default_port": DEFAULT_PORT,
-                        "log_level": "INFO"
-                    }
-                }
-                
-                config.save(new_config)
-                click.echo(f"[CONFIG] Configuration saved to: {CONFIG_FILE}")
-                blender_config = blender_info
-                
-            except Exception as e:
-                raise click.ClickException(f"Failed to analyze Blender installation: {e}")
-        else:
-            raise click.ClickException("No Blender executable path provided")
-    
-    # At this point we should have a valid blender_path and blender_config
-    if not blender_path:
-        raise click.ClickException("Blender executable path not found")
+
+    # If we got a blender path, detect its info and save config
+    if blender_path:
+        click.echo(f"[CONFIG] Analyzing Blender installation at: {blender_path}")
+        try:
+            blender_info = detect_blender_info(blender_path)
+
+            # Create and save config
+            new_config = {
+                "blender": blender_info,
+                "mcp_service": {
+                    "default_port": DEFAULT_PORT,
+                    "log_level": "INFO",
+                },
+            }
+
+            config.save(new_config)
+            click.echo(f"[CONFIG] Configuration saved to: {CONFIG_FILE}")
+            blender_config = blender_info
+
+        except Exception as e:
+            raise click.ClickException(f"Failed to analyze Blender installation: {e}") from e
+    else:
+        raise click.ClickException("No Blender executable path provided")
 
     # Get addon zip path
     addon_zip = get_addon_zip_path()
@@ -1025,10 +1038,10 @@ install_and_enable_addon(addon_path, addon_name)
             click.echo(f"Output: {result.stdout}")
             raise click.ClickException("Addon installation failed")
 
-    except subprocess.TimeoutExpired:
-        raise click.ClickException("Installation timeout")
+    except subprocess.TimeoutExpired as exc:
+        raise click.ClickException("Installation timeout") from exc
     except Exception as e:
-        raise click.ClickException(f"Installation error: {e}")
+        raise click.ClickException(f"Installation error: {e}") from e
     finally:
         # Clean up temporary file
         if temp_script and os.path.exists(temp_script):
@@ -1040,14 +1053,27 @@ install_and_enable_addon(addon_path, addon_name)
 
 @cli.group()
 def config() -> None:
-    """Manage blender-remote configuration"""
+    """Manage blender-remote configuration values.
+
+    This group exposes subcommands for reading and updating the YAML configuration
+    managed by :class:`BlenderRemoteConfig`, such as the Blender executable path
+    and MCP service settings.
+    """
     pass
 
 
 @config.command()
 @click.argument("key_value", required=False)
 def set(key_value: str | None) -> None:
-    """Set configuration value (format: key=value)"""
+    """Set a configuration value using ``key=value`` syntax.
+
+    Parameters
+    ----------
+    key_value:
+        String in the form ``\"section.key=value\"``. The value is parsed into
+        ``int``, ``float``, or ``bool`` where possible; otherwise it is stored
+        as a string.
+    """
     if not key_value:
         raise click.ClickException("Usage: config set key=value")
 
@@ -1076,7 +1102,14 @@ def set(key_value: str | None) -> None:
 @config.command()
 @click.argument("key", required=False)
 def get(key: str | None) -> None:
-    """Get configuration value(s)"""
+    """Get one or all configuration values.
+
+    Parameters
+    ----------
+    key:
+        Optional dot-notation key (for example ``\"blender.exec_path\"``). If
+        omitted, the full configuration is printed as YAML.
+    """
     config_manager = BlenderRemoteConfig()
 
     if key:
@@ -1090,7 +1123,7 @@ def get(key: str | None) -> None:
         click.echo(OmegaConf.to_yaml(config_manager.config))
 
 
-def export_addon(output_dir: Path):
+def export_addon(output_dir: Path) -> None:
     """Exports the addon source to the specified directory."""
     try:
         addon_zip_path = get_addon_zip_path()
@@ -1102,9 +1135,9 @@ def export_addon(output_dir: Path):
         click.echo(f"  → Extracted addon to {output_dir / 'bld_remote_mcp'}")
 
     except Exception as e:
-        raise click.ClickException(f"Failed to export addon: {e}")
+        raise click.ClickException(f"Failed to export addon: {e}") from e
 
-def export_keep_alive_script(output_dir: Path):
+def export_keep_alive_script(output_dir: Path) -> None:
     """Exports the keep-alive script to the specified directory."""
     script_path = output_dir / "keep-alive.py"
     with open(script_path, "w", encoding="utf-8") as f:
@@ -1116,7 +1149,16 @@ def export_keep_alive_script(output_dir: Path):
 @click.option('--content', type=click.Choice(['addon', 'keep-alive.py']), required=True, help="Content to export: 'addon' or 'keep-alive.py'")
 @click.option('-o', '--output-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True, resolve_path=True), required=True, help="Output directory to export content to.")
 def export(content: str, output_dir: str) -> None:
-    """Export addon source code or keep-alive script."""
+    """Export addon source code or keep-alive script.
+
+    Parameters
+    ----------
+    content:
+        Either ``\"addon\"`` to export the ``bld_remote_mcp`` addon sources, or
+        ``\"keep-alive.py\"`` to export the keep-alive helper script.
+    output_dir:
+        Target directory where the selected content will be written.
+    """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     click.echo(f"Exporting '{content}' to '{output_dir}'...")
@@ -1158,7 +1200,36 @@ def start(
     log_level: str | None,
     blender_args: tuple,
 ) -> int | None:
-    """Start Blender with BLD_Remote_MCP service"""
+    """Start Blender with the BLD_Remote_MCP service enabled.
+
+    Parameters
+    ----------
+    background:
+        If ``True``, run Blender in background (headless) mode and use the
+        keep-alive loop to keep the process alive for remote control.
+    pre_file:
+        Optional Python file executed in Blender prior to starting the MCP
+        service; mutually exclusive with ``pre_code``.
+    pre_code:
+        Optional inline Python code executed before MCP startup; mutually
+        exclusive with ``pre_file``.
+    port:
+        Optional TCP port override for the MCP service; if omitted, falls back
+        to ``mcp_service.default_port`` from configuration or ``DEFAULT_PORT``.
+    scene:
+        Optional ``.blend`` file path to open when starting Blender.
+    log_level:
+        Optional log level string (e.g. ``\"DEBUG\"``, ``\"INFO\"``); if omitted,
+        uses the configured ``mcp_service.log_level`` or ``\"INFO\"``.
+    blender_args:
+        Additional raw arguments passed directly to the Blender executable.
+
+    Returns
+    -------
+    int or None
+        The Blender process return code, or ``None`` if execution is interrupted
+        before the subprocess completes.
+    """
 
     if pre_file and pre_code:
         raise click.ClickException("Cannot use both --pre-file and --pre-code options")
@@ -1264,7 +1335,26 @@ print("[INFO] MCP service will start via addon auto-start mechanism")
 @click.option("--return-base64", is_flag=True, help="Request base64-encoded results (recommended for complex output)")
 @click.option("--port", type=int, help="Override default MCP port")
 def execute(code_file: str | None, code: str | None, use_base64: bool, return_base64: bool, port: int | None) -> None:
-    """Execute Python code in Blender with optional base64 encoding"""
+    """Execute Python code inside Blender via the MCP service.
+
+    Parameters
+    ----------
+    code_file:
+        Optional path to a ``.py`` file whose contents will be executed.
+        Mutually exclusive with ``code``.
+    code:
+        Optional inline Python source string to execute. Mutually exclusive
+        with ``code_file``.
+    use_base64:
+        If ``True``, send the code to Blender as a base64-encoded string to
+        avoid quoting/encoding issues for complex scripts.
+    return_base64:
+        If ``True``, request that Blender return results as a base64-encoded
+        string, which will be decoded and printed when possible.
+    port:
+        Optional override of the MCP TCP port. If omitted, falls back to the
+        configured ``mcp_service.default_port`` or ``DEFAULT_PORT``.
+    """
 
     if not code_file and not code:
         raise click.ClickException("Must provide either --code or a code file")
@@ -1349,17 +1439,35 @@ def execute(code_file: str | None, code: str | None, use_base64: bool, return_ba
 
 # Legacy commands for backward compatibility
 @cli.command()
-def status() -> None:
-    """Check connection status to Blender"""
+@click.option(
+    "--port",
+    type=int,
+    help="Override default MCP port; if omitted, use mcp_service.default_port from config or the built-in default",
+)
+def status(port: int | None) -> None:
+    """Check connection status to a running Blender MCP service.
+
+    Parameters
+    ----------
+    port:
+        Optional MCP port to query. If ``None``, the CLI uses the port from
+        configuration (``mcp_service.default_port``) or ``DEFAULT_PORT``.
+    """
     click.echo("Checking connection to Blender BLD_Remote_MCP service...")
 
-    config = BlenderRemoteConfig()
-    port = config.get("mcp_service.default_port") or DEFAULT_PORT
+    # Resolve port: explicit CLI argument wins, otherwise fall back to config/default.
+    effective_port: int
+    if port is not None:
+        effective_port = port
+    else:
+        config = BlenderRemoteConfig()
+        configured_port = config.get("mcp_service.default_port")
+        effective_port = configured_port or DEFAULT_PORT
 
-    response = connect_and_send_command("get_scene_info", port=port)
+    response = connect_and_send_command("get_scene_info", port=effective_port)
 
     if response.get("status") == "success":
-        click.echo(f"Connected to Blender BLD_Remote_MCP service (port {port})")
+        click.echo(f"Connected to Blender BLD_Remote_MCP service (port {effective_port})")
         scene_info = response.get("result", {})
         scene_name = scene_info.get("name", "Unknown")
         object_count = scene_info.get("object_count", 0)
@@ -1379,7 +1487,7 @@ def debug() -> None:
 
 
 @debug.command()
-def install() -> None:
+def debug_install() -> None:
     """Install simple-tcp-executor debug addon to Blender"""
     click.echo("[DEBUG] Installing simple-tcp-executor debug addon...")
 
@@ -1473,10 +1581,10 @@ install_and_enable_addon(addon_path, addon_name)
             click.echo(f"Output: {result.stdout}")
             raise click.ClickException("Debug addon installation failed")
 
-    except subprocess.TimeoutExpired:
-        raise click.ClickException("Installation timeout")
+    except subprocess.TimeoutExpired as exc:
+        raise click.ClickException("Installation timeout") from exc
     except Exception as e:
-        raise click.ClickException(f"Installation error: {e}")
+        raise click.ClickException(f"Installation error: {e}") from e
     finally:
         # Clean up temporary file
         if temp_script and os.path.exists(temp_script):
@@ -1486,10 +1594,10 @@ install_and_enable_addon(addon_path, addon_name)
                 pass  # Ignore cleanup errors
 
 
-@debug.command()
+@debug.command(name="start")
 @click.option("--background", is_flag=True, help="Start Blender in background mode")
 @click.option("--port", type=int, help="TCP port for debug server (default: 7777 or BLD_DEBUG_TCP_PORT env var)")
-def start(background: bool, port: int | None) -> None:
+def debug_start(background: bool, port: int | None) -> int:
     """Start Blender with simple-tcp-executor debug addon"""
 
     # Load config
