@@ -51,6 +51,7 @@ import signal
 import sys
 import threading
 import platform
+from typing import Any
 
 # Global flag to control the keep-alive loop
 _keep_running = True
