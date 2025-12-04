@@ -12,6 +12,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
+## [1.2.6] - 2025-12-02
+
+### Fixed
+- **CLI**: Add `--port` option to `status` subcommand to allow checking custom background Blender instances without changing global config.
+- **CLI**: Improve type safety and resource lookup in `blender_remote.cli` (OmegaConf usage, importlib resources, debug addon helpers) and ensure mypy/ruff clean under the project’s own configuration.
+
+## [1.2.5] - 2025-07-16
+
+### Fixed
+- **Documentation**: Fixed GitHub Pages site navigation after documentation reorganization
+  - Updated mkdocs.yml navigation to reflect new file structure
+  - Fixed broken links on GitHub Pages site (e.g., cli-tool.md now correctly points to manual/cli-tool.md)
+  - All documentation sections now properly accessible via https://igamenovoer.github.io/blender-remote/
+
 ## [1.2.4] - 2025-07-16
 
 ### Changed

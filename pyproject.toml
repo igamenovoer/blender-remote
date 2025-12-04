@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "blender-remote"
-version = "1.2.4"
+version = "1.2.7"
 description = "Automate Blender workflows with external Python control, background operation, and LLM integration"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -91,7 +91,10 @@ select = [
     "C4", # flake8-comprehensions
     "UP", # pyupgrade
 ]
-ignore = []
+ignore = [
+    "E501",  # allow long lines (we prefer readability over hard wrapping)
+    "W293",  # ignore whitespace-only line warnings in existing scripts
+]
 target-version = "py311"
 
 [tool.mypy]

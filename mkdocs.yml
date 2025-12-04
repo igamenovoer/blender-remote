@@ -47,15 +47,15 @@ theme:
 # Navigation
 nav:
   - Home: index.md
-  - Quick Start:
-    - Installation & Setup: cli-tool.md
-    - LLM Integration: llm-integration.md
-    - Python API: python-control-api.md
-  - Reference:
-    - MCP Server: mcp-server.md
-    - API Reference: api-reference.md
-  - Advanced:
-    - Development: development.md
+  - Manual:
+    - CLI Tool: manual/cli-tool.md
+    - Python Control API: manual/python-control-api.md
+  - API Reference:
+    - MCP Server API: api/mcp-server-api.md
+    - Python Client API: api/python-client-api.md
+    - Blender Addon API: api/blender-addon-api.md
+  - Development:
+    - Development Guide: devel/development.md
 
 # Enhanced extensions
 markdown_extensions:
