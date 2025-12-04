@@ -40,6 +40,7 @@ CONFIG_FILE = CONFIG_DIR / "bld-remote-config.yaml"
 # Configuration constants that align with MCPServerConfig
 # NOTE: These values must stay in sync with MCPServerConfig in mcp_server.py
 DEFAULT_PORT = 6688  # Should match MCPServerConfig.FALLBACK_BLENDER_PORT
+DETECT_BLENDER_INFO_TIMEOUT_SECONDS = float(os.environ.get("BLENDER_REMOTE_DETECT_TIMEOUT", "120"))
 SOCKET_TIMEOUT_SECONDS = 60.0  # Should match MCPServerConfig.SOCKET_TIMEOUT_SECONDS
 SOCKET_RECV_CHUNK_SIZE = 131072  # Should match MCPServerConfig.SOCKET_RECV_CHUNK_SIZE (128KB)
 SOCKET_MAX_RESPONSE_SIZE = 10 * 1024 * 1024  # Should match MCPServerConfig.SOCKET_MAX_RESPONSE_SIZE (10MB)
@@ -369,13 +370,18 @@ sys.exit(0)
         with os.fdopen(temp_fd, 'w') as f:
             f.write(detection_script)
 
-        # Execute Blender with the detection script
         click.echo("  → Starting Blender in background mode (this may take a moment)...")
         result = subprocess.run(
-            [str(blender_path_obj), "--background", "--python", temp_script],
+            [
+                str(blender_path_obj),
+                "--background",
+                "--factory-startup",
+                "--python",
+                temp_script,
+            ],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=DETECT_BLENDER_INFO_TIMEOUT_SECONDS,
         )
         click.echo("  → Blender execution completed, processing results...")
 
@@ -512,7 +518,11 @@ sys.exit(0)
         }
 
     except subprocess.TimeoutExpired:
-        raise click.ClickException("Timeout while detecting Blender info")
+        raise click.ClickException(
+            "Timeout while detecting Blender info. "
+            "Blender may take longer to start on the first run. "
+            "You can retry this command or set BLENDER_REMOTE_DETECT_TIMEOUT to a higher value."
+        )
     except Exception as e:
         raise click.ClickException(f"Error detecting Blender info: {e}")
     finally:
@@ -827,15 +837,15 @@ def init(blender_path: str | None, backup: bool) -> None:
     config_manager = BlenderRemoteConfig()
     config_manager.save(config)
 
-    # Display final configuration
-    click.echo(f"\n✅ Configuration saved to: {CONFIG_FILE}")
-    click.echo("\n📋 Generated configuration:")
+    # Display final configuration (ASCII-only for cross-platform safety)
+    click.echo(f"\n[OK] Configuration saved to: {CONFIG_FILE}")
+    click.echo("\n[CONFIG] Generated configuration:")
     
     # Display the configuration like 'config get' does
     config_yaml = OmegaConf.to_yaml(config)
     click.echo(config_yaml)
     
-    click.echo("✅ Initialization complete! You can now use other blender-remote-cli commands.")
+    click.echo("Initialization complete! You can now use other blender-remote-cli commands.")
 
 
 @cli.command()
