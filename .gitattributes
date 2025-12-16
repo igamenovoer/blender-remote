@@ -1,2 +1,28 @@
+# Line ending normalization
+* text=auto
+
+# Shell scripts should always use LF (Unix-style) line endings
+*.sh text eol=lf
+
+# Python files should use LF
+*.py text eol=lf
+
+# Windows-specific files can use CRLF
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Documentation
+*.md text
+*.txt text
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.blend binary
+*.zip binary
+
 # SCM syntax highlighting & preventing 3-way merges
 pixi.lock merge=binary linguist-language=YAML linguist-generated=true
