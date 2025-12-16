@@ -24,7 +24,17 @@ blender-remote/
 ├── src/blender_remote/              # Python package
 │   ├── __init__.py                  # Package initialization
 │   ├── mcp_server.py               # FastMCP server implementation
-│   └── cli/                        # CLI tools (app + commands)
+│   └── cli/                        # CLI tools (blender-remote-cli)
+│       ├── __init__.py             # Re-exports cli + BlenderRemoteConfig
+│       ├── __main__.py             # Enables `python -m blender_remote.cli`
+│       ├── app.py                  # Click app + command registration
+│       ├── commands/               # One module per subcommand
+│       ├── config.py               # BlenderRemoteConfig (OmegaConf I/O)
+│       ├── constants.py            # Config paths + shared constants
+│       ├── detection.py            # Blender discovery + introspection
+│       ├── addon.py                # Addon zipping + install-script builder
+│       ├── transport.py            # TCP JSON transport to Blender addon
+│       └── scripts.py              # Embedded Blender startup scripts
 ├── blender_addon/                  # Blender addon
 │   └── bld_remote_mcp/            # BLD_Remote_MCP service
 │       ├── __init__.py            # Main addon logic
@@ -39,6 +49,15 @@ blender-remote/
 ├── examples/                     # Usage examples
 └── context/                      # Development context
 ```
+
+## CLI Architecture
+
+The `blender-remote-cli` entrypoint is backed by the `blender_remote.cli` package in `src/blender_remote/cli/`.
+
+- **Top-level app:** `src/blender_remote/cli/app.py` defines the Click group (`cli`) and registers subcommands.
+- **Commands:** Each CLI subcommand lives in `src/blender_remote/cli/commands/` and exposes a Click command/group (imported and added in `app.py`).
+- **Shared helpers:** Common functionality (config I/O, Blender discovery, addon utilities, TCP transport, embedded scripts) lives next to `app.py`.
+- **Running locally:** `pixi run python -m blender_remote.cli --help` (or `pixi run python -m blender_remote.cli start ...`).
 
 ## Development Environment Setup
 

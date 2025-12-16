@@ -26,7 +26,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **`BLD_Remote_MCP`** (`src/blender_remote/addon/bld_remote_mcp/`) - Blender addon with background mode support
 - **`BlenderRemoteMCPServer`** (`src/blender_remote/mcp_server.py`) - MCP server implementation  
 - **`BlenderClientAPI`** (`src/blender_remote/client.py`, `scene_manager.py`) - Direct Python API (bypasses MCP server)
-- **`blender-remote-cli`** (`src/blender_remote/cli.py`) - CLI for process management and configuration
+- **`blender-remote-cli`** (`src/blender_remote/cli/`) - CLI for process management and configuration
 
 #### Key Architecture
 ```
@@ -47,7 +47,7 @@ BlenderClientAPI (Python API) ────────┘
 **Critical for Development**: You will frequently need to start/stop Blender processes during testing and development.
 
 #### Preferred Method  
-- **Use `pixi run python src/blender_remote/cli.py start`** - Creates startup scripts, handles addon installation
+- **Use `pixi run python -m blender_remote.cli start`** - Creates startup scripts, handles addon installation
 - **Blender Path**: 
   - Linux: `/apps/blender-4.4.3-linux-x64/blender`
   - macOS: Default installation location (auto-detected via `blender-remote-cli init`)

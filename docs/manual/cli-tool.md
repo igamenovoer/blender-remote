@@ -12,6 +12,7 @@ The CLI tool provides a complete workflow for blender-remote operations:
 - **Process Control**: Launch Blender in GUI or background mode with MCP service
 - **Code Execution**: Direct Python code execution in Blender with base64 encoding support
 - **Debug Tools**: Alternative TCP-based executor for testing and development
+- **Source Code**: `src/blender_remote/cli/` (Click app + one module per subcommand)
 
 ## Installation
 
