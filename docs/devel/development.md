@@ -24,7 +24,7 @@ blender-remote/
 ├── src/blender_remote/              # Python package
 │   ├── __init__.py                  # Package initialization
 │   ├── mcp_server.py               # FastMCP server implementation
-│   └── cli.py                      # CLI tools
+│   └── cli/                        # CLI tools (app + commands)
 ├── blender_addon/                  # Blender addon
 │   └── bld_remote_mcp/            # BLD_Remote_MCP service
 │       ├── __init__.py            # Main addon logic

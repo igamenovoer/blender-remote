@@ -49,17 +49,18 @@ class MCPServerConfig:
     These settings are optimized for LAN/localhost usage where network latency
     is low and we can use larger buffers for better performance.
     
-    NOTE: Socket settings must stay in sync with corresponding constants in cli.py
+    NOTE: Socket settings must stay in sync with corresponding constants in
+    `blender_remote/cli/constants.py`.
     """
     
     # Network Configuration
     DEFAULT_MCP_HOST = "127.0.0.1"
     DEFAULT_MCP_PORT = 8000
     DEFAULT_BLENDER_HOST = "127.0.0.1"  
-    FALLBACK_BLENDER_PORT = 6688  # Must match cli.py DEFAULT_PORT
+    FALLBACK_BLENDER_PORT = 6688  # Must match blender_remote.cli.constants.DEFAULT_PORT
     
     # Socket Communication Settings (optimized for LAN/localhost)
-    # NOTE: These values are also used by cli.py for consistency
+    # NOTE: These values are also used by the CLI for consistency
     SOCKET_TIMEOUT_SECONDS = 60.0  # Increased from 30s for complex operations
     SOCKET_RECV_CHUNK_SIZE = 131072  # 128KB chunks (up from 8KB) for faster transfer
     SOCKET_MAX_RESPONSE_SIZE = 10 * 1024 * 1024  # 10MB max response size
