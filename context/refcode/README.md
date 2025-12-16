@@ -1,6 +1,6 @@
 # Reference Code
 
-This directory contains reference code repositories included as git submodules.
+This directory contains external, third-party code repositories that are fetched or cloned on demand.
 
 ## Purpose
 
@@ -9,10 +9,12 @@ This directory contains reference code repositories included as git submodules.
 - Maintain local copies of important dependencies
 - Enable offline code analysis and learning
 
-## Current References
+## Managed Entries
 
 ### blender-mcp/
 Complete implementation of Blender MCP server with socket-based communication:
+- **Upstream**: https://github.com/ahujasid/blender-mcp.git
+- **Local path**: `context/refcode/blender-mcp/`
 - **Blender Addon** (`addon.py`): Socket server running inside Blender to receive commands
 - **MCP Server** (`src/blender_mcp/server.py`): Model Context Protocol implementation
 - **Features**: Object manipulation, material control, scene inspection, code execution
@@ -21,22 +23,30 @@ Complete implementation of Blender MCP server with socket-based communication:
 
 This serves as the primary reference for implementing blender-remote's MCP integration and Blender addon architecture.
 
-## Submodules
+### modelcontextprotocol/
+Official Model Context Protocol documentation and specifications:
+- **Upstream**: https://github.com/modelcontextprotocol/modelcontextprotocol.git
+- **Local path**: `context/refcode/modelcontextprotocol/`
+- **Usage**: Protocol specifications, reference documentation
 
-Reference repositories might include:
-- Blender Python API examples
-- MCP server implementations
-- Similar remote control projects
-- Python packaging examples
+### mcp-sdk/
+Official Python SDK for Model Context Protocol:
+- **Upstream**: https://github.com/modelcontextprotocol/python-sdk.git
+- **Local path**: `context/refcode/mcp-sdk/`
+- **Usage**: Python SDK implementation reference
 
-## Adding Submodules
+## Bootstrap
+
+To populate this directory with all external references, run:
 
 ```bash
-# Add a new reference repository
-git submodule add https://github.com/example/repo.git refcode/repo-name
+bash context/refcode/bootstrap.sh
+```
 
-# Initialize after cloning
-git submodule update --init --recursive
+Or on Windows with Git Bash:
+
+```bash
+bash context/refcode/bootstrap.sh
 ```
 
 ## Usage Guidelines

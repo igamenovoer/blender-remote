@@ -1,9 +1,4 @@
-[submodule "context/refcode/blender-mcp"]
-	path = context/refcode/blender-mcp
-	url = https://github.com/ahujasid/blender-mcp.git
-[submodule "context/refcode/modelcontextprotocol"]
-	path = context/refcode/modelcontextprotocol
-	url = https://github.com/modelcontextprotocol/modelcontextprotocol.git
-[submodule "context/refcode/mcp-sdk"]
-	path = context/refcode/mcp-sdk
-	url = https://github.com/modelcontextprotocol/python-sdk.git
+[submodule "magic-context"]
+	path = magic-context
+	url = git@github.com:igamenovoer/magic-context.git
+	branch = main
