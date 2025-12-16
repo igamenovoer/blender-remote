@@ -1,0 +1,11 @@
+{
+  "files.watcherExclude": {
+    "**/context/refcode/**": true,
+    "**/extern/blender-win64/**": true,
+    "**/tmp/blender-win64/**": true
+  },
+  "search.exclude": {
+    "**/extern/blender-win64/**": true,
+    "**/tmp/blender-win64/**": true
+  }
+}
