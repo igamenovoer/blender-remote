@@ -22,7 +22,7 @@ AttributeError: '_RestrictContext' object has no attribute 'view_layer'
 - Error occurred during addon registration when attempting to start modal operator
 - Modal operator requires UI context (`bpy.context.view_layer`) not available during startup
 - Asyncio loop was scheduled but never executed, causing port 6688 to remain closed
-- Issue documented in `context/hints/why-this-error-restrictcontext-view-layer.md`
+- Issue documented in `context/hints/blender-kb/why-this-error-restrictcontext-view-layer.md`
 
 **Solution Implemented:**
 Updated `ensure_async_loop()` in `/workspace/code/blender-remote/blender_addon/bld_remote_mcp/async_loop.py`:
@@ -250,7 +250,7 @@ All 7 core functions working as documented:
 ## Documentation Compliance
 
 ### Specifications Met
-- ✅ `context/hints/howto-use-BLD_Remote_MCP.md` - Usage patterns validated
+- ✅ `context/hints/mcp-kb/howto-use-BLD_Remote_MCP.md` - Usage patterns validated
 - ✅ `context/design/mcp-test-procedure.md` - Test procedures executed
 - ✅ `context/summaries/bld-remote-mcp-implementation-complete.md` - Architecture confirmed
 

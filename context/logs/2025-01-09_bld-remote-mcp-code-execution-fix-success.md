@@ -52,7 +52,7 @@ if _is_background_mode():
     raise ValueError("Viewport screenshots are not available in background mode (blender --background)")
 ```
 
-This follows the guidance from `context/hints/howto-avoid-misuse-blender-api-in-background-mode.md` for proper background mode handling.
+This follows the guidance from `context/hints/blender-kb/howto-avoid-misuse-blender-api-in-background-mode.md` for proper background mode handling.
 
 ### Code Execution Environment
 The fixed execution environment now provides:

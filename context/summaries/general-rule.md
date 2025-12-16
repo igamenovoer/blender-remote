@@ -26,7 +26,7 @@ You will need to start and stop the blender process quite often, so you need to 
 
 ## Debugging Strategies
 - `BlenderAutoMCP` with `uvx blender-mcp` consitutes a stable MCP server for Blender, so you can use it as a backup channel to test your code, if you find that `uvx blender-remote` + `BLD_Remote_MCP` does not work as expected. You can refer to `context/plans/mcp-server-comprehensive-test-plan.md` for details about how to test the MCP server.
-- `mcp[cli]` can be used to test the MCP server, see `context/hints/howto-call-mcp-server-via-python.md` for details about how to use it.
+- `mcp[cli]` can be used to test the MCP server, see `context/hints/mcp-kb/howto-call-mcp-server-via-python.md` for details about how to use it.
 
 ## Development Environment
 

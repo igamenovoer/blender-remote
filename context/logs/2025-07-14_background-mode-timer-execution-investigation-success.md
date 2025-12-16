@@ -202,7 +202,7 @@ def _execute_command_sync(self, command):
 
 ### Documentation Consulted
 - `context/hints/howto-check-registered-function-executed.md`
-- `context/hints/howto-properly-keep-blender-alive-and-running.md`
+- `context/hints/blender-kb/howto-properly-keep-blender-alive-and-running.md`
 - `context/refcode/blender_python_reference_4_4/bpy.app.timers.html`
 
 ### Related Issues

@@ -21,7 +21,7 @@ mcp_service:
 
 - The `bld-remote-config.yaml` must exist for subcommands to work, otherwise raise error, except for `init` subcommand which will create that file if not exist.
 
-- `blender-remote-cli install`, automatically install the addon to the blender, if already installed then override it. To do this, refer to `context/hints/howto-install-addon-blender.md`. If failed to install, raise error and let user knows.
+- `blender-remote-cli install`, automatically install the addon to the blender, if already installed then override it. To do this, refer to `context/hints/blender-kb/howto-install-addon-blender.md`. If failed to install, raise error and let user knows.
 
 - `blender-remote-cli config set mcp_service.default_port=xxx`, change `mcp_service.default_port` in config, likewise for everything else. If blender path or dir are changed, it is up to the user to guarantee consistency.
 
@@ -35,7 +35,7 @@ mcp_service:
 - - `start [OPTIONS] -- (arguments to blender)`, will pass other arguments to blender
 - - `start --port=xxx` will override the default port to start `BLD_Remote_MCP`
 
-- - `start --scene=<scene.blend>` will open the specified scene file in Blender (see `context/hints/howto-start-blender-with-scene.md` for details)
+- - `start --scene=<scene.blend>` will open the specified scene file in Blender (see `context/hints/blender-kb/howto-start-blender-with-scene.md` for details)
 - - `start --log-level=<log_level>` will set the logging level for `BLD_Remote_MCP`, overriding the default in the config file. Valid values are `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` (case insensitive).
 
 **NEW**
