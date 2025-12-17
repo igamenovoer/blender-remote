@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
+## [1.3.2] - 2025-12-17
+
+### Fixed
+- **CLI**: `blender-remote-cli --version` now reports the installed package version (instead of a stale hardcoded value).
+
 ## [1.3.1] - 2025-12-17
 
 ### Fixed
