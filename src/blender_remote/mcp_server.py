@@ -22,11 +22,17 @@ import asyncio
 import base64
 import json
 import logging
+import os
 import socket
 import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, Optional, cast
+
+# Reduce FastMCP startup verbosity unless the user explicitly opts in.
+# FastMCP supports global settings via environment variables prefixed with FASTMCP_.
+# Docs: FASTMCP_LOG_LEVEL controls server logging verbosity.
+os.environ.setdefault("FASTMCP_LOG_LEVEL", "WARNING")
 
 from fastmcp import FastMCP, Context
 from fastmcp.utilities.types import Image
@@ -41,6 +47,7 @@ except ImportError:
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+logging.getLogger("fastmcp").setLevel(logging.WARNING)
 
 
 class MCPServerConfig:
@@ -692,7 +699,7 @@ def main() -> None:
     try:
         # This is the function called when running `uvx blender-remote`
         # Note: FastMCP.run() will use its own server configuration
-        mcp.run()
+        mcp.run(show_banner=False)
     except KeyboardInterrupt:
         logger.info("Server stopped by user")
     except Exception as e:
