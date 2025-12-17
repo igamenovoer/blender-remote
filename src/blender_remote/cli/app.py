@@ -20,6 +20,7 @@ from .commands.execute import execute
 from .commands.export import export
 from .commands.init import init
 from .commands.install import install
+from .commands.pkg import pkg
 from .commands.start import start
 from .commands.status import status
 
@@ -42,8 +43,8 @@ cli.add_command(start)
 cli.add_command(execute)
 cli.add_command(status)
 cli.add_command(debug)
+cli.add_command(pkg)
 
 
 if __name__ == "__main__":
     cli()
-

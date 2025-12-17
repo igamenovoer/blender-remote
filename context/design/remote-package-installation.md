@@ -1,6 +1,6 @@
 # HEADER
 - **Created**: 2025-12-16
-- **Modified**: 2025-12-16
+- **Modified**: 2025-12-17
 - **Summary**: CLI design for installing Python packages into the Blender Python environment via `blender-remote-cli`, supporting both online and offline (air-gapped) Blender hosts using RPC.
 
 # Remote Package Installation (`blender-remote-cli pkg ...`)
@@ -65,12 +65,14 @@ References:
 
 ### Online vs offline mode selection
 
-`pkg install` defaults to `--mode auto`:
+`pkg install` has two modes:
 
-- If remote has internet: run `pip install ...` remotely (online path).
-- If remote is offline: require either `--download` or `--wheelhouse` and run the offline workflow.
+- **Online (default):** when `--remote-wheelhouse` is not provided, run `pip install ...` on the remote (uses remote network access and remote index configuration).
+- **Offline:** when `--remote-wheelhouse PATH` is provided, install using `pip install --no-index --find-links <remote-wheelhouse> ...` and do not attempt any network access.
 
-Remote “internet check” uses Blender’s online-access preference first (`bpy.app.online_access` when available), and may additionally run a small probe (e.g. `urllib.request.urlopen("https://pypi.org", timeout=5)`) to detect network reachability.
+If the remote has no internet access (or Blender disallows it via `bpy.app.online_access`), the online mode will fail; pre-seed a wheelhouse via `pkg push` and use `--remote-wheelhouse`.
+
+`pkg info` reports Blender’s online-access preference (`bpy.app.online_access` when available) and may additionally run a small probe (e.g. `urllib.request.urlopen("https://pypi.org", timeout=5)`) to detect network reachability.
 
 ## CLI Shape
 
@@ -101,7 +103,7 @@ blender-remote-cli pkg info [OPTIONS]
 - Recommended `pip download` args for preparing an offline wheelhouse (e.g. `--platform win_amd64 --python-version 311`)
 
 **Options**
-- `--json`: emit JSON for scripting/caching.
+- `--json`: print a single, syntax-correct JSON object to stdout (no extra human text), suitable for scripting/caching.
 
 ### `pkg bootstrap`
 
@@ -128,42 +130,33 @@ blender-remote-cli pkg bootstrap [OPTIONS]
 
 Install one or more packages into the remote Blender Python environment.
 
+This is a convenience wrapper around `pkg pip`. Anything `pkg install` can do can also be done using `pkg pip`.
+
 **Usage**
 ```bash
-blender-remote-cli pkg install [OPTIONS] PACKAGE_SPEC... [-- PIP_ARGS...]
+blender-remote-cli pkg install [OPTIONS] PACKAGE_SPEC...
 ```
 
 **Package specs**
-- Accept standard pip requirement specifiers: `requests`, `requests==2.31.0`, `numpy<2`, `git+https://...` (online only), etc.
+- Online installs accept package names with optional PEP 440 version constraints, e.g. `requests`, `requests==2.31.0`, `numpy<2`.
+- For anything more complex (VCS URLs, local paths, `-r requirements.txt`, custom indexes/proxies, etc.), use `pkg pip`.
 
 **Core options**
-- `--mode auto|online|offline` (default: `auto`)
 - `--upgrade`: pass `--upgrade` to pip
 - `--force-reinstall`: pass `--force-reinstall` to pip
 - `--no-deps`: pass `--no-deps` to pip
+- `--remote-wheelhouse PATH`: install offline from a remote wheelhouse (implies `--no-index --find-links <remote-wheelhouse>`); wheelhouse contents are treated as a persistent cache (clear with `pkg purge-cache`)
 
-**Offline workflow options**
-- `--download`: when offline, automatically download a wheelhouse on the controller
-- `--wheelhouse DIR`: local wheelhouse directory (used as download destination when `--download` is set, otherwise treated as pre-populated)
-- `--remote-wheelhouse PATH`: remote directory used as the `--find-links` source; if `--wheelhouse`/`--download` are used, wheels are uploaded here, otherwise install uses existing contents (e.g. from `pkg push`)
-- `--keep-remote-wheelhouse`: don’t delete uploaded wheels after install
-- `--chunk-size BYTES`: upload chunk size (default: 5 MiB)
-
-**PIP passthrough**
-- Everything after `--` is forwarded to pip (both modes), for advanced flags:
-  - `--index-url`, `--extra-index-url`, `--trusted-host`, `--proxy`, `--pre`, etc.
+**Relationship to `pkg pip`**
+- Online: `pkg install numpy` is equivalent to `pkg pip -- install numpy`
+- Offline: `pkg install numpy --remote-wheelhouse /tmp/wheels` is equivalent to `pkg pip -- install --no-index --find-links /tmp/wheels numpy`
 
 **Examples**
 
 Online remote:
 ```bash
 blender-remote-cli pkg install numpy
-blender-remote-cli pkg install requests==2.31.0 -- --index-url https://pypi.org/simple
-```
-
-Offline remote (one-shot orchestration; controller has internet):
-```bash
-blender-remote-cli pkg install numpy --mode offline --download
+blender-remote-cli pkg install requests==2.31.0 numpy<2
 ```
 
 Offline remote (explicit wheelhouse workflow):
@@ -175,7 +168,7 @@ python -m pip download -d ./wheelhouse --only-binary=:all: --platform <PLATFORM_
 blender-remote-cli pkg push ./wheelhouse --remote-wheelhouse /tmp/blender-remote/wheels
 
 # Install from the uploaded wheelhouse
-blender-remote-cli pkg install numpy --mode offline --remote-wheelhouse /tmp/blender-remote/wheels
+blender-remote-cli pkg install numpy --remote-wheelhouse /tmp/blender-remote/wheels
 ```
 
 ### `pkg push`
@@ -188,12 +181,29 @@ blender-remote-cli pkg push [OPTIONS] WHEELHOUSE_OR_WHL...
 ```
 
 **Options**
-- `--remote-wheelhouse PATH`: remote directory to write wheels into (used later by `pkg install --mode offline --remote-wheelhouse ...`)
+- `--remote-wheelhouse PATH`: remote directory to write wheels into (used later by `pkg install --remote-wheelhouse ...`); treated as a persistent cache (clear with `pkg purge-cache`)
 - `--chunk-size BYTES`: upload chunk size (default: 5 MiB)
+
+### `pkg purge-cache`
+
+Remove all files in the remote wheelhouse (offline cache).
+
+This does **not** uninstall packages from Blender’s site-packages; it only removes cached wheels/files used for offline installation.
+
+**Usage**
+```bash
+blender-remote-cli pkg purge-cache [OPTIONS]
+```
+
+**Options**
+- `--remote-wheelhouse PATH`: remote wheelhouse directory to purge (must match the wheelhouse used for `pkg push` / `pkg install --remote-wheelhouse`)
+- `--yes`: skip confirmation
 
 ### `pkg pip` (escape hatch)
 
 Run arbitrary `pip` commands on the remote Blender Python (primarily for debugging).
+
+`pkg install` is a convenience wrapper for the common `pip install` cases; `pkg pip` is the general mechanism.
 
 **Usage**
 ```bash
@@ -218,11 +228,6 @@ blender-remote-cli pkg install numpy
 
 ### 2) Remote is offline, controller has internet
 
-One-shot:
-```bash
-blender-remote-cli pkg install numpy --mode offline --download
-```
-
 Or explicit staged workflow (reusable local wheelhouse):
 ```bash
 # Create a local wheelhouse (matching the remote)
@@ -232,7 +237,7 @@ python -m pip download -d ./wheelhouse --only-binary=:all: --platform <PLATFORM_
 blender-remote-cli pkg push ./wheelhouse --remote-wheelhouse /tmp/blender-remote/wheels
 
 # Install from the uploaded wheelhouse
-blender-remote-cli pkg install numpy requests --mode offline --remote-wheelhouse /tmp/blender-remote/wheels
+blender-remote-cli pkg install numpy requests --remote-wheelhouse /tmp/blender-remote/wheels
 ```
 
 ### 3) Remote is offline, controller is also offline
@@ -240,7 +245,8 @@ blender-remote-cli pkg install numpy requests --mode offline --remote-wheelhouse
 - User must provide a wheelhouse and (if needed) `get-pip.py` locally:
 ```bash
 blender-remote-cli pkg bootstrap --method get-pip --get-pip ./get-pip.py
-blender-remote-cli pkg install numpy --mode offline --wheelhouse ./wheelhouse
+blender-remote-cli pkg push ./wheelhouse --remote-wheelhouse /tmp/blender-remote/wheels
+blender-remote-cli pkg install numpy --remote-wheelhouse /tmp/blender-remote/wheels
 ```
 
 ## Implementation Notes (for later)
@@ -257,7 +263,7 @@ All remote-specific values are derived via a small RPC script:
 
 Because `execute_code` RPC messages and/or JSON decoding may have practical size limits, wheel transfer must be chunked:
 - Read wheel bytes locally
-- Base64 encode in chunks (default 5 MiB pre-b64; configurable via `--chunk-size`)
+- Base64 encode in chunks (default 5 MiB pre-b64; configurable via `pkg push --chunk-size`)
 - Remote reassembles into a file in `--remote-wheelhouse`
 
 Filename handling must be safe:
@@ -280,4 +286,4 @@ After install, optionally run a lightweight import/version probe remotely:
 
 - Wheels must match remote OS/arch and Python major.minor ABI.
 - Packages without compatible wheels require building on a matching platform.
-- Very large wheels (e.g., torch) may be impractical over RPC; `--chunk-size` helps but total transfer may still be prohibitive.
+- Very large wheels (e.g., torch) may be impractical over RPC; `pkg push --chunk-size` helps but total transfer may still be prohibitive.

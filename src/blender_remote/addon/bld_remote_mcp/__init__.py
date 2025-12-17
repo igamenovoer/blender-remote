@@ -375,7 +375,7 @@ class BldRemoteMCPServer:
         bpy.app.timers.register(execute_wrapper, first_interval=BldRemoteMCPConfig.TIMER_FIRST_INTERVAL_SECONDS)
         
         # Wait for completion (polling)
-        timeout = BldRemoteMCPConfig.COMMAND_EXECUTION_TIMEOUT_SECONDS  # Command execution timeout
+        timeout = self._get_command_timeout_seconds(command)
         start_time = time.time()
         while not result_container["done"]:
             time.sleep(BldRemoteMCPConfig.POLLING_SLEEP_INTERVAL_SECONDS)  # Small sleep to avoid busy waiting
@@ -408,7 +408,7 @@ class BldRemoteMCPServer:
         log_debug(f"Command queued for background processing, queue size: {self.command_queue.qsize()}")
         
         # Wait for the result with timeout
-        timeout = BldRemoteMCPConfig.COMMAND_EXECUTION_TIMEOUT_SECONDS  # Command execution timeout
+        timeout = self._get_command_timeout_seconds(command)
         if result_event.wait(timeout):
             response = result_container.get("response")
             log_debug("Background command execution completed successfully")
@@ -477,7 +477,8 @@ class BldRemoteMCPServer:
     def _execute_command_internal(self, command):
         """Internal command execution with proper context."""
         cmd_type = command.get("type")
-        params = command.get("params", {})
+        params = dict(command.get("params") or {})
+        params.pop("_timeout_seconds", None)
 
         # Command handlers
         handlers = {
@@ -506,6 +507,25 @@ class BldRemoteMCPServer:
         else:
             # Handle legacy message/code format for backward compatibility
             return self._handle_legacy_command(command)
+
+    def _get_command_timeout_seconds(self, command: Dict[str, Any]) -> float:
+        """Return the execution timeout for a command, allowing an optional override."""
+        default_timeout = float(BldRemoteMCPConfig.COMMAND_EXECUTION_TIMEOUT_SECONDS)
+
+        try:
+            params = command.get("params") or {}
+            requested = params.get("_timeout_seconds")
+            if requested is None:
+                return default_timeout
+            requested_timeout = float(requested)
+        except Exception:
+            return default_timeout
+
+        if requested_timeout <= 0:
+            return default_timeout
+
+        # Keep a hard upper bound to avoid accidental hangs.
+        return min(requested_timeout, 3600.0)
 
     def _handle_legacy_command(self, data):
         """Handle legacy message/code format."""
