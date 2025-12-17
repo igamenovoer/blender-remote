@@ -14,19 +14,19 @@ from __future__ import annotations
 
 import click
 
-from .commands.config_group import config
-from .commands.debug import debug
-from .commands.execute import execute
-from .commands.export import export
-from .commands.init import init
-from .commands.install import install
-from .commands.pkg import pkg
-from .commands.start import start
-from .commands.status import status
+from blender_remote.cli.commands.config_group import config
+from blender_remote.cli.commands.debug import debug
+from blender_remote.cli.commands.execute import execute
+from blender_remote.cli.commands.export import export
+from blender_remote.cli.commands.init import init
+from blender_remote.cli.commands.install import install
+from blender_remote.cli.commands.pkg import pkg
+from blender_remote.cli.commands.start import start
+from blender_remote.cli.commands.status import status
 
 
 @click.group()
-@click.version_option(version="1.2.2")
+@click.version_option(package_name="blender-remote")
 def cli() -> None:
     """Top-level command group for blender-remote.
 
