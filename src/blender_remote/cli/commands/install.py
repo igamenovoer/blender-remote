@@ -142,7 +142,7 @@ def install() -> None:
             [blender_path, "--background", "--python", temp_script],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=300,
         )
 
         if result.returncode == 0:
@@ -167,4 +167,3 @@ def install() -> None:
                 os.unlink(temp_script)
             except OSError:
                 pass  # Ignore cleanup errors
-
