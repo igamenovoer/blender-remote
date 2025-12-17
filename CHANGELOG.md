@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
+## [1.3.3] - 2025-12-17
+
+### Added
+- **CLI config**: Added `cli.timeout_sec` (default `300`) to control default CLI timeouts.
+
+### Changed
+- **CLI install**: `blender-remote-cli install` now uses `cli.timeout_sec` for the Blender subprocess timeout (default 5 minutes).
+
 ## [1.3.2] - 2025-12-17
 
 ### Fixed
