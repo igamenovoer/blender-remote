@@ -33,6 +33,7 @@ def install() -> None:
     config = BlenderRemoteConfig()
     blender_config = None
     blender_path = None
+    cli_timeout_seconds = 300.0
 
     try:
         blender_config = config.get("blender")
@@ -41,6 +42,20 @@ def install() -> None:
     except click.ClickException:
         # Config file doesn't exist
         pass
+
+    try:
+        cli_timeout_value = config.get("cli.timeout_sec")
+    except click.ClickException:
+        cli_timeout_value = None
+
+    if cli_timeout_value is not None:
+        try:
+            parsed_timeout = float(cli_timeout_value)
+        except (TypeError, ValueError):
+            parsed_timeout = None
+
+        if parsed_timeout is not None and parsed_timeout > 0:
+            cli_timeout_seconds = parsed_timeout
 
     # If no config or no blender path, try auto-detection
     if not blender_config or not blender_path:
@@ -105,6 +120,7 @@ def install() -> None:
             # Create and save config
             new_config = {
                 "blender": blender_info,
+                "cli": {"timeout_sec": cli_timeout_seconds},
                 "mcp_service": {"default_port": DEFAULT_PORT, "log_level": "INFO"},
             }
 
@@ -142,7 +158,7 @@ def install() -> None:
             [blender_path, "--background", "--python", temp_script],
             capture_output=True,
             text=True,
-            timeout=300,
+            timeout=cli_timeout_seconds,
         )
 
         if result.returncode == 0:

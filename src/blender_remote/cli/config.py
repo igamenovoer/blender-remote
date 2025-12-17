@@ -9,6 +9,8 @@ from omegaconf import DictConfig, OmegaConf
 
 from .constants import CONFIG_DIR, CONFIG_FILE
 
+_DEFAULT_CONFIG: dict[str, Any] = {"cli": {"timeout_sec": 300}}
+
 
 class BlenderRemoteConfig:
     """OmegaConf-based configuration manager for blender-remote."""
@@ -25,8 +27,9 @@ class BlenderRemoteConfig:
             )
 
         loaded = OmegaConf.load(self.config_path)
+        merged = OmegaConf.merge(OmegaConf.create(_DEFAULT_CONFIG), loaded)
         # We expect the root of the config to be a mapping (DictConfig)
-        self.config = cast(DictConfig, loaded)
+        self.config = cast(DictConfig, merged)
         return self.config
 
     def save(self, config: dict[str, Any] | DictConfig) -> None:
@@ -61,4 +64,3 @@ class BlenderRemoteConfig:
 
         # Save the updated configuration
         OmegaConf.save(self.config, self.config_path)
-

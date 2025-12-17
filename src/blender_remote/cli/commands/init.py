@@ -102,6 +102,7 @@ def init(blender_path: str | None, backup: bool) -> None:
     click.echo("  Ўъ Generating configuration structure...")
     config = {
         "blender": blender_info,
+        "cli": {"timeout_sec": 300},
         "mcp_service": {"default_port": DEFAULT_PORT, "log_level": "INFO"},
     }
 
@@ -121,4 +122,3 @@ def init(blender_path: str | None, backup: bool) -> None:
     click.echo(
         "Initialization complete! You can now use other blender-remote-cli commands."
     )
-
