@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.3.1] - 2025-12-17
 
+### Fixed
+- **Versioning**: Synchronize `blender_remote.__version__` with the package version in `pyproject.toml`.
+
+### Documentation
+- **Changelog**: Backfilled missing release notes for `v1.3.0` and documented `v1.3.1`.
+
+## [1.3.0] - 2025-12-17
+
 ### Added
 - **CLI**: New `blender-remote-cli pkg` command group for managing packages inside the remote Blender Python environment:
   - `pkg info` (supports `--json` for machine-readable output)
@@ -24,19 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pkg purge-cache` (clear the remote wheelhouse cache)
 - **Addon**: Per-command timeout override for MCP requests via `_timeout_seconds` (useful for long-running pip installs).
 
-### Fixed
-- **CLI**: Fixed chunked upload logic used by `pkg push` so wheel uploads work reliably.
-
-### Documentation
-- **CLI manual**: Added package-management usage and offline wheelhouse workflow examples.
-
-## [1.3.0] - 2025-12-17
-
 ### Changed
 - **CLI**: Refactored CLI implementation by splitting `src/blender_remote/cli.py` into a package with smaller command modules.
 - **Repo tooling**: Improved cross-platform line ending handling and workspace/development ergonomics.
 
 ### Documentation
+- **CLI manual**: Added package-management usage and offline wheelhouse workflow examples.
 - Reorganized and restored documentation/hints as part of the repo restructuring.
 
 ## [1.2.6] - 2025-12-02
