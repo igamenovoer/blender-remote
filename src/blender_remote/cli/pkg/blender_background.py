@@ -25,6 +25,8 @@ from blender_remote.cli.config import BlenderRemoteConfig
 JSON_BEGIN_SENTINEL = "__BLENDER_REMOTE_JSON_BEGIN__"
 JSON_END_SENTINEL = "__BLENDER_REMOTE_JSON_END__"
 
+JSONValue = dict[str, Any] | list[Any]
+
 
 def get_configured_blender_executable() -> Path:
     """Resolve the configured Blender executable path from CLI config.
@@ -365,6 +367,55 @@ def extract_sentinel_json(text: str) -> dict[str, Any]:
     return parsed
 
 
+def extract_sentinel_json_value(text: str) -> JSONValue:
+    """Extract a JSON value printed between sentinel markers.
+
+    Unlike `extract_sentinel_json`, this helper allows either a JSON object or
+    JSON array payload. This enables commands like `addon list --json` to return
+    an array while still being robust to Blender log noise.
+
+    Parameters
+    ----------
+    text : str
+        Full stdout text from Blender.
+
+    Returns
+    -------
+    JSONValue
+        Parsed JSON object or array payload.
+
+    Raises
+    ------
+    click.ClickException
+        If sentinels are missing or JSON cannot be parsed.
+    """
+    begin_index = text.rfind(JSON_BEGIN_SENTINEL)
+    if begin_index == -1:
+        raise click.ClickException(
+            "Expected JSON begin sentinel not found in Blender output."
+        )
+
+    end_index = text.find(JSON_END_SENTINEL, begin_index)
+    if end_index == -1:
+        raise click.ClickException(
+            "Expected JSON end sentinel not found in Blender output."
+        )
+
+    payload = text[begin_index + len(JSON_BEGIN_SENTINEL) : end_index].strip()
+    if not payload:
+        raise click.ClickException("Empty JSON payload in Blender output.")
+
+    try:
+        parsed = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise click.ClickException(f"Failed to parse JSON payload: {exc}") from exc
+
+    if not isinstance(parsed, dict | list):
+        raise click.ClickException("Expected a JSON object or array payload.")
+
+    return parsed
+
+
 def run_blender_background_json(
     *,
     blender_executable: Path,
@@ -398,3 +449,38 @@ def run_blender_background_json(
     )
 
     return extract_sentinel_json(result.stdout or "")
+
+
+def run_blender_background_json_value(
+    *,
+    blender_executable: Path,
+    python_script: str,
+    timeout_seconds: float,
+    factory_startup: bool = True,
+) -> JSONValue:
+    """Run a Blender background script and return its sentinel JSON payload.
+
+    Parameters
+    ----------
+    blender_executable : pathlib.Path
+        Path to the Blender executable.
+    python_script : str
+        Python script that prints JSON between sentinels.
+    timeout_seconds : float
+        Subprocess timeout in seconds.
+    factory_startup : bool
+        If True, add `--factory-startup`.
+
+    Returns
+    -------
+    JSONValue
+        Parsed JSON payload (object or array).
+    """
+    result = run_blender_background_python(
+        blender_executable=blender_executable,
+        python_script=python_script,
+        timeout_seconds=timeout_seconds,
+        factory_startup=factory_startup,
+    )
+
+    return extract_sentinel_json_value(result.stdout or "")

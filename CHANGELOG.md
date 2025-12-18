@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CLI addon**: Added `blender-remote-cli addon ...` for local Blender user add-on management (paths/list/info/install/enable/disable/uninstall with `--json` support).
 ### Changed
 - **CLI pkg**: Re-scoped package management to local Blender installations by running Blender in background mode; removed `pkg install`, `pkg push`, and `pkg purge-cache` (use `pkg pip -- ...` and stage files out-of-band for offline installs).
 ### Fixed

@@ -8,7 +8,7 @@ The CLI tool provides a complete workflow for blender-remote operations:
 
 - **Automatic Setup**: Platform-specific auto-detection of Blender installations (Windows/macOS)
 - **Configuration Management**: YAML-based settings with dot-notation access via OmegaConf
-- **Addon Management**: Automated installation and export of BLD_Remote_MCP addon
+- **Addon Management**: Install BLD_Remote_MCP (`install`) and manage local user add-ons (`addon ...`)
 - **Process Control**: Launch Blender in GUI or background mode with MCP service
 - **Code Execution**: Direct Python code execution in Blender with base64 encoding support
 - **Package Management**: Run `pip` inside Blender’s embedded Python via `pkg`
@@ -152,6 +152,82 @@ Enabling addon: bld_remote_mcp
 Saving user preferences...
 [SUCCESS] Addon installed successfully!
 [LOCATION] Addon location: /home/user/.config/blender/4.4/scripts/addons/bld_remote_mcp
+```
+
+### `addon` - Local User Add-on Management
+
+**Purpose**: Manage Blender **user add-ons** for a **local** Blender installation.
+
+This command group runs Blender in background mode for operations that require
+`bpy` / `addon_utils`. It does **not** manage Blender “Extensions”.
+
+**Usage:**
+```bash
+blender-remote-cli addon [SUBCOMMAND] [OPTIONS]
+```
+
+**JSON Output**: Many subcommands accept `--json` and print exactly one JSON
+value (object or array) to stdout; any diagnostics go to stderr.
+
+#### `addon paths`
+
+Show discovered add-on paths for the configured Blender executable.
+
+```bash
+blender-remote-cli addon paths
+blender-remote-cli addon paths --json
+```
+
+#### `addon list`
+
+List add-ons and their enablement state (user add-ons by default).
+
+```bash
+blender-remote-cli addon list
+blender-remote-cli addon list --all
+blender-remote-cli addon list --json
+```
+
+#### `addon info`
+
+Inspect one add-on by module name.
+
+```bash
+blender-remote-cli addon info some_addon
+blender-remote-cli addon info some_addon --json
+```
+
+#### `addon install`
+
+Install from a local folder, `.zip`, or `.py` file. Use `--enable` to also
+enable the add-on and persist preferences.
+
+```bash
+blender-remote-cli addon install ./my_addon --enable
+blender-remote-cli addon install ./some_addon.zip --overwrite
+```
+
+#### `addon enable` / `addon disable`
+
+Enable/disable an add-on and save user preferences.
+
+```bash
+blender-remote-cli addon enable some_addon
+blender-remote-cli addon disable some_addon
+```
+
+#### `addon uninstall`
+
+Disable an add-on (best-effort) and remove it from disk.
+
+Safety rules:
+- By default, uninstall is allowed only for add-ons located inside Blender’s
+  **user add-ons directory**.
+- Use `--force` to override this check (dangerous).
+
+```bash
+blender-remote-cli addon uninstall some_addon
+blender-remote-cli addon uninstall some_addon --force --json
 ```
 
 ### `config` - Configuration Management
@@ -715,6 +791,7 @@ kill $BLENDER_PID
 |---------|--------|
 | `init` | Initialize configuration with Blender detection |
 | `install` | Install BLD_Remote_MCP addon |
+| `addon` | Manage local Blender user add-ons |
 | `config get/set` | View/modify configuration |
 | `start` | Launch Blender with MCP service |
 | `execute` | Run Python code in Blender |

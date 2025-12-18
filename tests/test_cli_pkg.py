@@ -150,3 +150,23 @@ def test_extract_sentinel_json_requires_markers() -> None:
 
     with pytest.raises(ClickException):
         extract_sentinel_json("no markers here\n")
+
+
+def test_extract_sentinel_json_value_extracts_array() -> None:
+    from blender_remote.cli.pkg.blender_background import (
+        JSON_BEGIN_SENTINEL,
+        JSON_END_SENTINEL,
+        extract_sentinel_json_value,
+    )
+
+    text = (
+        "noise before\n"
+        + JSON_BEGIN_SENTINEL
+        + "\n"
+        + json.dumps([{"a": 1}, {"b": 2}])
+        + "\n"
+        + JSON_END_SENTINEL
+        + "\nnoise after\n"
+    )
+
+    assert extract_sentinel_json_value(text) == [{"a": 1}, {"b": 2}]

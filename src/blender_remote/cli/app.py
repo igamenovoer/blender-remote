@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import click
 
+from blender_remote.cli.commands.addon import addon
 from blender_remote.cli.commands.config_group import config
 from blender_remote.cli.commands.debug import debug
 from blender_remote.cli.commands.execute import execute
@@ -37,6 +38,7 @@ def cli() -> None:
 
 cli.add_command(init)
 cli.add_command(install)
+cli.add_command(addon)
 cli.add_command(config)
 cli.add_command(export)
 cli.add_command(start)
