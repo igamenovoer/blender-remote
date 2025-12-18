@@ -1,4 +1,4 @@
-# Task: Remote Package Installation CLI (`blender-remote-cli pkg ...`)
+# Task: Blender Package Management CLI (`blender-remote-cli pkg ...`)
 
 ## HEADER
 - **Created**: 2025-12-17
@@ -8,56 +8,63 @@
 
 ## 1. Context
 
-We want to add remote PyPI package installation into Blender’s embedded Python via the existing `execute_code` RPC, supporting both online and offline remote Blender hosts.
+We want to manage Python packages for a **local** Blender installation using `blender-remote-cli pkg ...`.
+
+Scope refinement:
+- The CLI has direct access to the local Blender executable and its installation directories.
+- Package management should run out-of-process by invoking `<blender-executable> --background` with Python scripts and/or manipulating the local filesystem.
+- No MCP/RPC (`execute_code`) is required for package installation workflows.
 
 Primary integration target for testing on this repo machine:
 - `extern/blender-win64/blender-5.0.0-windows-x64`
 
-## 2. Remote package installation CLI
+## 2. Package management CLI
 
-Scope: Implement the `blender-remote-cli pkg ...` command group (`pkg info`, `pkg bootstrap`, `pkg install`, `pkg pip`, `pkg push`, `pkg purge-cache`) as designed in `context/design/remote-package-installation.md`.
+Scope: Implement the `blender-remote-cli pkg ...` command group (`pkg info`, `pkg bootstrap`, `pkg pip`) as designed in `context/design/remote-package-installation.md`.
+
+Out of scope:
+- `pkg install` (use `pkg pip -- install ...`).
+- `pkg push` / `pkg purge-cache` (no remote/local file management).
 
 Planned outputs:
 - New click command group `pkg` registered under `blender-remote-cli`.
-- Remote probe + pip execution scripts run via `execute_code`.
-- Offline workflow support via remote wheelhouse cache: `pkg push` → `pkg install --remote-wheelhouse ...`.
+- Local probe + pip execution run via `<blender-executable> --background` scripts (no direct Blender Python executable usage).
+- Offline workflow support via local wheelhouse: user stages wheels locally, then runs `pkg pip -- install --no-index --find-links <PATH> ...`.
 - Documentation updates for the new commands and workflows.
 
 Milestones (subtasks):
 
 ### 2.1 CLI scaffolding + shared helpers
 
-Goal: Wire the `pkg` command group into the CLI and create shared helpers for port resolution, execute_code invocation, base64 handling, and parsing structured stdout.
+Goal: Wire the `pkg` command group into the CLI and create shared helpers for resolving the configured Blender executable and running `<blender> --background --python <script.py> -- ...` with consistent timeouts and error reporting.
 
 - Subtask spec: `context/tasks/subtask-002-001-cli-scaffolding.md`
 
 ### 2.2 `pkg info` (+ `--json`)
 
-Goal: Implement a remote environment probe and provide both human-readable and strict JSON output modes.
+Goal: Implement a local Blender Python environment probe (via Blender background scripts) and provide both human-readable and strict JSON output modes.
 
 - Subtask spec: `context/tasks/subtask-002-002-pkg-info-json.md`
 
-### 2.3 `pkg bootstrap` (ensure pip exists remotely)
+### 2.3 `pkg bootstrap` (ensure pip exists)
 
-Goal: Implement `pip` bootstrapping with `ensurepip` (preferred) and `get-pip.py` transfer fallback.
+Goal: Implement `pip` bootstrapping with `ensurepip` (preferred) and a local `get-pip.py` fallback.
 
 - Subtask spec: `context/tasks/subtask-002-003-pkg-bootstrap.md`
 
-### 2.4 `pkg pip` (escape hatch) and `pkg install` (wrapper)
+### 2.4 `pkg pip` (escape hatch)
 
-Goal: Implement the remote pip runner, the generic `pkg pip -- ...` passthrough, and the simplified `pkg install` wrapper (online default; offline when `--remote-wheelhouse` is provided).
+Goal: Implement `pkg pip -- ...` passthrough to run arbitrary `pip` commands via Blender background scripts.
 
 - Subtask spec: `context/tasks/subtask-002-004-pkg-pip-and-install.md`
 
-### 2.5 `pkg push` (chunked wheel upload) + `pkg purge-cache`
+### 2.5 Removed: `pkg push` + `pkg purge-cache`
 
-Goal: Implement chunked upload of `.whl` files into a remote wheelhouse cache and provide a purge-cache command to delete remote cached wheels.
-
-- Subtask spec: `context/tasks/subtask-002-005-pkg-push-and-purge-cache.md`
+These commands are removed from scope; file staging/cleanup is handled out-of-band by the user.
 
 ### 2.6 Timeout support for long-running operations
 
-Goal: Ensure `pip` operations and large uploads can run longer than the current addon’s 30s command timeout, without breaking existing commands.
+Goal: Ensure `pip` operations can run longer than short default timeouts by using the configured CLI timeout (`cli.timeout_sec`) for subprocess execution.
 
 - Subtask spec: `context/tasks/subtask-002-006-timeout-support.md`
 
@@ -71,8 +78,6 @@ TODOs (milestone-level jobs):
 - [ ] Job-002-001 Complete subtask 2.1 (CLI scaffolding + shared helpers)
 - [ ] Job-002-002 Complete subtask 2.2 (`pkg info` + `--json`)
 - [ ] Job-002-003 Complete subtask 2.3 (`pkg bootstrap`)
-- [ ] Job-002-004 Complete subtask 2.4 (`pkg pip` + `pkg install`)
-- [ ] Job-002-005 Complete subtask 2.5 (`pkg push` + `pkg purge-cache`)
+- [ ] Job-002-004 Complete subtask 2.4 (`pkg pip`)
 - [ ] Job-002-006 Complete subtask 2.6 (timeouts)
 - [ ] Job-002-007 Complete subtask 2.7 (docs + e2e smoke tests)
-

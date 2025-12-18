@@ -11,6 +11,7 @@ The CLI tool provides a complete workflow for blender-remote operations:
 - **Addon Management**: Automated installation and export of BLD_Remote_MCP addon
 - **Process Control**: Launch Blender in GUI or background mode with MCP service
 - **Code Execution**: Direct Python code execution in Blender with base64 encoding support
+- **Package Management**: Run `pip` inside Blender’s embedded Python via `pkg`
 - **Debug Tools**: Alternative TCP-based executor for testing and development
 - **Source Code**: `src/blender_remote/cli/` (Click app + one module per subcommand)
 
@@ -306,15 +307,19 @@ blender-remote-cli execute --code "print('Hello')" --port 7777
 Hello from Blender!
 ```
 
-### `pkg` - Remote Package Management
+### `pkg` - Blender Python Package Management (Local)
 
-**Purpose**: Manage Python packages installed into the remote Blender Python environment (site-packages) via RPC.
+**Purpose**: Manage Python packages installed into Blender’s embedded Python environment (site-packages) for a **local Blender installation**.
 
-This is useful for both:
-- **Online remotes** (remote Blender can reach an index/PyPI), and
-- **Offline remotes** (air-gapped Blender), where the controller stages wheels locally and uploads them for offline install.
+`pkg` is intentionally designed to be future-proof across Blender versions and platforms:
+- It does **not** rely on a standalone `python.exe` inside the Blender installation.
+- It runs Python by launching the configured Blender executable in background mode:
+  - `<blender-executable> --background --python <script.py> -- ...`
 
-Note: Blender may report `bpy.app.online_access == False` by default, which should be treated as “offline” for `pkg install` workflows. Use the offline workflow (`pkg push` + `pkg install --remote-wheelhouse ...`) when in doubt.
+Scope notes:
+- No remote file upload/management: if you want an offline install, you must prepare a wheelhouse locally (copy it in via any method) and use pip’s offline flags (`--no-index --find-links ...`).
+- No `pkg install` wrapper: use `pkg pip -- install ...` for both online and offline installs.
+- No `pkg push` / `pkg purge-cache`.
 
 **Usage:**
 ```bash
@@ -322,33 +327,37 @@ blender-remote-cli pkg [SUBCOMMAND] [OPTIONS]
 ```
 
 **Subcommands:**
-- `pkg info [--json] [--port PORT]` - Probe remote Python/platform/pip info needed for packaging decisions
-- `pkg bootstrap [--method auto|ensurepip|get-pip] [--get-pip PATH] [--upgrade] [--port PORT]` - Ensure pip exists remotely
-- `pkg install [--upgrade] [--force-reinstall] [--no-deps] [--remote-wheelhouse PATH] PACKAGE_SPEC...` - Install simple package specs
-- `pkg pip [--port PORT] -- PIP_ARGS...` - Escape hatch to run arbitrary pip commands remotely
-- `pkg push --remote-wheelhouse PATH [--chunk-size BYTES] WHEELHOUSE_OR_WHL...` - Upload wheels for offline install
-- `pkg purge-cache --remote-wheelhouse PATH [--yes]` - Delete all cached wheels in the remote wheelhouse
+- `pkg info [--json]` - Probe Blender/Python/platform/pip info needed for packaging decisions
+- `pkg bootstrap [--method auto|ensurepip|get-pip] [--get-pip PATH] [--upgrade]` - Ensure pip exists for Blender Python
+- `pkg pip -- PIP_ARGS...` - Escape hatch to run arbitrary pip commands inside Blender’s embedded Python
 
-**Offline workflow example (Windows):**
+**Examples**
 ```bash
-# Start Blender MCP service in background (runs until you stop it)
-# NOTE: this command blocks the terminal that launches it
-blender-remote-cli start --background
-
-# In another terminal:
+# Inspect Blender Python environment (helpful for offline wheelhouse prep)
+blender-remote-cli pkg info
 blender-remote-cli pkg info --json
 
-# Build a local wheelhouse that matches the remote (example: py311 win_amd64)
+# Ensure pip exists (usually already present in Blender builds)
+blender-remote-cli pkg bootstrap
+
+# Online install (host must have internet access)
+blender-remote-cli pkg pip -- install colorama
+
+# Offline install (wheelhouse must exist locally)
+blender-remote-cli pkg pip -- install --no-index --find-links .\\wheelhouse colorama
+
+# Inspect installed packages
+blender-remote-cli pkg pip -- list
+blender-remote-cli pkg pip -- show colorama
+```
+
+**Offline wheelhouse preparation (Windows example)**
+```bash
+# Use `pkg info --json` to confirm Blender Python version + platform
+blender-remote-cli pkg info --json
+
+# Build a wheelhouse that matches Blender Python (example: py311 win_amd64)
 python -m pip download -d .\\wheelhouse --only-binary=:all: --platform win_amd64 --python-version 311 --implementation cp colorama
-
-# Upload once to a remote wheelhouse cache
-blender-remote-cli pkg push .\\wheelhouse --remote-wheelhouse C:/tmp/blender-remote/wheels
-
-# Install offline from the uploaded wheelhouse
-blender-remote-cli pkg install colorama --remote-wheelhouse C:/tmp/blender-remote/wheels
-
-# Verify import/version
-blender-remote-cli execute --code "import colorama; print(colorama.__version__)"
 ```
 
 ### `status` - Check Connection Status
@@ -709,7 +718,7 @@ kill $BLENDER_PID
 | `config get/set` | View/modify configuration |
 | `start` | Launch Blender with MCP service |
 | `execute` | Run Python code in Blender |
-| `pkg` | Manage remote Blender Python packages |
+| `pkg` | Manage Blender Python packages (local) |
 | `status` | Check service connection |
 | `export` | Extract addon or scripts |
 | `debug install/start` | Debug tools for development |

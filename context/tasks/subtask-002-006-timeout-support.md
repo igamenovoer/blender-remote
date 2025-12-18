@@ -2,47 +2,37 @@
 
 ## Scope
 
-- Address the current `BLD_Remote_MCP` command execution timeout (30s) so that:
-  - `pip` installs can run longer.
-  - large wheel uploads (many chunks) remain reliable.
+- Ensure long-running `pip` operations can run to completion when invoked via Blender background scripts (`<blender> --background --python ...`).
 - Keep existing non-`pkg` operations safe and responsive (do not globally increase timeouts without bounds).
-- Add a CLI-side timeout strategy so socket receive can wait long enough for long-running operations.
+- Use the configured CLI timeout (`cli.timeout_sec`) as the default subprocess timeout for `pkg` operations.
 
 ## Planned outputs
 
-- Addon changes in `src/blender_remote/addon/bld_remote_mcp/__init__.py` to support longer-running requests (ideally per-command override).
-- CLI changes to use longer socket timeouts for `pkg` subcommands without affecting existing commands.
-- Tests validating the timeout override wiring (unit) and a manual integration test to prove >30s runs.
+- CLI changes to use `cli.timeout_sec` for `pkg` subprocess execution without affecting existing commands.
+- Tests validating the timeout selection logic (unit) and a manual integration test to prove long runs complete.
 
 ## Testing
 
 ### Unit tests (no Blender needed)
-- Mock remote exec wrapper and assert:
-  - `pkg` subcommands pass an increased timeout to transport (or select a larger default).
-  - Non-`pkg` commands keep current timeouts.
+- Mock subprocess runner and assert:
+  - `pkg` subcommands pass `cli.timeout_sec` (or an override) to subprocess execution.
+  - Non-`pkg` commands keep existing behavior.
 
 ### Manual integration test (Windows + Blender)
 Prereqs:
-- Re-install addon after code changes: `blender-remote-cli install`
-- Start Blender MCP service: `blender-remote-cli start --background` (separate terminal; blocks).
+- Configure Blender path: `blender-remote-cli init extern/blender-win64/blender-5.0.0-windows-x64/blender.exe`
 
 Steps:
-- Run a deliberate long remote script:
-  - `blender-remote-cli execute --code \"import time; time.sleep(45); print('done')\"`
-  - Expect: success (this should fail before this subtask is complete).
-- Run a pip command that can take time (example):
+- Run a deliberate long pip command (or simulate via a long-running Python one-liner if needed):
   - `blender-remote-cli pkg pip -- --help` (quick sanity)
-  - `blender-remote-cli pkg install ...` (may vary; offline recommended).
+  - `blender-remote-cli pkg pip -- install <SOME_PKG>` (may vary; use offline wheelhouse for reliability)
 
 ## TODOs
 
-- [ ] Job-002-006-001 Identify where the 30s timeout is enforced in the addon (`COMMAND_EXECUTION_TIMEOUT_SECONDS`) and decide on an override mechanism.
-- [ ] Job-002-006-002 Implement per-command timeout override support (e.g., allow `execute_code` to accept a `timeout_seconds` param, defaulting to existing config).
-- [ ] Job-002-006-003 Update CLI `pkg` subcommands to request a longer remote timeout for pip/upload operations.
-- [ ] Job-002-006-004 Update CLI transport timeout behavior for `pkg` commands so socket receive doesn’t fail early.
-- [ ] Job-002-006-005 Add unit tests validating timeout selection logic (mocked).
+- [ ] Job-002-006-001 Wire `cli.timeout_sec` into the `pkg` Blender background runner.
+- [ ] Job-002-006-002 Add a per-command override option if needed (e.g. `--timeout-sec` on `pkg pip`/`pkg bootstrap`).
+- [ ] Job-002-006-003 Add unit tests validating timeout selection logic (mocked subprocess).
 
 ## Notes
 
-- Keep outputs bounded: even with longer timeouts, responses must stay under the socket max response size.
-
+- Keep outputs bounded: even with longer timeouts, very verbose pip output should not crash the CLI (streaming is preferred).

@@ -1,1 +1,1 @@
-"""Remote package management helpers for `blender-remote-cli pkg ...`."""
+"""Package management helpers for `blender-remote-cli pkg ...`."""

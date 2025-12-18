@@ -16,122 +16,137 @@ def test_pkg_info_json_outputs_single_json_object(
     from blender_remote.cli import cli
     from blender_remote.cli.commands import pkg as pkg_commands
 
-    def fake_get_remote_python_info(*, port: int | None) -> dict[str, object]:
-        assert port == 1234
-        return {"ok": True, "port": port}
+    def fake_get_blender_python_info() -> dict[str, object]:
+        return {"ok": True, "python": {"version_info": {"major": 3}}}
 
     monkeypatch.setattr(
-        pkg_commands, "get_remote_python_info", fake_get_remote_python_info
+        pkg_commands, "get_blender_python_info", fake_get_blender_python_info
     )
 
-    result = CliRunner().invoke(cli, ["pkg", "info", "--port", "1234", "--json"])
+    result = CliRunner().invoke(cli, ["pkg", "info", "--json"])
 
     assert result.exit_code == 0, result.output
-    parsed = json.loads(result.output)
-    assert parsed == {"ok": True, "port": 1234}
+    assert json.loads(result.output) == {
+        "ok": True,
+        "python": {"version_info": {"major": 3}},
+    }
 
 
 def test_pkg_pip_requires_args() -> None:
     from blender_remote.cli import cli
 
-    result = CliRunner().invoke(cli, ["pkg", "pip", "--port", "1"])
+    result = CliRunner().invoke(cli, ["pkg", "pip"])
 
     assert result.exit_code != 0
-    assert "Usage:" in result.output
+    assert "Usage: blender-remote-cli pkg pip -- PIP_ARGS..." in result.output
 
 
-def test_install_packages_builds_offline_pip_args(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from blender_remote.cli.pkg import install as install_module
+def test_pkg_pip_forwards_args(monkeypatch: pytest.MonkeyPatch) -> None:
+    from blender_remote.cli import cli
+    from blender_remote.cli.commands import pkg as pkg_commands
 
     captured: dict[str, object] = {}
 
-    def fake_run_pip(*, port: int | None, pip_args: list[str]) -> dict[str, object]:
-        captured["port"] = port
+    def fake_run_pip(*, pip_args: list[str]) -> None:
         captured["pip_args"] = pip_args
-        return {"returncode": 0, "stdout": "", "stderr": ""}
 
-    monkeypatch.setattr(install_module, "run_pip", fake_run_pip)
+    monkeypatch.setattr(pkg_commands, "run_pip", fake_run_pip)
 
-    install_module.install_packages(
-        package_spec=["numpy<2"],
-        port=777,
-        upgrade=False,
-        force_reinstall=False,
-        no_deps=False,
-        remote_wheelhouse="C:/tmp/wheels",
+    result = CliRunner().invoke(
+        cli, ["pkg", "pip", "--", "list", "--format=json"], catch_exceptions=False
     )
 
-    assert captured["port"] == 777
-    assert captured["pip_args"] == [
-        "install",
-        "--no-index",
-        "--find-links",
-        "C:/tmp/wheels",
-        "numpy<2",
-    ]
+    assert result.exit_code == 0, result.output
+    assert captured["pip_args"] == ["list", "--format=json"]
 
 
-def test_install_packages_rejects_urls(monkeypatch: pytest.MonkeyPatch) -> None:
-    from blender_remote.cli.pkg import install as install_module
-
-    monkeypatch.setattr(install_module, "run_pip", lambda **_: {"returncode": 0})
-
-    with pytest.raises(ClickException):
-        install_module.install_packages(
-            package_spec=["git+https://example.com/repo.git"],
-            port=1,
-            upgrade=False,
-            force_reinstall=False,
-            no_deps=False,
-            remote_wheelhouse=None,
-        )
-
-
-def test_push_wheels_discovers_whl(
+def test_pkg_bootstrap_forwards_options(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    from blender_remote.cli.pkg import push as push_module
+    from blender_remote.cli import cli
+    from blender_remote.cli.commands import pkg as pkg_commands
 
-    (tmp_path / "a.whl").write_bytes(b"wheel-a")
-    (tmp_path / "b.whl").write_bytes(b"wheel-b")
+    captured: dict[str, object] = {}
 
-    uploaded: list[tuple[Path, str, int]] = []
-
-    def fake_upload_file(
-        *, local_path: Path, remote_path: str, port: int, chunk_size: int
+    def fake_bootstrap_pip(
+        *, method: str, get_pip_path: Path | None, upgrade: bool
     ) -> None:
-        uploaded.append((local_path, remote_path, chunk_size))
+        captured["method"] = method
+        captured["get_pip_path"] = get_pip_path
+        captured["upgrade"] = upgrade
 
-    monkeypatch.setattr(push_module, "upload_file", fake_upload_file)
-    monkeypatch.setattr(push_module, "resolve_mcp_port", lambda _: 6688)
+    monkeypatch.setattr(pkg_commands, "bootstrap_pip", fake_bootstrap_pip)
 
-    push_module.push_wheels(
-        inputs=[tmp_path],
-        remote_wheelhouse="C:\\tmp\\wheels",
-        port=None,
-        chunk_size=1024,
+    get_pip = tmp_path / "get-pip.py"
+    get_pip.write_text("print('ok')\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "pkg",
+            "bootstrap",
+            "--method",
+            "get-pip",
+            "--get-pip",
+            str(get_pip),
+            "--upgrade",
+        ],
+        catch_exceptions=False,
     )
 
-    remote_paths = sorted(p[1] for p in uploaded)
-    assert remote_paths == ["C:/tmp/wheels/a.whl", "C:/tmp/wheels/b.whl"]
+    assert result.exit_code == 0, result.output
+    assert captured["method"] == "get-pip"
+    assert captured["get_pip_path"] == get_pip
+    assert captured["upgrade"] is True
 
 
-def test_upload_file_rejects_empty(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    from blender_remote.cli.pkg import upload as upload_module
+def test_extract_sentinel_json_extracts_object() -> None:
+    from blender_remote.cli.pkg.blender_background import (
+        JSON_BEGIN_SENTINEL,
+        JSON_END_SENTINEL,
+        extract_sentinel_json,
+    )
 
-    empty = tmp_path / "empty.bin"
-    empty.write_bytes(b"")
+    text = (
+        "noise before\n"
+        + JSON_BEGIN_SENTINEL
+        + "\n"
+        + json.dumps({"a": 1})
+        + "\n"
+        + JSON_END_SENTINEL
+        + "\nnoise after\n"
+    )
 
-    monkeypatch.setattr(upload_module, "execute_json", lambda **_: {})
+    assert extract_sentinel_json(text) == {"a": 1}
+
+
+def test_extract_sentinel_json_uses_last_block() -> None:
+    from blender_remote.cli.pkg.blender_background import (
+        JSON_BEGIN_SENTINEL,
+        JSON_END_SENTINEL,
+        extract_sentinel_json,
+    )
+
+    text = (
+        JSON_BEGIN_SENTINEL
+        + "\n"
+        + json.dumps({"a": 1})
+        + "\n"
+        + JSON_END_SENTINEL
+        + "\n"
+        + JSON_BEGIN_SENTINEL
+        + "\n"
+        + json.dumps({"b": 2})
+        + "\n"
+        + JSON_END_SENTINEL
+        + "\n"
+    )
+
+    assert extract_sentinel_json(text) == {"b": 2}
+
+
+def test_extract_sentinel_json_requires_markers() -> None:
+    from blender_remote.cli.pkg.blender_background import extract_sentinel_json
 
     with pytest.raises(ClickException):
-        upload_module.upload_file(
-            local_path=empty,
-            remote_path="C:/tmp/empty.bin",
-            port=1,
-            chunk_size=1024,
-        )
+        extract_sentinel_json("no markers here\n")
