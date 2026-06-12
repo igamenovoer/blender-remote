@@ -26,12 +26,12 @@ async with mcp.server.stdio.stdio_client() as (read, write):
 ```
 
 ### `execute_code(code, send_as_base64=False, return_as_base64=False)`
-Executes a string of Python code within Blender's context. This is a powerful tool for performing custom actions.
+Executes a string of Python code within Blender's context. This tool remains synchronous for MCP compatibility: the MCP call returns the terminal execution result, failure, cancellation, or timeout response rather than only a submitted job id. Internally it uses the same Blender-side cancellable job engine as the asynchronous job tools.
 
 - **`code` (str):** The Python code to execute.
 - **`send_as_base64` (bool):** If `True`, the code string is encoded to base64 before being sent to Blender, which helps prevent issues with special characters.
 - **`return_as_base64` (bool):** If `True`, the result from Blender is expected to be base64 encoded.
-- **Returns (dict):** A dictionary containing the output from the executed code.
+- **Returns (dict):** A dictionary containing the output from the executed code or a structured terminal status.
 
 **Example:**
 ```python
@@ -56,6 +56,36 @@ result = await session.call_tool("execute_code", {
     "return_as_base64": True
 })
 ```
+
+### `submit_code_job(code, send_as_base64=False, return_as_base64=False, job_timeout_seconds=None)`
+Submits Python code as an asynchronous Blender job and returns a job id immediately. Use this only with MCP clients that can make follow-up tool calls to retrieve status and result.
+
+- **`code` (str):** The Python code to execute.
+- **`send_as_base64` (bool):** If `True`, encode the code before sending it to Blender.
+- **`return_as_base64` (bool):** If `True`, request base64 result storage.
+- **`job_timeout_seconds` (float, optional):** Maximum runtime for the Blender job before timeout cancellation is requested.
+- **Returns (dict):** A job snapshot containing `job_id`, `status`, timestamps, and cancellation metadata.
+
+### `get_job_status(job_id)`
+Returns lightweight status for an asynchronous Blender job.
+
+- **`job_id` (str):** The Blender job id returned by `submit_code_job`.
+- **Returns (dict):** A job snapshot without the full terminal result payload.
+
+### `get_job_result(job_id)`
+Returns the stored terminal result or structured error for an asynchronous Blender job. It does not re-run code.
+
+- **`job_id` (str):** The Blender job id returned by `submit_code_job`.
+- **Returns (dict):** A job snapshot including result/error data when the job is terminal.
+
+### `cancel_job(job_id, reason=None)`
+Requests cooperative cancellation for an asynchronous Blender job. The request is accepted on the add-on control path, so it is not queued behind the Blender job it is trying to cancel.
+
+- **`job_id` (str):** The Blender job id returned by `submit_code_job`.
+- **`reason` (str, optional):** Caller-provided cancellation reason.
+- **Returns (dict):** A job snapshot showing whether cancellation was requested.
+
+Job code can observe cancellation by calling `check_cancelled()` or by using the injected `ctx` / `job_context` cancellation token. Cancellation is cooperative and checkpoint-bounded.
 
 ### `get_object_info(object_name)`
 Gets detailed information for a specific object in the scene.

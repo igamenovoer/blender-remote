@@ -28,6 +28,15 @@ from dataclasses import dataclass
 from . import persist
 from .utils import log_info, log_warning, log_error, log_debug
 from .config import get_mcp_port, should_auto_start
+from .job_control import (
+    BlenderJobCancellationToken,
+    BlenderJobCancelled,
+    BlenderJobRegistry,
+    BlenderJobScheduler,
+    BlenderJobSnapshot,
+    BlenderJobStatus,
+    BlenderJobTimedOut,
+)
 
 
 class BldRemoteMCPConfig:
@@ -42,7 +51,12 @@ class BldRemoteMCPConfig:
     
     # Command Execution Timeouts
     COMMAND_EXECUTION_TIMEOUT_SECONDS = 30.0
+    COMMAND_WAIT_TIMEOUT_SECONDS = 30.0
+    JOB_CANCEL_GRACE_SECONDS = 2.0
     TIMER_FIRST_INTERVAL_SECONDS = 0.0
+    GUI_SCHEDULER_INTERVAL_SECONDS = 0.05
+    GUI_SCHEDULER_BUDGET_MS = 5.0
+    BACKGROUND_SCHEDULER_BUDGET_MS = 10.0
     SHUTDOWN_DELAY_SECONDS = 1.0
     
     # Threading and Polling
@@ -193,6 +207,9 @@ class BldRemoteMCPServer:
         self.server_thread = None
         self.client_threads = []
         self.background_mode = bpy.app.background
+        self.job_registry = BlenderJobRegistry(prefix="bld-job")
+        self.job_scheduler = BlenderJobScheduler(self.job_registry)
+        self._gui_scheduler_timer = None
         
         # Background mode command queue for manual processing
         self.command_queue = queue.Queue() if self.background_mode else None
@@ -213,6 +230,8 @@ class BldRemoteMCPServer:
             
             atexit.register(self._cleanup_on_exit)
             log_debug("Background mode: Signal handlers and command queue initialized")
+        else:
+            self._register_gui_scheduler_pump()
     
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals in background mode."""
@@ -229,6 +248,28 @@ class BldRemoteMCPServer:
                 self.stop()
         except Exception as e:
             log_error(f"BLD Remote: Error during cleanup: {e}")
+
+    def _register_gui_scheduler_pump(self):
+        """Register a recurring GUI-mode timer that pumps Blender job work."""
+        if self.background_mode or self._gui_scheduler_timer is not None:
+            return
+
+        def scheduler_pump():
+            if not self.running:
+                return None
+            try:
+                self.job_scheduler.step(
+                    max_budget_ms=BldRemoteMCPConfig.GUI_SCHEDULER_BUDGET_MS
+                )
+            except Exception as e:
+                log_error(f"Error in GUI scheduler pump: {e}")
+            return BldRemoteMCPConfig.GUI_SCHEDULER_INTERVAL_SECONDS
+
+        self._gui_scheduler_timer = scheduler_pump
+        bpy.app.timers.register(
+            scheduler_pump,
+            first_interval=BldRemoteMCPConfig.TIMER_FIRST_INTERVAL_SECONDS,
+        )
     
     def start(self):
         """Start the TCP server."""
@@ -344,12 +385,50 @@ class BldRemoteMCPServer:
 
     def _execute_command_sync(self, command):
         """Execute command synchronously using appropriate method based on mode."""
+        if self._is_job_control_command(command):
+            return self._execute_job_control_command(command)
+
         if self.background_mode:
             # Background mode: Use queue-based execution with manual processing
             return self._execute_command_background_mode(command)
         else:
             # GUI mode: Use timer-based execution (existing approach)
             return self._execute_command_gui_mode(command)
+
+    def _is_job_control_command(self, command):
+        """Return whether a command can run on the responsive control path."""
+        return command.get("type") in {
+            "execute_code",
+            "submit_code_job",
+            "get_job_status",
+            "get_job_result",
+            "cancel_job",
+        }
+
+    def _execute_job_control_command(self, command):
+        """Execute job-control commands without entering the main-thread queue."""
+        try:
+            cmd_type = command.get("type")
+            params = dict(command.get("params") or {})
+
+            if cmd_type == "execute_code":
+                result = self.execute_code(**params)
+            elif cmd_type == "submit_code_job":
+                result = self.submit_code_job(**params)
+            elif cmd_type == "get_job_status":
+                result = self.get_job_status(**params)
+            elif cmd_type == "get_job_result":
+                result = self.get_job_result(**params)
+            elif cmd_type == "cancel_job":
+                result = self.cancel_job(**params)
+            else:
+                raise ValueError(f"Unsupported job-control command: {cmd_type}")
+
+            return {"status": "success", "result": result}
+        except Exception as e:
+            log_error(f"Error in job-control command: {str(e)}")
+            traceback.print_exc()
+            return {"status": "error", "message": str(e)}
     
     def _execute_command_gui_mode(self, command):
         """Execute command in GUI mode using Blender timers (existing approach)."""
@@ -420,6 +499,10 @@ class BldRemoteMCPServer:
     
     def step(self) -> None:
         """Process all pending commands in the queue - called manually in background mode."""
+        self.job_scheduler.step(
+            max_budget_ms=BldRemoteMCPConfig.BACKGROUND_SCHEDULER_BUDGET_MS
+        )
+
         if not self.background_mode or not self.command_queue:
             log_debug("step() called but not in background mode or no queue available")
             return
@@ -486,6 +569,10 @@ class BldRemoteMCPServer:
             "get_object_info": self.get_object_info,
             "get_viewport_screenshot": self.get_viewport_screenshot,
             "execute_code": self.execute_code,
+            "submit_code_job": self.submit_code_job,
+            "get_job_status": self.get_job_status,
+            "get_job_result": self.get_job_result,
+            "cancel_job": self.cancel_job,
             "server_shutdown": self.server_shutdown,
             "get_polyhaven_status": self.get_polyhaven_status,
             "put_persist_data": self.put_persist_data,
@@ -504,9 +591,12 @@ class BldRemoteMCPServer:
                 log_error(f"Error in handler: {str(e)}")
                 traceback.print_exc()
                 return {"status": "error", "message": str(e)}
-        else:
-            # Handle legacy message/code format for backward compatibility
-            return self._handle_legacy_command(command)
+
+        if cmd_type is not None:
+            return {"status": "error", "message": f"Unknown command: {cmd_type}"}
+
+        # Handle legacy message/code format for backward compatibility.
+        return self._handle_legacy_command(command)
 
     def _get_command_timeout_seconds(self, command: Dict[str, Any]) -> float:
         """Return the execution timeout for a command, allowing an optional override."""
@@ -587,6 +677,14 @@ class BldRemoteMCPServer:
         """Stop the TCP server."""
         log_info("Stopping BLD Remote MCP server...")
         self.running = False
+
+        if self._gui_scheduler_timer is not None:
+            try:
+                if bpy.app.timers.is_registered(self._gui_scheduler_timer):
+                    bpy.app.timers.unregister(self._gui_scheduler_timer)
+            except Exception as e:
+                log_debug(f"Could not unregister GUI scheduler timer: {e}")
+            self._gui_scheduler_timer = None
         
         # Close socket first to stop accepting new connections
         if self.server_socket:
@@ -748,61 +846,250 @@ class BldRemoteMCPServer:
             log_error(f"Error capturing viewport screenshot: {e}")
             raise
 
-    def execute_code(self, code=None, code_is_base64=False, return_as_base64=False, **kwargs):
-        """Execute arbitrary Blender Python code with output capture.
-        
-        Args:
-            code: Python code to execute (may be base64-encoded if code_is_base64=True)
-            code_is_base64: If True, decode the code from base64 before execution
-            return_as_base64: If True, encode the result as base64 for safe transmission
-            **kwargs: Additional parameters for backward compatibility
-        """
+    def execute_code(
+        self,
+        code=None,
+        code_is_base64=False,
+        return_as_base64=False,
+        wait_timeout_seconds=None,
+        job_timeout_seconds=None,
+        detach_on_wait_timeout=False,
+        **kwargs,
+    ):
+        """Execute arbitrary Blender Python code as a synchronous job facade."""
+        if wait_timeout_seconds is None:
+            wait_timeout_seconds = kwargs.get("_timeout_seconds")
+        if job_timeout_seconds is None:
+            job_timeout_seconds = kwargs.get("_timeout_seconds")
+
+        wait_timeout = self._coerce_timeout_seconds(
+            wait_timeout_seconds,
+            BldRemoteMCPConfig.COMMAND_WAIT_TIMEOUT_SECONDS,
+        )
+
+        submitted = self.submit_code_job(
+            code=code,
+            code_is_base64=code_is_base64,
+            return_as_base64=return_as_base64,
+            job_timeout_seconds=job_timeout_seconds,
+        )
+        job_id = submitted["job_id"]
+
+        snapshot = self.job_registry.wait(job_id, wait_timeout)
+        if snapshot is not None and snapshot.terminal:
+            return self._execute_code_response_from_snapshot(snapshot)
+
+        if detach_on_wait_timeout:
+            return {
+                "executed": False,
+                "status": "waiting",
+                "job_id": job_id,
+                "cancel_requested": False,
+                "message": "Wait timeout expired; job is still running",
+            }
+
+        self.job_registry.request_cancel(job_id, reason="wait timeout")
+        cancel_snapshot = self.job_registry.wait(
+            job_id,
+            BldRemoteMCPConfig.JOB_CANCEL_GRACE_SECONDS,
+        )
+        if cancel_snapshot is not None and cancel_snapshot.terminal:
+            return self._execute_code_response_from_snapshot(cancel_snapshot)
+
+        return {
+            "executed": False,
+            "status": "timed_out",
+            "job_id": job_id,
+            "cancel_requested": True,
+            "message": "Wait timeout expired and cooperative cancellation is pending",
+        }
+
+    def submit_code_job(
+        self,
+        code=None,
+        code_is_base64=False,
+        return_as_base64=False,
+        job_timeout_seconds=None,
+        **kwargs,
+    ):
+        """Submit a code execution job and return immediately with its job id."""
         if not code:
             raise ValueError("No code provided")
-        
-        # Decode base64 code if requested
-        actual_code = code
-        if code_is_base64:
-            try:
-                actual_code = base64.b64decode(code.encode(BldRemoteMCPConfig.STRING_ENCODING_ASCII)).decode(BldRemoteMCPConfig.STRING_ENCODING_UTF8)
-                log_debug(f"Decoded base64 code (original length: {len(code)}, decoded length: {len(actual_code)})")
-            except Exception as e:
-                raise ValueError(f"Failed to decode base64 code: {e}")
-        
-        log_debug(f"Executing code: {actual_code[:BldRemoteMCPConfig.CODE_PREVIEW_LENGTH]}{'...' if len(actual_code) > BldRemoteMCPConfig.CODE_PREVIEW_LENGTH else ''}")
-        
-        exec_result = self._execute_code_with_capture(actual_code)
-        
-        if exec_result.success:
-            result_data = {
-                "executed": True,
-                "result": exec_result.output.get("stdout", ""),
-                "output": exec_result.output,
-                "duration": exec_result.duration,
-            }
-            
-            # Encode result as base64 if requested
-            if return_as_base64:
-                try:
-                    # Encode the main result as base64
-                    original_result = result_data["result"]
-                    if original_result:
-                        encoded_result = base64.b64encode(original_result.encode(BldRemoteMCPConfig.STRING_ENCODING_UTF8)).decode(BldRemoteMCPConfig.STRING_ENCODING_ASCII)
-                        result_data["result"] = encoded_result
-                        result_data["result_is_base64"] = True
-                        log_debug(f"Encoded result as base64 (original length: {len(original_result)}, encoded length: {len(encoded_result)})")
-                    else:
-                        result_data["result_is_base64"] = False
-                except Exception as e:
-                    log_error(f"Failed to encode result as base64: {e}")
-                    result_data["result_encode_error"] = str(e)
-                    result_data["result_is_base64"] = False
-            
-            return result_data
-        else:
+
+        actual_code = self._decode_code_payload(code, code_is_base64)
+        job_timeout = self._coerce_timeout_seconds(job_timeout_seconds, None)
+
+        log_debug(
+            "Submitting code job: "
+            f"{actual_code[:BldRemoteMCPConfig.CODE_PREVIEW_LENGTH]}"
+            f"{'...' if len(actual_code) > BldRemoteMCPConfig.CODE_PREVIEW_LENGTH else ''}"
+        )
+
+        snapshot = self.job_registry.create_job(
+            job_timeout_seconds=job_timeout,
+            metadata={"command": "execute_code"},
+        )
+
+        def run_job(job_token):
+            return self._run_execute_code_job(
+                actual_code,
+                return_as_base64=return_as_base64,
+                job_token=job_token,
+            )
+
+        try:
+            self.job_scheduler.submit(snapshot.job_id, run_job)
+        except Exception:
+            self.job_registry.mark_failed(
+                snapshot.job_id,
+                "Worker is busy with another Blender job",
+                traceback=traceback.format_exc(),
+            )
+            raise
+
+        return self.job_registry.require_snapshot(snapshot.job_id).to_dict(
+            include_result=False
+        )
+
+    def get_job_status(self, job_id=None, **kwargs):
+        """Return status and metadata for a known Blender job id."""
+        if not job_id:
+            raise ValueError("job_id parameter is required")
+        snapshot = self.job_registry.get_snapshot(job_id)
+        if snapshot is None:
+            return {"found": False, "job_id": job_id}
+        data = snapshot.to_dict(include_result=False)
+        data["found"] = True
+        return data
+
+    def get_job_result(self, job_id=None, **kwargs):
+        """Return the stored result or error for a Blender job id."""
+        if not job_id:
+            raise ValueError("job_id parameter is required")
+        snapshot = self.job_registry.get_snapshot(job_id)
+        if snapshot is None:
+            return {"found": False, "job_id": job_id}
+        data = snapshot.to_dict(include_result=True)
+        data["found"] = True
+        if not snapshot.terminal:
+            data["message"] = "Job has not reached a terminal state"
+        return data
+
+    def cancel_job(self, job_id=None, reason=None, **kwargs):
+        """Request cooperative cancellation for a Blender job id."""
+        if not job_id:
+            raise ValueError("job_id parameter is required")
+        snapshot = self.job_registry.request_cancel(job_id, reason=reason)
+        if snapshot is None:
+            return {"found": False, "job_id": job_id, "cancel_requested": False}
+        data = snapshot.to_dict(include_result=False)
+        data["found"] = True
+        return data
+
+    def _decode_code_payload(self, code, code_is_base64):
+        """Decode code payloads that were sent with base64 transport safety."""
+        if not code_is_base64:
+            return code
+
+        try:
+            actual_code = base64.b64decode(
+                code.encode(BldRemoteMCPConfig.STRING_ENCODING_ASCII)
+            ).decode(BldRemoteMCPConfig.STRING_ENCODING_UTF8)
+            log_debug(
+                "Decoded base64 code "
+                f"(original length: {len(code)}, decoded length: {len(actual_code)})"
+            )
+            return actual_code
+        except Exception as e:
+            raise ValueError(f"Failed to decode base64 code: {e}")
+
+    def _coerce_timeout_seconds(self, value, default):
+        """Coerce optional timeout values and cap accidental runaway waits."""
+        if value is None:
+            return default
+        try:
+            timeout = float(value)
+        except Exception:
+            return default
+        if timeout <= 0:
+            return default
+        return min(timeout, 3600.0)
+
+    def _run_execute_code_job(
+        self,
+        actual_code,
+        *,
+        return_as_base64=False,
+        job_token: Optional[BlenderJobCancellationToken] = None,
+    ):
+        """Run decoded code and convert successful execution to legacy payload."""
+        exec_result = self._execute_code_with_capture(actual_code, job_token)
+
+        if not exec_result.success:
             raise Exception(f"Code execution error: {exec_result.error}")
 
-    def _execute_code_with_capture(self, code):
+        result_data = {
+            "executed": True,
+            "status": "completed",
+            "result": exec_result.output.get("stdout", ""),
+            "output": exec_result.output,
+            "duration": exec_result.duration,
+        }
+
+        if return_as_base64:
+            try:
+                original_result = result_data["result"]
+                if original_result:
+                    encoded_result = base64.b64encode(
+                        original_result.encode(
+                            BldRemoteMCPConfig.STRING_ENCODING_UTF8
+                        )
+                    ).decode(BldRemoteMCPConfig.STRING_ENCODING_ASCII)
+                    result_data["result"] = encoded_result
+                    result_data["result_is_base64"] = True
+                    log_debug(
+                        "Encoded result as base64 "
+                        f"(original length: {len(original_result)}, "
+                        f"encoded length: {len(encoded_result)})"
+                    )
+                else:
+                    result_data["result_is_base64"] = False
+            except Exception as e:
+                log_error(f"Failed to encode result as base64: {e}")
+                result_data["result_encode_error"] = str(e)
+                result_data["result_is_base64"] = False
+
+        return result_data
+
+    def _execute_code_response_from_snapshot(
+        self, snapshot: BlenderJobSnapshot
+    ) -> Dict[str, Any]:
+        """Convert a terminal job snapshot into the legacy execute_code payload."""
+        if snapshot.status == BlenderJobStatus.COMPLETED:
+            result = snapshot.result
+            if isinstance(result, dict):
+                result["job_id"] = snapshot.job_id
+                return result
+            return {
+                "executed": True,
+                "status": "completed",
+                "job_id": snapshot.job_id,
+                "result": result,
+            }
+
+        if snapshot.status == BlenderJobStatus.FAILED:
+            raise Exception(snapshot.error or "Code execution failed")
+
+        return {
+            "executed": False,
+            "status": snapshot.status.value,
+            "job_id": snapshot.job_id,
+            "cancel_requested": snapshot.cancel_requested,
+            "error": snapshot.error,
+            "metadata": snapshot.metadata,
+        }
+
+    def _execute_code_with_capture(self, code, job_token=None):
         """Execute code with comprehensive output capture."""
         start_time = time.time()
         
@@ -812,10 +1099,23 @@ class BldRemoteMCPServer:
                 '__builtins__': __builtins__,
                 'bpy': bpy,
             }
+            if job_token is not None:
+                exec_globals.update(
+                    {
+                        "ctx": job_token,
+                        "job_context": job_token,
+                        "__bld_remote_job_context": job_token,
+                        "check_cancelled": job_token.check_cancelled,
+                    }
+                )
             
             # Capture output during execution
             with OutputCapture() as capture:
+                if job_token is not None:
+                    job_token.check_cancelled()
                 exec(code, exec_globals, exec_globals)
+                if job_token is not None:
+                    job_token.check_cancelled()
             
             duration = time.time() - start_time
             captured_output = capture.get_output()
@@ -831,7 +1131,8 @@ class BldRemoteMCPServer:
                 error=None,
                 traceback=None
             )
-            
+        except (BlenderJobCancelled, BlenderJobTimedOut):
+            raise
         except Exception as e:
             duration = time.time() - start_time
             error_traceback = traceback.format_exc()

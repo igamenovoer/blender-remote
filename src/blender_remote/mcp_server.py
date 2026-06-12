@@ -150,6 +150,28 @@ def parse_arguments() -> argparse.Namespace:
 mcp: FastMCP = FastMCP("Blender Remote MCP")
 
 
+async def _decode_base64_execute_result(
+    result: Dict[str, Any], ctx: Context
+) -> Dict[str, Any]:
+    """Decode a base64-encoded execute_code result payload in place."""
+    if not result.get("result_is_base64", False):
+        return result
+
+    try:
+        encoded_result = result.get("result", "")
+        if encoded_result:
+            decoded_result = base64.b64decode(
+                encoded_result.encode("ascii")
+            ).decode("utf-8")
+            result["result"] = decoded_result
+            await ctx.info("Result decoded from base64")
+        result.pop("result_is_base64", None)
+    except Exception as decode_error:
+        await ctx.error(f"Failed to decode base64 result: {decode_error}")
+        result["decode_error"] = str(decode_error)
+    return result
+
+
 class BlenderConnection:
     """Handle connection to Blender BLD_Remote_MCP TCP server."""
 
@@ -351,25 +373,149 @@ async def execute_code(
 
         result = response.get("result", {"message": "Code executed successfully"})
         
-        # Check if the result is base64-encoded and decode it
-        if return_as_base64 and result.get("result_is_base64", False):
-            try:
-                # Decode the base64-encoded result
-                encoded_result = result.get("result", "")
-                if encoded_result:
-                    decoded_result = base64.b64decode(encoded_result.encode('ascii')).decode('utf-8')
-                    result["result"] = decoded_result
-                    await ctx.info("Result decoded from base64")
-                # Remove the base64 flag from the final response
-                result.pop("result_is_base64", None)
-            except Exception as decode_error:
-                await ctx.error(f"Failed to decode base64 result: {decode_error}")
-                result["decode_error"] = str(decode_error)
+        if return_as_base64:
+            result = await _decode_base64_execute_result(result, ctx)
 
         return cast(Dict[str, Any], result)
         
     except Exception as e:
         await ctx.error(f"Failed to execute code: {e}")
+        return {"error": str(e)}
+
+
+@mcp.tool()
+async def submit_code_job(
+    code: str,
+    ctx: Context,
+    send_as_base64: bool = False,
+    return_as_base64: bool = False,
+    job_timeout_seconds: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Submit Python code as an asynchronous Blender job and return a job id."""
+    await ctx.info(
+        "Submitting async code job in Blender... "
+        f"(send_b64: {send_as_base64}, return_b64: {return_as_base64})"
+    )
+
+    if blender_conn is None:
+        await ctx.error("Blender connection not initialized")
+        return {"error": "Blender connection not initialized"}
+
+    try:
+        code_to_send = code
+        if send_as_base64:
+            code_to_send = base64.b64encode(code.encode("utf-8")).decode("ascii")
+            await ctx.info("Code encoded as base64 for safe transmission")
+
+        params: Dict[str, Any] = {
+            "code": code_to_send,
+            "code_is_base64": send_as_base64,
+            "return_as_base64": return_as_base64,
+        }
+        if job_timeout_seconds is not None:
+            params["job_timeout_seconds"] = job_timeout_seconds
+
+        response = await blender_conn.send_command(
+            {"type": "submit_code_job", "params": params}
+        )
+
+        if response.get("status") == "error":
+            await ctx.error(
+                f"Code job submission failed: {response.get('message', 'Unknown error')}"
+            )
+            return {"error": response.get("message", "Unknown error")}
+
+        return cast(Dict[str, Any], response.get("result", {}))
+    except Exception as e:
+        await ctx.error(f"Failed to submit code job: {e}")
+        return {"error": str(e)}
+
+
+@mcp.tool()
+async def get_job_status(job_id: str, ctx: Context) -> Dict[str, Any]:
+    """Inspect the current status of an asynchronous Blender job."""
+    await ctx.info(f"Getting Blender job status: {job_id}")
+
+    if blender_conn is None:
+        await ctx.error("Blender connection not initialized")
+        return {"error": "Blender connection not initialized"}
+
+    try:
+        response = await blender_conn.send_command(
+            {"type": "get_job_status", "params": {"job_id": job_id}}
+        )
+        if response.get("status") == "error":
+            await ctx.error(
+                f"Job status inspection failed: {response.get('message', 'Unknown error')}"
+            )
+            return {"error": response.get("message", "Unknown error")}
+        return cast(Dict[str, Any], response.get("result", {}))
+    except Exception as e:
+        await ctx.error(f"Failed to get job status: {e}")
+        return {"error": str(e)}
+
+
+@mcp.tool()
+async def get_job_result(
+    job_id: str,
+    ctx: Context,
+    decode_base64_result: bool = True,
+) -> Dict[str, Any]:
+    """Retrieve the stored result for a terminal asynchronous Blender job."""
+    await ctx.info(f"Getting Blender job result: {job_id}")
+
+    if blender_conn is None:
+        await ctx.error("Blender connection not initialized")
+        return {"error": "Blender connection not initialized"}
+
+    try:
+        response = await blender_conn.send_command(
+            {"type": "get_job_result", "params": {"job_id": job_id}}
+        )
+        if response.get("status") == "error":
+            await ctx.error(
+                f"Job result retrieval failed: {response.get('message', 'Unknown error')}"
+            )
+            return {"error": response.get("message", "Unknown error")}
+
+        result = cast(Dict[str, Any], response.get("result", {}))
+        stored_result = result.get("result")
+        if decode_base64_result and isinstance(stored_result, dict):
+            result["result"] = await _decode_base64_execute_result(stored_result, ctx)
+        return result
+    except Exception as e:
+        await ctx.error(f"Failed to get job result: {e}")
+        return {"error": str(e)}
+
+
+@mcp.tool()
+async def cancel_job(
+    job_id: str,
+    ctx: Context,
+    reason: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Request cooperative cancellation for an asynchronous Blender job."""
+    await ctx.info(f"Cancelling Blender job: {job_id}")
+
+    if blender_conn is None:
+        await ctx.error("Blender connection not initialized")
+        return {"error": "Blender connection not initialized"}
+
+    try:
+        params: Dict[str, Any] = {"job_id": job_id}
+        if reason is not None:
+            params["reason"] = reason
+        response = await blender_conn.send_command(
+            {"type": "cancel_job", "params": params}
+        )
+        if response.get("status") == "error":
+            await ctx.error(
+                f"Job cancellation failed: {response.get('message', 'Unknown error')}"
+            )
+            return {"error": response.get("message", "Unknown error")}
+        return cast(Dict[str, Any], response.get("result", {}))
+    except Exception as e:
+        await ctx.error(f"Failed to cancel job: {e}")
         return {"error": str(e)}
 
 

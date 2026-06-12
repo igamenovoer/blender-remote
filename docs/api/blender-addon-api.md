@@ -49,7 +49,7 @@ Sets the port for the MCP service. This can only be called when the service is s
 - **`port_number` (int):** The new port to use.
 
 #### `step()`
-When running in **background mode**, this function must be called repeatedly in your script's main loop. It processes all pending commands from the queue. In GUI mode, this function has no effect as commands are processed automatically by a timer.
+When running in **background mode**, this function must be called repeatedly in your script's main loop. It pumps the Blender job scheduler and processes any pending legacy main-thread commands from the queue. In GUI mode, the same scheduler is pumped automatically by a Blender timer so asynchronous jobs, cooperative cancellation checkpoints, and terminal result recording continue while Blender owns the event loop.
 
 **Example for background mode:**
 ```python
@@ -128,13 +128,46 @@ Gets detailed information about a specific object.
 - **Returns:** A dictionary with the object's properties (location, rotation, materials, etc.).
 
 ### `execute_code`
-Executes a string of Python code in Blender's global context.
+Executes a string of Python code in Blender's global context and waits for the terminal result. This command is implemented as a synchronous facade over the Blender-side job registry: it creates an internal job, waits for completion, and returns the same successful result shape expected by existing MCP callers.
 
 - **Params:**
     - `code` (str): The code to run.
     - `code_is_base64` (bool): Set to `True` if the code is base64 encoded.
     - `return_as_base64` (bool): Set to `True` to receive the result as a base64 encoded string.
-- **Returns:** The result of the execution, typically the standard output.
+    - `wait_timeout_seconds` (float, optional): Maximum time for this caller to wait for a response.
+    - `job_timeout_seconds` (float, optional): Maximum time the Blender job itself is allowed to run before timeout cancellation is requested.
+    - `detach_on_wait_timeout` (bool, optional): If `True`, a wait timeout can return a still-running job id instead of requesting cooperative cancellation.
+- **Returns:** The result of the execution, typically the standard output, or a structured terminal status such as `cancelled` or `timed_out`.
+
+### `submit_code_job`
+Submits a string of Python code as an asynchronous Blender job and returns immediately with a job id. The job is still executed on Blender's main thread by the shared scheduler; asynchronous submission changes caller waiting behavior, not Blender concurrency.
+
+- **Params:**
+    - `code` (str): The code to run.
+    - `code_is_base64` (bool): Set to `True` if the code is base64 encoded.
+    - `return_as_base64` (bool): Set to `True` to store the result as a base64 encoded string.
+    - `job_timeout_seconds` (float, optional): Maximum time the Blender job itself is allowed to run before timeout cancellation is requested.
+- **Returns:** A job snapshot containing `job_id`, `status`, timestamps, cancellation metadata, and `terminal=false`.
+
+### `get_job_status`
+Returns lightweight status for a known Blender job id without waiting behind queued or running Blender work.
+
+- **Params:** `{"job_id": "bld-job-..."}`
+- **Returns:** A job snapshot without the terminal result payload, plus `found=true`; unknown jobs return `found=false`.
+
+### `get_job_result`
+Returns the stored result or structured error for a known Blender job id. This command never re-runs code.
+
+- **Params:** `{"job_id": "bld-job-..."}`
+- **Returns:** A job snapshot including terminal result/error payloads when available; non-terminal jobs include a message that the job has not reached a terminal state.
+
+### `cancel_job`
+Requests cooperative cancellation for a known Blender job id and returns immediately. `cancel_job`, `get_job_status`, and `get_job_result` are control-plane commands: they update or inspect the registry directly and do not enter the main-thread Blender command queue.
+
+- **Params:** `{"job_id": "bld-job-...", "reason": "optional reason"}`
+- **Returns:** A job snapshot with `cancel_requested=true` and status usually `cancelling` for active jobs; terminal jobs keep their terminal status; unknown jobs return `found=false`.
+
+Executing job code receives cooperative cancellation helpers in its global scope: `ctx`, `job_context`, `__bld_remote_job_context`, and `check_cancelled`. Long jobs should call `check_cancelled()` between expensive phases. This first implementation is checkpoint-bounded; it does not forcibly interrupt arbitrary Python or a blocking Blender C-level operation that never returns to Python.
 
 ### `get_viewport_screenshot`
 Captures a screenshot of the 3D viewport. This command only works when Blender is running in GUI mode.

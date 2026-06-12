@@ -115,6 +115,10 @@ Then ask your LLM:
 | `get_scene_info` | List objects and scene properties | No |
 | `get_object_info` | Get object details | No |
 | `execute_code` | Run Python code in Blender | No |
+| `submit_code_job` | Submit async Python job and return job id | No |
+| `get_job_status` | Inspect async Python job status | No |
+| `get_job_result` | Retrieve async Python job result | No |
+| `cancel_job` | Request cooperative async job cancellation | No |
 | `get_viewport_screenshot` | Capture viewport image | Yes |
 | `check_connection_status` | Verify service health | No |
 
