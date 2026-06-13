@@ -30,7 +30,8 @@ class FakeBlenderConnection:
 
 
 def run_tool(tool, *args, **kwargs):
-    return asyncio.run(tool.fn(*args, **kwargs))
+    target = getattr(tool, "fn", tool)
+    return asyncio.run(target(*args, **kwargs))
 
 
 def test_mcp_execute_code_preserves_sync_base64_flow() -> None:
@@ -172,6 +173,50 @@ def test_mcp_async_job_tools_send_job_control_commands() -> None:
         {"type": "get_job_status", "params": {"job_id": "job-1"}},
         {"type": "get_job_result", "params": {"job_id": "job-1"}},
         {"type": "cancel_job", "params": {"job_id": "job-1", "reason": "user"}},
+    ]
+
+
+def test_mcp_queue_control_tools_send_control_commands() -> None:
+    fake_conn = FakeBlenderConnection(
+        [
+            {
+                "status": "success",
+                "result": {"queued_user_jobs": 1, "queued_system_operations": 0},
+            },
+            {"status": "success", "result": {"active_item": None}},
+            {"status": "success", "result": {"count": 1, "jobs": []}},
+        ]
+    )
+    old_conn = mcp_server.blender_conn
+    mcp_server.blender_conn = fake_conn
+    try:
+        queue_result = run_tool(mcp_server.get_queue_status, FakeContext())
+        active_result = run_tool(mcp_server.get_active_item, FakeContext())
+        list_result = run_tool(
+            mcp_server.list_jobs,
+            FakeContext(),
+            status="queued",
+            include_terminal=False,
+            limit=5,
+        )
+    finally:
+        mcp_server.blender_conn = old_conn
+
+    assert queue_result == {"queued_user_jobs": 1, "queued_system_operations": 0}
+    assert active_result == {"active_item": None}
+    assert list_result == {"count": 1, "jobs": []}
+    assert fake_conn.commands == [
+        {"type": "get_queue_status", "params": {}},
+        {"type": "get_active_item", "params": {}},
+        {
+            "type": "list_jobs",
+            "params": {
+                "include_terminal": False,
+                "limit": 5,
+                "include_result": False,
+                "status": "queued",
+            },
+        },
     ]
 
 

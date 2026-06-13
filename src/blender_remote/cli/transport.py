@@ -158,6 +158,66 @@ def cancel_job(
     )
 
 
+def get_queue_status(
+    *,
+    host: str = "127.0.0.1",
+    port: int = DEFAULT_PORT,
+    timeout: float = SOCKET_TIMEOUT_SECONDS,
+) -> dict[str, Any]:
+    """Inspect active main-thread work, pending queues, and capacity metadata."""
+    return connect_and_send_command(
+        "get_queue_status",
+        {},
+        host=host,
+        port=port,
+        timeout=timeout,
+    )
+
+
+def get_active_item(
+    *,
+    host: str = "127.0.0.1",
+    port: int = DEFAULT_PORT,
+    timeout: float = SOCKET_TIMEOUT_SECONDS,
+) -> dict[str, Any]:
+    """Inspect the currently active Blender main-thread item."""
+    return connect_and_send_command(
+        "get_active_item",
+        {},
+        host=host,
+        port=port,
+        timeout=timeout,
+    )
+
+
+def list_jobs(
+    *,
+    status: str | None = None,
+    include_terminal: bool = True,
+    limit: int | None = 100,
+    include_result: bool = False,
+    host: str = "127.0.0.1",
+    port: int = DEFAULT_PORT,
+    timeout: float = SOCKET_TIMEOUT_SECONDS,
+) -> dict[str, Any]:
+    """List known Blender jobs from the remote registry."""
+    params: dict[str, Any] = {
+        "include_terminal": include_terminal,
+        "include_result": include_result,
+    }
+    if status is not None:
+        params["status"] = status
+    if limit is not None:
+        params["limit"] = limit
+    return connect_and_send_command(
+        "list_jobs",
+        params,
+        host=host,
+        port=port,
+        timeout=timeout,
+    )
+
+
 def execute_code(
     code: str,
     *,

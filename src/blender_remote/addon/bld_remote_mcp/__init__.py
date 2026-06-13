@@ -24,6 +24,7 @@ from contextlib import redirect_stdout, redirect_stderr
 from bpy.props import BoolProperty
 from typing import Dict, Any, Optional, Callable
 from dataclasses import dataclass
+from enum import StrEnum
 
 from . import persist
 from .utils import log_info, log_warning, log_error, log_debug
@@ -32,6 +33,7 @@ from .job_control import (
     BlenderJobCancellationToken,
     BlenderJobCancelled,
     BlenderJobRegistry,
+    BlenderQueueCapacityError,
     BlenderJobScheduler,
     BlenderJobSnapshot,
     BlenderJobStatus,
@@ -58,6 +60,9 @@ class BldRemoteMCPConfig:
     GUI_SCHEDULER_BUDGET_MS = 5.0
     BACKGROUND_SCHEDULER_BUDGET_MS = 10.0
     SHUTDOWN_DELAY_SECONDS = 1.0
+    MAX_QUEUED_USER_JOBS = 128
+    MAX_QUEUED_SYSTEM_OPERATIONS = 64
+    TERMINAL_JOB_RETENTION_LIMIT = 1000
     
     # Threading and Polling
     THREAD_JOIN_TIMEOUT_SECONDS = 3.0
@@ -108,6 +113,45 @@ bl_info = {
     "description": "Dual-mode command server for remote Blender control (GUI timer + background queue)",
     "category": "Development",
 }
+
+
+class CommandExecutionLane(StrEnum):
+    """Execution lanes for typed Blender remote RPC commands."""
+
+    IMMEDIATE_CONTROL = "immediate_control"
+    MAIN_THREAD_SYSTEM_OPERATION = "main_thread_system_operation"
+    USER_JOB = "user_job"
+    LEGACY_MAIN_THREAD_COMMAND = "legacy_main_thread_command"
+
+
+USER_JOB_COMMAND_TYPES = frozenset({"execute_code", "submit_code_job"})
+
+IMMEDIATE_CONTROL_COMMAND_TYPES = frozenset(
+    {
+        "get_job_status",
+        "get_job_result",
+        "cancel_job",
+        "get_queue_status",
+        "get_active_item",
+        "list_jobs",
+    }
+)
+
+MAIN_THREAD_SYSTEM_OPERATION_COMMAND_TYPES = frozenset(
+    {
+        "get_scene_info",
+        "get_object_info",
+        "get_viewport_screenshot",
+    }
+)
+
+REJECTED_PRIORITY_CODE_COMMAND_TYPES = frozenset(
+    {
+        "priority_execute_code",
+        "run_system_operation",
+        "submit_system_operation",
+    }
+)
 
 # Global server state
 _tcp_server = None
@@ -207,8 +251,15 @@ class BldRemoteMCPServer:
         self.server_thread = None
         self.client_threads = []
         self.background_mode = bpy.app.background
-        self.job_registry = BlenderJobRegistry(prefix="bld-job")
-        self.job_scheduler = BlenderJobScheduler(self.job_registry)
+        self.job_registry = BlenderJobRegistry(
+            prefix="bld-job",
+            terminal_retention_limit=BldRemoteMCPConfig.TERMINAL_JOB_RETENTION_LIMIT,
+        )
+        self.job_scheduler = BlenderJobScheduler(
+            self.job_registry,
+            max_queued_user_jobs=BldRemoteMCPConfig.MAX_QUEUED_USER_JOBS,
+            max_queued_system_operations=BldRemoteMCPConfig.MAX_QUEUED_SYSTEM_OPERATIONS,
+        )
         self._gui_scheduler_timer = None
         
         # Background mode command queue for manual processing
@@ -385,8 +436,13 @@ class BldRemoteMCPServer:
 
     def _execute_command_sync(self, command):
         """Execute command synchronously using appropriate method based on mode."""
-        if self._is_job_control_command(command):
-            return self._execute_job_control_command(command)
+        lane = self._classify_command(command)
+        if lane == CommandExecutionLane.USER_JOB:
+            return self._execute_user_job_command(command)
+        if lane == CommandExecutionLane.IMMEDIATE_CONTROL:
+            return self._execute_immediate_control_command(command)
+        if lane == CommandExecutionLane.MAIN_THREAD_SYSTEM_OPERATION:
+            return self._execute_main_thread_system_operation_command(command)
 
         if self.background_mode:
             # Background mode: Use queue-based execution with manual processing
@@ -395,18 +451,21 @@ class BldRemoteMCPServer:
             # GUI mode: Use timer-based execution (existing approach)
             return self._execute_command_gui_mode(command)
 
-    def _is_job_control_command(self, command):
-        """Return whether a command can run on the responsive control path."""
-        return command.get("type") in {
-            "execute_code",
-            "submit_code_job",
-            "get_job_status",
-            "get_job_result",
-            "cancel_job",
-        }
+    def _classify_command(self, command):
+        """Classify a typed RPC command into one execution lane."""
+        cmd_type = command.get("type")
+        if cmd_type in USER_JOB_COMMAND_TYPES:
+            return CommandExecutionLane.USER_JOB
+        if cmd_type in REJECTED_PRIORITY_CODE_COMMAND_TYPES:
+            return CommandExecutionLane.IMMEDIATE_CONTROL
+        if cmd_type in IMMEDIATE_CONTROL_COMMAND_TYPES:
+            return CommandExecutionLane.IMMEDIATE_CONTROL
+        if cmd_type in MAIN_THREAD_SYSTEM_OPERATION_COMMAND_TYPES:
+            return CommandExecutionLane.MAIN_THREAD_SYSTEM_OPERATION
+        return CommandExecutionLane.LEGACY_MAIN_THREAD_COMMAND
 
-    def _execute_job_control_command(self, command):
-        """Execute job-control commands without entering the main-thread queue."""
+    def _execute_user_job_command(self, command):
+        """Execute user-job submission commands on the responsive socket path."""
         try:
             cmd_type = command.get("type")
             params = dict(command.get("params") or {})
@@ -415,20 +474,85 @@ class BldRemoteMCPServer:
                 result = self.execute_code(**params)
             elif cmd_type == "submit_code_job":
                 result = self.submit_code_job(**params)
-            elif cmd_type == "get_job_status":
+            else:
+                raise ValueError(f"Unsupported user-job command: {cmd_type}")
+
+            return {"status": "success", "result": result}
+        except Exception as e:
+            log_error(f"Error in user-job command: {str(e)}")
+            traceback.print_exc()
+            return self._error_response(e)
+
+    def _execute_immediate_control_command(self, command):
+        """Execute scheduler/registry controls without entering the main-thread queue."""
+        try:
+            cmd_type = command.get("type")
+            params = dict(command.get("params") or {})
+
+            if cmd_type in REJECTED_PRIORITY_CODE_COMMAND_TYPES:
+                return {
+                    "status": "error",
+                    "error_code": "arbitrary_code_not_allowed_in_system_operation",
+                    "message": (
+                        "Arbitrary caller code cannot be submitted as a priority "
+                        "main-thread system operation"
+                    ),
+                }
+            if cmd_type == "get_job_status":
                 result = self.get_job_status(**params)
             elif cmd_type == "get_job_result":
                 result = self.get_job_result(**params)
             elif cmd_type == "cancel_job":
                 result = self.cancel_job(**params)
+            elif cmd_type == "get_queue_status":
+                result = self.get_queue_status(**params)
+            elif cmd_type == "get_active_item":
+                result = self.get_active_item(**params)
+            elif cmd_type == "list_jobs":
+                result = self.list_jobs(**params)
             else:
-                raise ValueError(f"Unsupported job-control command: {cmd_type}")
+                return {
+                    "status": "error",
+                    "error_code": "unknown_rpc_command",
+                    "message": f"Unknown command: {cmd_type}",
+                }
 
             return {"status": "success", "result": result}
         except Exception as e:
-            log_error(f"Error in job-control command: {str(e)}")
+            log_error(f"Error in immediate control command: {str(e)}")
             traceback.print_exc()
-            return {"status": "error", "message": str(e)}
+            return self._error_response(e)
+
+    def _execute_job_control_command(self, command):
+        """Backward-compatible wrapper for pre-classification internal tests."""
+        lane = self._classify_command(command)
+        if lane == CommandExecutionLane.USER_JOB:
+            return self._execute_user_job_command(command)
+        if lane == CommandExecutionLane.IMMEDIATE_CONTROL:
+            return self._execute_immediate_control_command(command)
+        return self._execute_command_sync(command)
+
+    def _execute_main_thread_system_operation_command(self, command):
+        """Queue an allowlisted system operation on the priority main-thread lane."""
+        cmd_type = command.get("type")
+        timeout = self._get_command_timeout_seconds(command)
+        try:
+            return self.job_scheduler.run_system_operation(
+                cmd_type,
+                lambda: self._execute_command_internal(command),
+                timeout_seconds=timeout,
+            )
+        except Exception as e:
+            log_error(f"Error in main-thread system operation: {str(e)}")
+            traceback.print_exc()
+            return self._error_response(e)
+
+    def _error_response(self, error):
+        """Convert exceptions into structured JSON error responses."""
+        data = {"status": "error", "message": str(error)}
+        if isinstance(error, BlenderQueueCapacityError):
+            data.update(error.to_dict())
+        return data
     
     def _execute_command_gui_mode(self, command):
         """Execute command in GUI mode using Blender timers (existing approach)."""
@@ -573,6 +697,9 @@ class BldRemoteMCPServer:
             "get_job_status": self.get_job_status,
             "get_job_result": self.get_job_result,
             "cancel_job": self.cancel_job,
+            "get_queue_status": self.get_queue_status,
+            "get_active_item": self.get_active_item,
+            "list_jobs": self.list_jobs,
             "server_shutdown": self.server_shutdown,
             "get_polyhaven_status": self.get_polyhaven_status,
             "put_persist_data": self.put_persist_data,
@@ -593,7 +720,11 @@ class BldRemoteMCPServer:
                 return {"status": "error", "message": str(e)}
 
         if cmd_type is not None:
-            return {"status": "error", "message": f"Unknown command: {cmd_type}"}
+            return {
+                "status": "error",
+                "error_code": "unknown_rpc_command",
+                "message": f"Unknown command: {cmd_type}",
+            }
 
         # Handle legacy message/code format for backward compatibility.
         return self._handle_legacy_command(command)
@@ -939,10 +1070,17 @@ class BldRemoteMCPServer:
 
         try:
             self.job_scheduler.submit(snapshot.job_id, run_job)
-        except Exception:
+        except BlenderQueueCapacityError as e:
             self.job_registry.mark_failed(
                 snapshot.job_id,
-                "Worker is busy with another Blender job",
+                str(e),
+                traceback=traceback.format_exc(),
+            )
+            raise
+        except Exception as e:
+            self.job_registry.mark_failed(
+                snapshot.job_id,
+                f"Worker failed to accept Blender job: {e}",
                 traceback=traceback.format_exc(),
             )
             raise
@@ -961,6 +1099,44 @@ class BldRemoteMCPServer:
         data = snapshot.to_dict(include_result=False)
         data["found"] = True
         return data
+
+    def get_queue_status(self, **kwargs):
+        """Return active main-thread item, pending queues, and capacity metadata."""
+        return self.job_scheduler.get_queue_status()
+
+    def get_active_item(self, **kwargs):
+        """Return the active main-thread item without entering the main-thread queue."""
+        return {"active_item": self.job_scheduler.get_active_item()}
+
+    def list_jobs(
+        self,
+        status=None,
+        include_terminal=True,
+        limit=100,
+        include_result=False,
+        **kwargs,
+    ):
+        """List known Blender jobs with optional status filtering."""
+        try:
+            normalized_limit = int(limit) if limit is not None else None
+        except Exception:
+            normalized_limit = 100
+        if normalized_limit is not None:
+            normalized_limit = max(0, min(normalized_limit, 1000))
+
+        snapshots = self.job_registry.list_snapshots(
+            status=status,
+            include_terminal=bool(include_terminal),
+            limit=normalized_limit,
+        )
+        return {
+            "jobs": [
+                snapshot.to_dict(include_result=bool(include_result))
+                for snapshot in snapshots
+            ],
+            "count": len(snapshots),
+            "limit": normalized_limit,
+        }
 
     def get_job_result(self, job_id=None, **kwargs):
         """Return the stored result or error for a Blender job id."""

@@ -110,6 +110,104 @@ def test_submit_code_job_returns_job_id_before_completion(addon_module: Any) -> 
     assert result["result"]["result"]["result"] == "async-not-yet\n"
 
 
+def test_submit_code_jobs_queue_fifo_with_inspectable_metadata(addon_module: Any) -> None:
+    server = addon_module.BldRemoteMCPServer()
+    server.running = True
+
+    first = server._execute_user_job_command(
+        {"type": "submit_code_job", "params": {"code": "print('first')"}}
+    )
+    second = server._execute_user_job_command(
+        {"type": "submit_code_job", "params": {"code": "print('second')"}}
+    )
+    queue_status = server._execute_immediate_control_command(
+        {"type": "get_queue_status", "params": {}}
+    )
+    listed = server._execute_immediate_control_command(
+        {"type": "list_jobs", "params": {"include_terminal": False}}
+    )
+
+    assert first["status"] == "success"
+    assert second["status"] == "success"
+    assert first["result"]["queue_position"] == 1
+    assert second["result"]["queue_position"] == 2
+    assert queue_status["result"]["queued_user_jobs"] == 2
+    assert listed["result"]["count"] == 2
+
+    server.step()
+
+    first_result = server.get_job_result(first["result"]["job_id"])
+    second_result = server.get_job_result(second["result"]["job_id"])
+    assert first_result["status"] == "completed"
+    assert second_result["status"] == "completed"
+    assert first_result["result"]["result"] == "first\n"
+    assert second_result["result"]["result"] == "second\n"
+
+
+def test_sync_execute_code_waits_behind_queued_async_jobs(addon_module: Any) -> None:
+    server = addon_module.BldRemoteMCPServer()
+    server.running = True
+
+    first = server._execute_user_job_command(
+        {
+            "type": "submit_code_job",
+            "params": {"code": "import time\ntime.sleep(0.02)\nprint('first')"},
+        }
+    )
+    second = server._execute_user_job_command(
+        {
+            "type": "submit_code_job",
+            "params": {"code": "import time\ntime.sleep(0.02)\nprint('second')"},
+        }
+    )
+    sync_response: dict[str, Any] = {}
+
+    def run_sync_execute() -> None:
+        sync_response.update(
+            server._execute_user_job_command(
+                {
+                    "type": "execute_code",
+                    "params": {
+                        "code": "print('third')",
+                        "wait_timeout_seconds": 1.0,
+                    },
+                }
+            )
+        )
+
+    sync_thread = threading.Thread(target=run_sync_execute)
+    sync_thread.start()
+
+    deadline = time.monotonic() + 1.0
+    while time.monotonic() < deadline:
+        queue_status = server.get_queue_status()
+        if queue_status["queued_user_jobs"] == 3:
+            break
+        time.sleep(0.01)
+    assert server.get_queue_status()["queued_user_jobs"] == 3
+
+    deadline = time.monotonic() + 2.0
+    while sync_thread.is_alive() and time.monotonic() < deadline:
+        server.step()
+        time.sleep(0.005)
+    sync_thread.join(1.0)
+
+    assert not sync_thread.is_alive()
+    assert sync_response["status"] == "success"
+    assert sync_response["result"]["job_id"] == "bld-job-3"
+    assert server.get_job_result(first["result"]["job_id"])["result"]["result"] == "first\n"
+    assert server.get_job_result(second["result"]["job_id"])["result"]["result"] == "second\n"
+    assert sync_response["result"]["result"] == "third\n"
+
+    first_done = server.job_registry.require_snapshot(first["result"]["job_id"]).completed_at
+    second_done = server.job_registry.require_snapshot(second["result"]["job_id"]).completed_at
+    third_done = server.job_registry.require_snapshot("bld-job-3").completed_at
+    assert first_done is not None
+    assert second_done is not None
+    assert third_done is not None
+    assert first_done <= second_done <= third_done
+
+
 def test_cancel_job_is_acknowledged_while_cooperative_job_runs(addon_module: Any) -> None:
     server = addon_module.BldRemoteMCPServer()
     server.running = True
@@ -171,6 +269,24 @@ def test_unknown_typed_command_returns_error_and_legacy_still_works(
     unknown = server._execute_command_internal({"type": "unknown_rpc_command"})
     legacy = server._execute_command_internal({"message": "hello"})
 
-    assert unknown == {"status": "error", "message": "Unknown command: unknown_rpc_command"}
+    assert unknown == {
+        "status": "error",
+        "error_code": "unknown_rpc_command",
+        "message": "Unknown command: unknown_rpc_command",
+    }
     assert legacy["response"] == "OK"
     assert legacy["message"] == "Printed message: hello"
+
+
+def test_priority_system_operation_rejects_arbitrary_code(addon_module: Any) -> None:
+    server = addon_module.BldRemoteMCPServer()
+
+    response = server._execute_command_sync(
+        {
+            "type": "priority_execute_code",
+            "params": {"code": "print('not allowed')"},
+        }
+    )
+
+    assert response["status"] == "error"
+    assert response["error_code"] == "arbitrary_code_not_allowed_in_system_operation"

@@ -520,6 +520,91 @@ async def cancel_job(
 
 
 @mcp.tool()
+async def get_queue_status(ctx: Context) -> Dict[str, Any]:
+    """Inspect active Blender work, queued user jobs, and queued system operations."""
+    await ctx.info("Getting Blender job queue status")
+
+    if blender_conn is None:
+        await ctx.error("Blender connection not initialized")
+        return {"error": "Blender connection not initialized"}
+
+    try:
+        response = await blender_conn.send_command(
+            {"type": "get_queue_status", "params": {}}
+        )
+        if response.get("status") == "error":
+            await ctx.error(
+                f"Queue status inspection failed: {response.get('message', 'Unknown error')}"
+            )
+            return {"error": response.get("message", "Unknown error")}
+        return cast(Dict[str, Any], response.get("result", {}))
+    except Exception as e:
+        await ctx.error(f"Failed to get queue status: {e}")
+        return {"error": str(e)}
+
+
+@mcp.tool()
+async def get_active_item(ctx: Context) -> Dict[str, Any]:
+    """Inspect the currently active Blender main-thread item."""
+    await ctx.info("Getting active Blender main-thread item")
+
+    if blender_conn is None:
+        await ctx.error("Blender connection not initialized")
+        return {"error": "Blender connection not initialized"}
+
+    try:
+        response = await blender_conn.send_command(
+            {"type": "get_active_item", "params": {}}
+        )
+        if response.get("status") == "error":
+            await ctx.error(
+                f"Active item inspection failed: {response.get('message', 'Unknown error')}"
+            )
+            return {"error": response.get("message", "Unknown error")}
+        return cast(Dict[str, Any], response.get("result", {}))
+    except Exception as e:
+        await ctx.error(f"Failed to get active item: {e}")
+        return {"error": str(e)}
+
+
+@mcp.tool()
+async def list_jobs(
+    ctx: Context,
+    status: Optional[str] = None,
+    include_terminal: bool = True,
+    limit: int = 100,
+    include_result: bool = False,
+) -> Dict[str, Any]:
+    """List known Blender jobs from the remote registry."""
+    await ctx.info("Listing Blender jobs")
+
+    if blender_conn is None:
+        await ctx.error("Blender connection not initialized")
+        return {"error": "Blender connection not initialized"}
+
+    try:
+        params: Dict[str, Any] = {
+            "include_terminal": include_terminal,
+            "limit": limit,
+            "include_result": include_result,
+        }
+        if status is not None:
+            params["status"] = status
+        response = await blender_conn.send_command(
+            {"type": "list_jobs", "params": params}
+        )
+        if response.get("status") == "error":
+            await ctx.error(
+                f"Job listing failed: {response.get('message', 'Unknown error')}"
+            )
+            return {"error": response.get("message", "Unknown error")}
+        return cast(Dict[str, Any], response.get("result", {}))
+    except Exception as e:
+        await ctx.error(f"Failed to list jobs: {e}")
+        return {"error": str(e)}
+
+
+@mcp.tool()
 async def get_object_info(object_name: str, ctx: Context) -> Dict[str, Any]:
     """Get detailed information about a specific object in Blender."""
     await ctx.info(f"Getting info for object: {object_name}")

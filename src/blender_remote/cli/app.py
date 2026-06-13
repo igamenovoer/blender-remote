@@ -21,6 +21,7 @@ from blender_remote.cli.commands.execute import execute
 from blender_remote.cli.commands.export import export
 from blender_remote.cli.commands.init import init
 from blender_remote.cli.commands.install import install
+from blender_remote.cli.commands.job import job
 from blender_remote.cli.commands.pkg import pkg
 from blender_remote.cli.commands.start import start
 from blender_remote.cli.commands.status import status
@@ -43,6 +44,7 @@ cli.add_command(config)
 cli.add_command(export)
 cli.add_command(start)
 cli.add_command(execute)
+cli.add_command(job)
 cli.add_command(status)
 cli.add_command(debug)
 cli.add_command(pkg)

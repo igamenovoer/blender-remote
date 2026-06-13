@@ -59,6 +59,34 @@ def test_job_inspection_and_cancel_helpers(monkeypatch) -> None:
     ]
 
 
+def test_queue_active_and_list_helpers(monkeypatch) -> None:
+    commands: list[tuple[str, dict[str, Any] | None]] = []
+
+    def fake_send(command_type, params=None, **kwargs):
+        commands.append((command_type, params))
+        return {"status": "success", "result": {"ok": True}}
+
+    monkeypatch.setattr(transport, "connect_and_send_command", fake_send)
+
+    transport.get_queue_status()
+    transport.get_active_item()
+    transport.list_jobs(status="queued", include_terminal=False, limit=5)
+
+    assert commands == [
+        ("get_queue_status", {}),
+        ("get_active_item", {}),
+        (
+            "list_jobs",
+            {
+                "include_terminal": False,
+                "include_result": False,
+                "status": "queued",
+                "limit": 5,
+            },
+        ),
+    ]
+
+
 def test_execute_code_helper_preserves_sync_command(monkeypatch) -> None:
     calls: list[tuple[str, dict[str, Any] | None]] = []
 
@@ -88,4 +116,3 @@ def test_execute_code_helper_preserves_sync_command(monkeypatch) -> None:
             },
         )
     ]
-

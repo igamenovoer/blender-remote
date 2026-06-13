@@ -11,6 +11,7 @@ The CLI tool provides a complete workflow for blender-remote operations:
 - **Addon Management**: Install BLD_Remote_MCP (`install`) and manage local user add-ons (`addon ...`)
 - **Process Control**: Launch Blender in GUI or background mode with MCP service
 - **Code Execution**: Direct Python code execution in Blender with base64 encoding support
+- **Job Control**: Submit queued asynchronous jobs and inspect status, result, cancellation, queue, and active-item state
 - **Package Management**: Run `pip` inside Blender’s embedded Python via `pkg`
 - **Debug Tools**: Alternative TCP-based executor for testing and development
 - **Source Code**: `src/blender_remote/cli/` (Click app + one module per subcommand)
@@ -46,6 +47,10 @@ blender-remote-cli start
 
 # 4. Execute Python code
 blender-remote-cli execute --code "print('Hello from Blender!')"
+
+# Submit async code and inspect queue state
+blender-remote-cli job submit --code "print('queued')"
+blender-remote-cli job queue
 ```
 
 ### Configuration Management
@@ -381,6 +386,37 @@ blender-remote-cli execute --code "print('Hello')" --port 7777
 [SUCCESS] Code execution successful!
 [OUTPUT] Output:
 Hello from Blender!
+```
+
+### `job` - Queued Job Control
+
+**Purpose**: Submits asynchronous user-code jobs and inspects the Blender-side scheduler. `execute` remains the synchronous MCP-compatible command; `job submit` returns after queue acceptance and the job runs later on the same serialized Blender main-thread executor.
+
+**Usage:**
+```bash
+blender-remote-cli job SUBCOMMAND [OPTIONS]
+```
+
+**Subcommands:**
+- `job submit [CODE_FILE] [--code TEXT]` - Submit a normal FIFO user job and return its job snapshot
+- `job status JOB_ID` - Inspect a queued, running, or terminal job without waiting behind Blender work
+- `job result JOB_ID` - Retrieve the stored terminal result or current non-terminal snapshot
+- `job cancel JOB_ID [--reason TEXT]` - Request cooperative cancellation
+- `job queue` - Inspect active item, queued user jobs, queued system operations, and capacity metadata
+- `job active` - Inspect the active main-thread item
+- `job list` - List known job registry records
+
+**Scheduling semantics:**
+Async jobs are queued, not parallelized. `submit_code_job` and `execute_code` both create normal user jobs in FIFO order. Immediate controls such as `job status`, `job result`, `job cancel`, `job queue`, `job active`, and `job list` inspect scheduler/registry state without entering the Blender main-thread executor. Server-defined Blender-state operations, such as scene/object inspection, use a priority system-operation lane and cannot carry arbitrary caller Python.
+
+**Examples:**
+```bash
+blender-remote-cli job submit --code "print('queued user job')"
+blender-remote-cli job queue
+blender-remote-cli job status bld-job-1
+blender-remote-cli job result bld-job-1
+blender-remote-cli job cancel bld-job-2 --reason "settings changed"
+blender-remote-cli job list --status queued --exclude-terminal
 ```
 
 ### `pkg` - Blender Python Package Management (Local)
