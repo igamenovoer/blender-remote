@@ -15,8 +15,9 @@ def test_pkg_info_json_outputs_single_json_object(
 ) -> None:
     from blender_remote.cli import cli
     from blender_remote.cli.commands import pkg as pkg_commands
+    from blender_remote.cli.config import BlenderRemoteConfig
 
-    def fake_get_blender_python_info() -> dict[str, object]:
+    def fake_get_blender_python_info(config: BlenderRemoteConfig | None = None) -> dict[str, object]:
         return {"ok": True, "python": {"version_info": {"major": 3}}}
 
     monkeypatch.setattr(
@@ -44,10 +45,11 @@ def test_pkg_pip_requires_args() -> None:
 def test_pkg_pip_forwards_args(monkeypatch: pytest.MonkeyPatch) -> None:
     from blender_remote.cli import cli
     from blender_remote.cli.commands import pkg as pkg_commands
+    from blender_remote.cli.config import BlenderRemoteConfig
 
     captured: dict[str, object] = {}
 
-    def fake_run_pip(*, pip_args: list[str]) -> None:
+    def fake_run_pip(*, pip_args: list[str], config: BlenderRemoteConfig | None = None) -> None:
         captured["pip_args"] = pip_args
 
     monkeypatch.setattr(pkg_commands, "run_pip", fake_run_pip)
@@ -65,11 +67,12 @@ def test_pkg_bootstrap_forwards_options(
 ) -> None:
     from blender_remote.cli import cli
     from blender_remote.cli.commands import pkg as pkg_commands
+    from blender_remote.cli.config import BlenderRemoteConfig
 
     captured: dict[str, object] = {}
 
     def fake_bootstrap_pip(
-        *, method: str, get_pip_path: Path | None, upgrade: bool
+        *, method: str, get_pip_path: Path | None, upgrade: bool, config: BlenderRemoteConfig | None = None
     ) -> None:
         captured["method"] = method
         captured["get_pip_path"] = get_pip_path

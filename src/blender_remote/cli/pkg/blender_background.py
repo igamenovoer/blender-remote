@@ -21,6 +21,7 @@ from typing import Any
 import click
 
 from blender_remote.cli.config import BlenderRemoteConfig
+from blender_remote.cli.constants import DEFAULT_CLI_TIMEOUT_SECONDS
 
 JSON_BEGIN_SENTINEL = "__BLENDER_REMOTE_JSON_BEGIN__"
 JSON_END_SENTINEL = "__BLENDER_REMOTE_JSON_END__"
@@ -28,8 +29,16 @@ JSON_END_SENTINEL = "__BLENDER_REMOTE_JSON_END__"
 JSONValue = dict[str, Any] | list[Any]
 
 
-def get_configured_blender_executable() -> Path:
+def get_configured_blender_executable(
+    config: BlenderRemoteConfig | None = None,
+) -> Path:
     """Resolve the configured Blender executable path from CLI config.
+
+    Parameters
+    ----------
+    config:
+        Optional config object. If omitted, a default ``BlenderRemoteConfig`` is
+        constructed (useful for callers outside a CLI context).
 
     Returns
     -------
@@ -41,7 +50,8 @@ def get_configured_blender_executable() -> Path:
     click.ClickException
         If the configuration is missing or the executable path is not set.
     """
-    config = BlenderRemoteConfig()
+    if config is None:
+        config = BlenderRemoteConfig()
     exec_path = config.get("blender.exec_path")
     if not exec_path:
         raise click.ClickException(
@@ -58,11 +68,16 @@ def get_configured_blender_executable() -> Path:
     return blender_executable
 
 
-def get_cli_timeout_seconds(*, default: float = 300.0) -> float:
+def get_cli_timeout_seconds(
+    config: BlenderRemoteConfig | None = None, *, default: float = DEFAULT_CLI_TIMEOUT_SECONDS
+) -> float:
     """Resolve the CLI subprocess timeout for Blender runs.
 
     Parameters
     ----------
+    config:
+        Optional config object. If omitted, a default ``BlenderRemoteConfig`` is
+        constructed.
     default : float
         Fallback timeout when not configured (in seconds).
 
@@ -71,7 +86,8 @@ def get_cli_timeout_seconds(*, default: float = 300.0) -> float:
     float
         Timeout in seconds.
     """
-    config = BlenderRemoteConfig()
+    if config is None:
+        config = BlenderRemoteConfig()
     timeout_value = None
     try:
         timeout_value = config.get("cli.timeout_sec")

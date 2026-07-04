@@ -8,8 +8,8 @@ import tempfile
 import click
 
 from ..addon import build_addon_install_script, get_addon_zip_path
-from ..config import BlenderRemoteConfig
-from ..constants import CONFIG_FILE, DEFAULT_PORT
+from ..config import current_config
+from ..constants import DEFAULT_CLI_TIMEOUT_SECONDS, DEFAULT_PORT
 from ..detection import (
     detect_blender_info,
     find_blender_executable_macos,
@@ -30,10 +30,11 @@ def install() -> None:
     click.echo("[INSTALL] Installing bld_remote_mcp addon...")
 
     # Try to load existing config
-    config = BlenderRemoteConfig()
+    config = current_config()
+    config_path = config.config_path
     blender_config = None
     blender_path = None
-    cli_timeout_seconds = 300.0
+    cli_timeout_seconds = DEFAULT_CLI_TIMEOUT_SECONDS
 
     try:
         blender_config = config.get("blender")
@@ -125,7 +126,7 @@ def install() -> None:
             }
 
             config.save(new_config)
-            click.echo(f"[CONFIG] Configuration saved to: {CONFIG_FILE}")
+            click.echo(f"[CONFIG] Configuration saved to: {config_path}")
             blender_config = blender_info
 
         except Exception as e:

@@ -9,20 +9,26 @@ import subprocess
 
 import click
 
+from blender_remote.cli.constants import DEFAULT_CLI_TIMEOUT_SECONDS
 from blender_remote.cli.pkg.blender_background import (
+    BlenderRemoteConfig,
     get_cli_timeout_seconds,
     get_configured_blender_executable,
     run_blender_python_module,
 )
 
 
-def run_pip(*, pip_args: list[str]) -> subprocess.CompletedProcess[str]:
+def run_pip(
+    *, pip_args: list[str], config: BlenderRemoteConfig | None = None
+) -> subprocess.CompletedProcess[str]:
     """Run an arbitrary pip command in Blender and stream output locally.
 
     Parameters
     ----------
     pip_args : list[str]
         Arguments after `pip` (e.g. `["list", "--format=json"]`).
+    config : BlenderRemoteConfig, optional
+        Config object to use. If omitted, a default config is constructed.
 
     Returns
     -------
@@ -37,8 +43,8 @@ def run_pip(*, pip_args: list[str]) -> subprocess.CompletedProcess[str]:
     if not pip_args:
         raise click.ClickException("Usage: blender-remote-cli pkg pip -- PIP_ARGS...")
 
-    blender_executable = get_configured_blender_executable()
-    timeout_seconds = get_cli_timeout_seconds(default=300.0)
+    blender_executable = get_configured_blender_executable(config)
+    timeout_seconds = get_cli_timeout_seconds(config, default=DEFAULT_CLI_TIMEOUT_SECONDS)
 
     result = run_blender_python_module(
         blender_executable=blender_executable,

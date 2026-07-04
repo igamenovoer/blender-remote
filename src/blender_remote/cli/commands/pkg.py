@@ -14,6 +14,7 @@ from pathlib import Path
 
 import click
 
+from blender_remote.cli.config import current_config
 from blender_remote.cli.pkg.bootstrap import bootstrap_pip
 from blender_remote.cli.pkg.info import (
     get_blender_python_info,
@@ -42,7 +43,8 @@ def info(json_output: bool) -> None:
     json_output : bool
         If True, print a single JSON object to stdout.
     """
-    info_data = get_blender_python_info()
+    config = current_config()
+    info_data = get_blender_python_info(config)
 
     if json_output:
         click.echo(json.dumps(info_data, ensure_ascii=True))
@@ -82,7 +84,8 @@ def bootstrap(method: str, get_pip_path: Path | None, upgrade: bool) -> None:
     upgrade : bool
         If True, attempt to upgrade pip after bootstrapping.
     """
-    bootstrap_pip(method=method, get_pip_path=get_pip_path, upgrade=upgrade)
+    config = current_config()
+    bootstrap_pip(method=method, get_pip_path=get_pip_path, upgrade=upgrade, config=config)
 
 
 @pkg.command(
@@ -99,4 +102,5 @@ def pip(pip_args: tuple[str, ...]) -> None:
     """
     if not pip_args:
         raise click.ClickException("Usage: blender-remote-cli pkg pip -- PIP_ARGS...")
-    run_pip(pip_args=list(pip_args))
+    config = current_config()
+    run_pip(pip_args=list(pip_args), config=config)

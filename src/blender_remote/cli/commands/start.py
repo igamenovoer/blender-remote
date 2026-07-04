@@ -6,7 +6,7 @@ import tempfile
 
 import click
 
-from ..config import BlenderRemoteConfig
+from ..config import current_config
 from ..constants import DEFAULT_PORT
 from ..scripts import KEEPALIVE_SCRIPT
 
@@ -76,7 +76,7 @@ def start(
         raise click.ClickException("Cannot use both --pre-file and --pre-code options")
 
     # Load config
-    config = BlenderRemoteConfig()
+    config = current_config()
     blender_config = config.get("blender")
 
     if not blender_config:

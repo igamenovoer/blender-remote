@@ -12,6 +12,8 @@ Platform Support:
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import click
 
 from blender_remote.cli.commands.addon import addon
@@ -29,12 +31,23 @@ from blender_remote.cli.commands.status import status
 
 @click.group()
 @click.version_option(package_name="blender-remote")
-def cli() -> None:
+@click.option(
+    "--config",
+    "-c",
+    "config_path",
+    type=click.Path(exists=False, dir_okay=False, resolve_path=True),
+    envvar="BLENDER_REMOTE_CONFIG",
+    help="Path to an alternative blender-remote configuration YAML file.",
+)
+@click.pass_context
+def cli(ctx: click.Context, config_path: str | None) -> None:
     """Top-level command group for blender-remote.
 
     Provides subcommands for configuring Blender, starting services, running code,
     and debugging integrations. Usually invoked via the ``blender-remote-cli`` entrypoint.
     """
+    ctx.ensure_object(dict)
+    ctx.obj["config_path"] = Path(config_path) if config_path is not None else None
 
 
 cli.add_command(init)

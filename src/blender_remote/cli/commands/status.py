@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import click
 
-from ..config import BlenderRemoteConfig
+from ..config import current_config
 from ..constants import DEFAULT_PORT
 from ..transport import connect_and_send_command
 
@@ -29,7 +29,7 @@ def status(port: int | None) -> None:
     if port is not None:
         effective_port = port
     else:
-        config = BlenderRemoteConfig()
+        config = current_config()
         configured_port = config.get("mcp_service.default_port")
         effective_port = configured_port or DEFAULT_PORT
 

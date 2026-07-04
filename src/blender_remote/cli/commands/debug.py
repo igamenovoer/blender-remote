@@ -7,7 +7,7 @@ import tempfile
 import click
 
 from ..addon import build_addon_install_script, get_debug_addon_zip_path
-from ..config import BlenderRemoteConfig
+from ..config import current_config
 
 
 @click.group()
@@ -21,7 +21,7 @@ def debug_install() -> None:
     click.echo("[DEBUG] Installing simple-tcp-executor debug addon...")
 
     # Load config
-    config = BlenderRemoteConfig()
+    config = current_config()
     blender_config = config.get("blender")
 
     if not blender_config:
@@ -95,7 +95,7 @@ def debug_start(background: bool, port: int | None) -> int:
     """Start Blender with simple-tcp-executor debug addon"""
 
     # Load config
-    config = BlenderRemoteConfig()
+    config = current_config()
     blender_config = config.get("blender")
 
     if not blender_config:

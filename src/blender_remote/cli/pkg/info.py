@@ -8,25 +8,34 @@ from __future__ import annotations
 
 from typing import Any
 
+from blender_remote.cli.constants import DEFAULT_CLI_TIMEOUT_SECONDS
 from blender_remote.cli.pkg.blender_background import (
     JSON_BEGIN_SENTINEL,
     JSON_END_SENTINEL,
+    BlenderRemoteConfig,
     get_cli_timeout_seconds,
     get_configured_blender_executable,
     run_blender_background_json,
 )
 
 
-def get_blender_python_info() -> dict[str, Any]:
+def get_blender_python_info(
+    config: BlenderRemoteConfig | None = None,
+) -> dict[str, Any]:
     """Collect information about Blender's embedded Python environment.
+
+    Parameters
+    ----------
+    config : BlenderRemoteConfig, optional
+        Config object to use. If omitted, a default config is constructed.
 
     Returns
     -------
     dict[str, Any]
         JSON-serializable dictionary describing the local environment.
     """
-    blender_executable = get_configured_blender_executable()
-    timeout_seconds = get_cli_timeout_seconds(default=300.0)
+    blender_executable = get_configured_blender_executable(config)
+    timeout_seconds = get_cli_timeout_seconds(config, default=DEFAULT_CLI_TIMEOUT_SECONDS)
 
     script = _build_info_script(blender_executable=str(blender_executable))
     return run_blender_background_json(

@@ -5,7 +5,7 @@ from typing import Any
 import click
 from omegaconf import OmegaConf
 
-from ..config import BlenderRemoteConfig
+from ..config import current_config
 
 
 @click.group()
@@ -49,7 +49,7 @@ def set(key_value: str | None) -> None:
     else:
         parsed_value = value
 
-    config_manager = BlenderRemoteConfig()
+    config_manager = current_config()
     config_manager.set(key, parsed_value)
 
     click.echo(f"[SUCCESS] Set {key} = {parsed_value}")
@@ -66,7 +66,7 @@ def get(key: str | None) -> None:
         Optional dot-notation key (for example ``\"blender.exec_path\"``). If
         omitted, the full configuration is printed as YAML.
     """
-    config_manager = BlenderRemoteConfig()
+    config_manager = current_config()
 
     if key:
         value = config_manager.get(key)

@@ -2,21 +2,22 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, cast
 
 import click
 from omegaconf import DictConfig, OmegaConf
 
-from .constants import CONFIG_DIR, CONFIG_FILE
+from .constants import CONFIG_FILE, DEFAULT_CLI_TIMEOUT_SECONDS
 
-_DEFAULT_CONFIG: dict[str, Any] = {"cli": {"timeout_sec": 300}}
+_DEFAULT_CONFIG: dict[str, Any] = {"cli": {"timeout_sec": DEFAULT_CLI_TIMEOUT_SECONDS}}
 
 
 class BlenderRemoteConfig:
     """OmegaConf-based configuration manager for blender-remote."""
 
-    def __init__(self) -> None:
-        self.config_path = CONFIG_FILE
+    def __init__(self, config_path: str | Path | None = None) -> None:
+        self.config_path = Path(config_path) if config_path is not None else CONFIG_FILE
         self.config: DictConfig | None = None
 
     def load(self) -> DictConfig:
@@ -34,7 +35,7 @@ class BlenderRemoteConfig:
 
     def save(self, config: dict[str, Any] | DictConfig) -> None:
         """Save configuration to file."""
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        self.config_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Convert dict to DictConfig if needed
         if isinstance(config, dict):
@@ -64,3 +65,18 @@ class BlenderRemoteConfig:
 
         # Save the updated configuration
         OmegaConf.save(self.config, self.config_path)
+
+
+def current_config() -> BlenderRemoteConfig:
+    """Return a :class:`BlenderRemoteConfig` using the CLI context path if available.
+
+    This helper lets commands and helpers pick up the effective config path
+    resolved from the global ``--config`` option (or ``BLENDER_REMOTE_CONFIG``)
+    without threading ``click.Context`` through every call site.
+    """
+    try:
+        ctx = click.get_current_context()
+        config_path = ctx.obj.get("config_path") if ctx.obj else None
+    except RuntimeError:
+        config_path = None
+    return BlenderRemoteConfig(config_path=config_path)

@@ -8,6 +8,8 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
+from blender_remote.cli.config import BlenderRemoteConfig
+
 
 def test_addon_list_json_outputs_single_json_array(
     monkeypatch: pytest.MonkeyPatch,
@@ -15,10 +17,10 @@ def test_addon_list_json_outputs_single_json_array(
     from blender_remote.cli import cli
     from blender_remote.cli.commands import addon as addon_commands
 
-    def fake_get_configured_blender_executable() -> Path:
+    def fake_get_configured_blender_executable(config: BlenderRemoteConfig | None = None) -> Path:
         return Path("blender")
 
-    def fake_get_cli_timeout_seconds(*, default: float = 300.0) -> float:
+    def fake_get_cli_timeout_seconds(config: BlenderRemoteConfig | None = None, *, default: float = 300.0) -> float:
         return 1.0
 
     def fake_run_blender_background_json_value(
@@ -63,10 +65,10 @@ def test_addon_info_json_not_found_outputs_empty_object(
     from blender_remote.cli import cli
     from blender_remote.cli.commands import addon as addon_commands
 
-    def fake_get_configured_blender_executable() -> Path:
+    def fake_get_configured_blender_executable(config: BlenderRemoteConfig | None = None) -> Path:
         return Path("blender")
 
-    def fake_get_cli_timeout_seconds(*, default: float = 300.0) -> float:
+    def fake_get_cli_timeout_seconds(config: BlenderRemoteConfig | None = None, *, default: float = 300.0) -> float:
         return 1.0
 
     def fake_run_blender_background_json(
@@ -115,10 +117,10 @@ def test_addon_uninstall_refuses_outside_user_addons_without_force(
     addon_init = addon_dir / "__init__.py"
     addon_init.write_text("x = 1\n", encoding="utf-8")
 
-    def fake_get_configured_blender_executable() -> Path:
+    def fake_get_configured_blender_executable(config: BlenderRemoteConfig | None = None) -> Path:
         return Path("blender")
 
-    def fake_get_cli_timeout_seconds(*, default: float = 300.0) -> float:
+    def fake_get_cli_timeout_seconds(config: BlenderRemoteConfig | None = None, *, default: float = 300.0) -> float:
         return 1.0
 
     calls: dict[str, int] = {"count": 0}
@@ -179,10 +181,10 @@ def test_addon_uninstall_removes_user_addon_directory(
     addon_init = addon_dir / "__init__.py"
     addon_init.write_text("x = 1\n", encoding="utf-8")
 
-    def fake_get_configured_blender_executable() -> Path:
+    def fake_get_configured_blender_executable(config: BlenderRemoteConfig | None = None) -> Path:
         return Path("blender")
 
-    def fake_get_cli_timeout_seconds(*, default: float = 300.0) -> float:
+    def fake_get_cli_timeout_seconds(config: BlenderRemoteConfig | None = None, *, default: float = 300.0) -> float:
         return 1.0
 
     calls: dict[str, int] = {"count": 0}

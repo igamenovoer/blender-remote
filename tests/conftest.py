@@ -212,7 +212,6 @@ def service_manager(
 
 
 @pytest.fixture
-@pytest.mark.blender_required
 def bld_remote_service(service_manager):
     """Start and provide BLD_Remote_MCP service."""
     service_manager.start_single_service("bld_remote")
@@ -221,7 +220,6 @@ def bld_remote_service(service_manager):
 
 
 @pytest.fixture
-@pytest.mark.blender_required
 def blender_auto_service(service_manager):
     """Start and provide BlenderAutoMCP service."""
     service_manager.start_single_service("blender_auto")
@@ -230,7 +228,6 @@ def blender_auto_service(service_manager):
 
 
 @pytest.fixture
-@pytest.mark.dual_service
 def dual_services(service_manager):
     """Start and provide both MCP services."""
     service_manager.start_dual_services()

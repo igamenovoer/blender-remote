@@ -7,15 +7,15 @@ from typing import Any
 
 import click
 
-from ..config import BlenderRemoteConfig
-from ..constants import DEFAULT_PORT
 from .. import transport
+from ..config import current_config
+from ..constants import DEFAULT_PORT
 
 
 def _resolve_port(port: int | None) -> int:
     if port is not None:
         return port
-    config = BlenderRemoteConfig()
+    config = current_config()
     return int(config.get("mcp_service.default_port") or DEFAULT_PORT)
 
 

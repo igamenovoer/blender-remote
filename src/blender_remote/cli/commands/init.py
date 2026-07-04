@@ -6,8 +6,8 @@ import shutil
 import click
 from omegaconf import OmegaConf
 
-from ..config import BlenderRemoteConfig
-from ..constants import CONFIG_FILE, DEFAULT_PORT
+from ..config import current_config
+from ..constants import DEFAULT_CLI_TIMEOUT_SECONDS, DEFAULT_PORT
 from ..detection import (
     detect_blender_info,
     find_blender_executable_macos,
@@ -35,10 +35,13 @@ def init(blender_path: str | None, backup: bool) -> None:
     """
     click.echo("Initializing blender-remote configuration...")
 
+    config_manager = current_config()
+    config_path = config_manager.config_path
+
     # Backup existing config if requested
-    if backup and CONFIG_FILE.exists():
-        backup_path = CONFIG_FILE.with_suffix(".yaml.bak")
-        shutil.copy2(CONFIG_FILE, backup_path)
+    if backup and config_path.exists():
+        backup_path = config_path.with_suffix(".yaml.bak")
+        shutil.copy2(config_path, backup_path)
         click.echo(f"Backup created: {backup_path}")
 
     # Get blender path - auto-detect on macOS and Windows if not provided
@@ -102,17 +105,16 @@ def init(blender_path: str | None, backup: bool) -> None:
     click.echo("  Ўъ Generating configuration structure...")
     config = {
         "blender": blender_info,
-        "cli": {"timeout_sec": 300},
+        "cli": {"timeout_sec": DEFAULT_CLI_TIMEOUT_SECONDS},
         "mcp_service": {"default_port": DEFAULT_PORT, "log_level": "INFO"},
     }
 
     # Save config
     click.echo("  Ўъ Saving configuration...")
-    config_manager = BlenderRemoteConfig()
     config_manager.save(config)
 
     # Display final configuration (ASCII-only for cross-platform safety)
-    click.echo(f"\n[OK] Configuration saved to: {CONFIG_FILE}")
+    click.echo(f"\n[OK] Configuration saved to: {config_path}")
     click.echo("\n[CONFIG] Generated configuration:")
 
     # Display the configuration like 'config get' does

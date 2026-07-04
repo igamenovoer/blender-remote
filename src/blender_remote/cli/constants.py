@@ -9,11 +9,13 @@ import platformdirs
 
 # Cross-platform configuration directory using platformdirs
 CONFIG_DIR = Path(platformdirs.user_config_dir(appname="blender-remote", appauthor="blender-remote"))
-CONFIG_FILE = CONFIG_DIR / "bld-remote-config.yaml"
+_DEFAULT_CONFIG_FILE = CONFIG_DIR / "bld-remote-config.yaml"
+CONFIG_FILE = Path(os.environ.get("BLENDER_REMOTE_CONFIG", _DEFAULT_CONFIG_FILE))
 
 # Configuration constants that align with MCPServerConfig
 # NOTE: These values must stay in sync with MCPServerConfig in mcp_server.py
 DEFAULT_PORT = 6688  # Should match MCPServerConfig.FALLBACK_BLENDER_PORT
+DEFAULT_CLI_TIMEOUT_SECONDS = 300.0
 DETECT_BLENDER_INFO_TIMEOUT_SECONDS = float(os.environ.get("BLENDER_REMOTE_DETECT_TIMEOUT", "120"))
 SOCKET_TIMEOUT_SECONDS = 60.0  # Should match MCPServerConfig.SOCKET_TIMEOUT_SECONDS
 SOCKET_RECV_CHUNK_SIZE = 131072  # Should match MCPServerConfig.SOCKET_RECV_CHUNK_SIZE (128KB)

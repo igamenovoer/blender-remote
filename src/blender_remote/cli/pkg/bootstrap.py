@@ -13,6 +13,8 @@ from pathlib import Path
 
 import click
 
+from blender_remote.cli.config import BlenderRemoteConfig
+from blender_remote.cli.constants import DEFAULT_CLI_TIMEOUT_SECONDS
 from blender_remote.cli.pkg.blender_background import (
     get_cli_timeout_seconds,
     get_configured_blender_executable,
@@ -26,6 +28,7 @@ def bootstrap_pip(
     method: str,
     get_pip_path: Path | None,
     upgrade: bool,
+    config: BlenderRemoteConfig | None = None,
 ) -> None:
     """Ensure `pip` exists for Blender's embedded Python.
 
@@ -38,6 +41,8 @@ def bootstrap_pip(
         fallback when `ensurepip` is unavailable).
     upgrade : bool
         If True, attempt to upgrade pip after bootstrapping.
+    config : BlenderRemoteConfig, optional
+        Config object to use. If omitted, a default config is constructed.
 
     Raises
     ------
@@ -48,8 +53,8 @@ def bootstrap_pip(
     if normalized_method not in {"auto", "ensurepip", "get-pip"}:
         raise click.ClickException(f"Unknown bootstrap method: {method!r}")
 
-    blender_executable = get_configured_blender_executable()
-    timeout_seconds = get_cli_timeout_seconds(default=300.0)
+    blender_executable = get_configured_blender_executable(config)
+    timeout_seconds = get_cli_timeout_seconds(config, default=DEFAULT_CLI_TIMEOUT_SECONDS)
 
     pip_version = _probe_pip(
         blender_executable=blender_executable, timeout_seconds=timeout_seconds

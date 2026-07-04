@@ -25,6 +25,8 @@ from blender_remote.cli.addon_mgmt import (
     remove_addon_target,
     resolve_addon_removal_target,
 )
+from blender_remote.cli.config import current_config
+from blender_remote.cli.constants import DEFAULT_CLI_TIMEOUT_SECONDS
 from blender_remote.cli.pkg.blender_background import (
     get_cli_timeout_seconds,
     get_configured_blender_executable,
@@ -57,8 +59,9 @@ def paths(json_output: bool) -> None:
     json_output : bool
         If True, print a single JSON object to stdout.
     """
-    blender_executable = get_configured_blender_executable()
-    timeout_seconds = get_cli_timeout_seconds(default=300.0)
+    config = current_config()
+    blender_executable = get_configured_blender_executable(config)
+    timeout_seconds = get_cli_timeout_seconds(config, default=DEFAULT_CLI_TIMEOUT_SECONDS)
 
     data = run_blender_background_json(
         blender_executable=blender_executable,
@@ -100,8 +103,9 @@ def list_cmd(include_all: bool, json_output: bool) -> None:
     json_output : bool
         If True, print a single JSON array to stdout.
     """
-    blender_executable = get_configured_blender_executable()
-    timeout_seconds = get_cli_timeout_seconds(default=300.0)
+    config = current_config()
+    blender_executable = get_configured_blender_executable(config)
+    timeout_seconds = get_cli_timeout_seconds(config, default=DEFAULT_CLI_TIMEOUT_SECONDS)
 
     result = run_blender_background_json_value(
         blender_executable=blender_executable,
@@ -147,8 +151,9 @@ def info(addon_name: str, json_output: bool) -> None:
     json_output : bool
         If True, print a single JSON object to stdout.
     """
-    blender_executable = get_configured_blender_executable()
-    timeout_seconds = get_cli_timeout_seconds(default=300.0)
+    config = current_config()
+    blender_executable = get_configured_blender_executable(config)
+    timeout_seconds = get_cli_timeout_seconds(config, default=DEFAULT_CLI_TIMEOUT_SECONDS)
 
     data = run_blender_background_json(
         blender_executable=blender_executable,
@@ -207,8 +212,9 @@ def disable(addon_name: str, json_output: bool) -> None:
 
 
 def _toggle(*, addon_name: str, op: str, json_output: bool) -> None:
-    blender_executable = get_configured_blender_executable()
-    timeout_seconds = get_cli_timeout_seconds(default=300.0)
+    config = current_config()
+    blender_executable = get_configured_blender_executable(config)
+    timeout_seconds = get_cli_timeout_seconds(config, default=DEFAULT_CLI_TIMEOUT_SECONDS)
 
     if op == "enable":
         script = build_enable_addon_script(addon_name=addon_name)
@@ -256,8 +262,9 @@ def _toggle(*, addon_name: str, op: str, json_output: bool) -> None:
 )
 def install(source: Path, enable: bool, overwrite: bool, json_output: bool) -> None:
     """Install an add-on from a local folder, `.zip`, or `.py` file."""
-    blender_executable = get_configured_blender_executable()
-    timeout_seconds = get_cli_timeout_seconds(default=300.0)
+    config = current_config()
+    blender_executable = get_configured_blender_executable(config)
+    timeout_seconds = get_cli_timeout_seconds(config, default=DEFAULT_CLI_TIMEOUT_SECONDS)
 
     data = run_blender_background_json(
         blender_executable=blender_executable,
@@ -298,8 +305,9 @@ def install(source: Path, enable: bool, overwrite: bool, json_output: bool) -> N
 )
 def uninstall(addon_name: str, force: bool, json_output: bool) -> None:
     """Disable an add-on (best-effort) and remove its files from disk."""
-    blender_executable = get_configured_blender_executable()
-    timeout_seconds = get_cli_timeout_seconds(default=300.0)
+    config = current_config()
+    blender_executable = get_configured_blender_executable(config)
+    timeout_seconds = get_cli_timeout_seconds(config, default=DEFAULT_CLI_TIMEOUT_SECONDS)
 
     resolved = run_blender_background_json(
         blender_executable=blender_executable,

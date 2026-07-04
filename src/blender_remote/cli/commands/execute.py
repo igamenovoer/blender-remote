@@ -4,7 +4,7 @@ import base64
 
 import click
 
-from ..config import BlenderRemoteConfig
+from ..config import current_config
 from ..constants import DEFAULT_PORT
 from ..transport import connect_and_send_command
 
@@ -76,7 +76,7 @@ def execute(
     click.echo(f"[LENGTH] Code length: {len(code_to_execute)} characters")
 
     # Get port configuration
-    config = BlenderRemoteConfig()
+    config = current_config()
     mcp_port = port or config.get("mcp_service.default_port") or DEFAULT_PORT
 
     # Prepare command parameters

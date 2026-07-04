@@ -598,6 +598,51 @@ cp ~/.config/blender-remote/bld-remote-config.yaml \
    ~/.config/blender-remote/bld-remote-config.yaml.bak
 ```
 
+### Config File Override
+
+By default every command reads from the single config file above. You can override the config file for one invocation without changing the default.
+
+**Global CLI option:**
+- `--config PATH` or `-c PATH` — use an alternative YAML config file for this invocation.
+
+The option must appear before the subcommand:
+
+```bash
+blender-remote-cli --config /path/to/custom.yaml status
+blender-remote-cli -c /path/to/custom.yaml start --background
+blender-remote-cli --config /path/to/custom.yaml config get
+blender-remote-cli --config /path/to/custom.yaml init /usr/bin/blender
+```
+
+**Environment variable:**
+- `BLENDER_REMOTE_CONFIG` — persistent override that also affects the MCP server entry point (`uvx blender-remote`).
+
+```bash
+export BLENDER_REMOTE_CONFIG=/path/to/custom.yaml
+blender-remote-cli status
+```
+
+When both are set, the CLI `--config` flag takes precedence over `BLENDER_REMOTE_CONFIG`. If neither is set, the default platform-specific config file is used.
+
+### Managing Multiple Blender Versions
+
+Use separate config files to keep multiple Blender installations isolated. Each config stores its own executable path, addon directory, and MCP port.
+
+```bash
+# Blender 4.2 LTS on port 6688
+blender-remote-cli --config ~/.config/blender-remote/blender-4.2.yaml init /usr/bin/blender-4.2
+blender-remote-cli --config ~/.config/blender-remote/blender-4.2.yaml install
+blender-remote-cli --config ~/.config/blender-remote/blender-4.2.yaml start --background
+
+# Blender 5.0 alpha on port 6780
+blender-remote-cli --config ~/.config/blender-remote/blender-5.0.yaml init /usr/bin/blender-5.0
+blender-remote-cli --config ~/.config/blender-remote/blender-5.0.yaml config set mcp_service.default_port=6780
+blender-remote-cli --config ~/.config/blender-remote/blender-5.0.yaml install
+blender-remote-cli --config ~/.config/blender-remote/blender-5.0.yaml start --background
+```
+
+You can also set `BLENDER_REMOTE_CONFIG` in separate terminal sessions or wrapper scripts so the right config is used automatically.
+
 ## Socket Communication
 
 **Protocol Details:**
@@ -673,6 +718,9 @@ pkill -f blender
 ```
 
 ## Environment Variables
+
+**Configuration Override:**
+- `BLENDER_REMOTE_CONFIG` — Path to an alternative config YAML file. Honored by `blender-remote-cli` (when `--config` is not used) and by the MCP server entry point.
 
 **Service Control:**
 - `BLD_REMOTE_MCP_PORT` - MCP service port (overrides config)
